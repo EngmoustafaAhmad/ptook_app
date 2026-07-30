@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1031615933896",
+    "project_id": "ptook01",
+    "storage_bucket": "ptook01.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1031615933896:android:c19ed7734f16cb695ce4fd",
+        "android_client_info": {
+          "package_name": "com.example.ptook"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB2_c49RBS9pWFvn9tSXMrrvj8QGIqu6qc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
