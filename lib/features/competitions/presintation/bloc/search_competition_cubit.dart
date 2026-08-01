@@ -1,26 +1,43 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../domain/entities/competition_entity.dart';
-import '../../domain/usecases/get_public_competitions_usecase.dart';
-
+import '../../domain/usecases/search_public_competitions_usecase.dart';
 
 part 'search_competition_state.dart';
+
 
 
 class SearchCompetitionCubit 
     extends Cubit<SearchCompetitionState> {
 
 
-  final GetPublicCompetitionsUseCase getPublicCompetitionsUseCase;
+  final SearchPublicCompetitionsUseCase
+      searchPublicCompetitionsUseCase;
+
 
 
   SearchCompetitionCubit({
-    required this.getPublicCompetitionsUseCase,
+    required this.searchPublicCompetitionsUseCase,
   }) : super(SearchCompetitionInitial());
 
 
 
-  Future<void> loadPublicCompetitions() async {
+
+
+  Future<void> search(String keyword) async {
+
+
+    // Don't search empty text
+    if(keyword.trim().isEmpty){
+
+      emit(
+        SearchCompetitionInitial(),
+      );
+
+      return;
+
+    }
+
 
 
     emit(
@@ -28,28 +45,36 @@ class SearchCompetitionCubit
     );
 
 
+
     try {
 
 
       final competitions =
-          await getPublicCompetitionsUseCase();
+          await searchPublicCompetitionsUseCase(
+            keyword.toLowerCase(),
+          );
 
 
 
       emit(
+
         SearchCompetitionSuccess(
           competitions,
         ),
+
       );
 
 
-    } catch (e) {
+
+    } catch(e){
 
 
       emit(
+
         SearchCompetitionError(
           e.toString(),
         ),
+
       );
 
 
@@ -57,5 +82,6 @@ class SearchCompetitionCubit
 
 
   }
+
 
 }

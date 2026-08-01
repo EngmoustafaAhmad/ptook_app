@@ -1,10 +1,19 @@
 import '../entities/competition_entity.dart';
 
+
 abstract class ICompetitionRepository {
 
+
   Future<void> createCompetition(
-      CompetitionEntity competition
+      CompetitionEntity competition,
   );
-  Future<List<CompetitionEntity>> getPublicCompetitions();
+
+
+
+  Future<List<CompetitionEntity>>
+  searchPublicCompetitions(
+      String keyword,
+  );
+
 
 }

@@ -286,58 +286,101 @@ class HomeView extends StatelessWidget {
   }
 
   Widget _buildSearchBar(BuildContext context) {
+
   return GestureDetector(
+
     onTap: () {
 
       Navigator.push(
+
         context,
+
         MaterialPageRoute(
+
           builder: (_) => BlocProvider(
-            create: (_) => sl<SearchCompetitionCubit>()
-              ..loadPublicCompetitions(),
-      
+
+            create: (_) =>
+                sl<SearchCompetitionCubit>(),
+
             child: const CompetitionSearchView(),
+
           ),
+
         ),
+
       );
 
     },
+
+
     child: Container(
+
       padding: const EdgeInsets.symmetric(horizontal: 16),
+
       height: 50,
+
+
       decoration: BoxDecoration(
+
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
+
+        borderRadius:
+        BorderRadius.circular(12),
+
       ),
+
+
       child: Row(
+
         children: [
 
           Icon(
+
             Icons.search,
-            color: Colors.white.withOpacity(0.4),
+
+            color:
+            Colors.white.withOpacity(0.4),
+
           ),
+
 
           12.hs,
 
+
           Text(
+
             "Search for a competition...",
+
             style: TextStyle(
-              color: Colors.white.withOpacity(0.4),
+
+              color:
+              Colors.white.withOpacity(0.4),
+
             ),
+
           ),
 
 
           const Spacer(),
 
-          Icon(
+
+          const Icon(
+
             Icons.filter_list,
-            color: AppColors.primary,
-          )
+
+            color:
+            AppColors.primary,
+
+          ),
 
         ],
+
       ),
+
     ),
+
   );
+
 }
 
   Widget _buildRecentActivityList() {

@@ -1,20 +1,20 @@
-import '../entities/competition_entity.dart';
-import '../repositories/i_competition_repository.dart';
+// import '../entities/competition_entity.dart';
+// import '../repositories/i_competition_repository.dart';
 
 
-class GetPublicCompetitionsUseCase {
+// class GetPublicCompetitionsUseCase {
 
-  final ICompetitionRepository repository;
-
-
-  GetPublicCompetitionsUseCase({
-    required this.repository,
-  });
+//   final ICompetitionRepository repository;
 
 
-  Future<List<CompetitionEntity>> call() async{
+//   GetPublicCompetitionsUseCase({
+//     required this.repository,
+//   });
 
-    return repository.getPublicCompetitions();
 
-  }
-}
+//   Future<List<CompetitionEntity>> call() async{
+
+//     return repository.getPublicCompetitions();
+
+//   }
+// }

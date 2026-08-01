@@ -26,6 +26,7 @@ class CompetitionSearchView extends StatefulWidget {
 
 
 
+
 class _CompetitionSearchViewState
     extends State<CompetitionSearchView> {
 
@@ -42,6 +43,7 @@ class _CompetitionSearchViewState
     super.dispose();
 
   }
+
 
 
 
@@ -64,14 +66,16 @@ class _CompetitionSearchViewState
 
 
         title: const Text(
+
           "Search Competitions",
+
           style: TextStyle(
             color: Colors.white,
           ),
+
         ),
 
       ),
-
 
 
 
@@ -85,6 +89,7 @@ class _CompetitionSearchViewState
           children: [
 
 
+            // Search Field
             TextField(
 
               controller: controller,
@@ -93,16 +98,33 @@ class _CompetitionSearchViewState
               autofocus: true,
 
 
+              onChanged: (value){
+
+
+                context
+                    .read<SearchCompetitionCubit>()
+                    .search(value);
+
+
+              },
+
+
+
               style: const TextStyle(
+
                 color: Colors.white,
+
               ),
+
 
 
 
               decoration: InputDecoration(
 
+
                 hintText:
                 "Search public competitions",
+
 
 
                 hintStyle: TextStyle(
@@ -111,6 +133,7 @@ class _CompetitionSearchViewState
                   Colors.white.withOpacity(.5),
 
                 ),
+
 
 
 
@@ -124,10 +147,51 @@ class _CompetitionSearchViewState
 
 
 
+
+                suffixIcon:
+                controller.text.isNotEmpty
+
+                    ? IconButton(
+
+                  icon: const Icon(
+
+                    Icons.clear,
+
+                    color: Colors.white,
+
+                  ),
+
+
+                  onPressed: (){
+
+
+                    controller.clear();
+
+
+                    context
+                        .read<SearchCompetitionCubit>()
+                        .search("");
+
+                    setState(() {});
+
+
+                  },
+
+                )
+
+                    : null,
+
+
+
+
+
+
                 filled: true,
 
 
-                fillColor: AppColors.surface,
+                fillColor:
+                AppColors.surface,
+
 
 
 
@@ -148,7 +212,11 @@ class _CompetitionSearchViewState
 
 
 
+
+
             20.vs,
+
+
 
 
 
@@ -163,13 +231,29 @@ class _CompetitionSearchViewState
 
 
 
+                  // First open screen
+                  if(state is SearchCompetitionInitial){
+
+                    return _EmptySearch();
+
+
+                  }
+
+
+
+
+
+
                   if(state is SearchCompetitionLoading){
+
 
                     return const Center(
 
-                      child: CircularProgressIndicator(
+                      child:
+                      CircularProgressIndicator(
 
-                        color: AppColors.primary,
+                        color:
+                        AppColors.primary,
 
                       ),
 
@@ -181,7 +265,9 @@ class _CompetitionSearchViewState
 
 
 
+
                   if(state is SearchCompetitionError){
+
 
                     return Center(
 
@@ -190,9 +276,11 @@ class _CompetitionSearchViewState
                         state.message,
 
 
-                        style: const TextStyle(
+                        style:
+                        const TextStyle(
 
-                          color: Colors.red,
+                          color:
+                          Colors.red,
 
                         ),
 
@@ -206,17 +294,22 @@ class _CompetitionSearchViewState
 
 
 
+
+
+
                   if(state is SearchCompetitionSuccess){
+
 
 
                     if(state.competitions.isEmpty){
 
+
                       return Center(
+
 
                         child: Text(
 
-                          "No public competitions found",
-
+                          "No competitions found",
 
                           style: TextStyle(
 
@@ -227,37 +320,43 @@ class _CompetitionSearchViewState
 
                         ),
 
+
                       );
+
 
                     }
 
 
 
+
+
+
+
                     return ListView.builder(
+
 
                       itemCount:
                       state.competitions.length,
+
 
 
                       itemBuilder:
                           (context,index){
 
 
-                        final competition =
-                        state.competitions[index];
-
-
-
                         return _CompetitionCard(
 
-                          competition: competition,
+                          competition:
+                          state.competitions[index],
 
                         );
 
 
                       },
 
+
                     );
+
 
                   }
 
@@ -265,7 +364,8 @@ class _CompetitionSearchViewState
 
 
 
-                  return const SizedBox();
+                  return _EmptySearch();
+
 
                 },
 
@@ -284,6 +384,82 @@ class _CompetitionSearchViewState
   }
 
 }
+
+
+
+
+
+
+
+class _EmptySearch extends StatelessWidget {
+
+
+  @override
+  Widget build(BuildContext context) {
+
+
+    return Center(
+
+
+      child: Column(
+
+
+        mainAxisAlignment:
+        MainAxisAlignment.center,
+
+
+
+        children: [
+
+
+
+          Icon(
+
+            Icons.search,
+
+            size: 70,
+
+            color:
+            Colors.white.withOpacity(.3),
+
+          ),
+
+
+
+          16.vs,
+
+
+
+          Text(
+
+            "Search for competitions",
+
+            style: TextStyle(
+
+              color:
+              Colors.white.withOpacity(.5),
+
+              fontSize: 16,
+
+            ),
+
+          ),
+
+
+        ],
+
+
+      ),
+
+    );
+
+
+  }
+
+}
+
+
+
 
 
 
@@ -312,14 +488,15 @@ class _CompetitionCard extends StatelessWidget {
 
 
 
-    final currentUser =
-    FirebaseAuth.instance.currentUser;
+    final user =
+        FirebaseAuth.instance.currentUser;
 
 
 
     final bool isOwner =
-        currentUser != null &&
-        competition.ownerId == currentUser.uid;
+        user != null &&
+        competition.ownerId == user.uid;
+
 
 
 
@@ -327,23 +504,25 @@ class _CompetitionCard extends StatelessWidget {
     return GestureDetector(
 
 
-      onTap: () {
+      onTap: (){
 
 
         Navigator.push(
 
           context,
 
-
           MaterialPageRoute(
 
-            builder: (_) => CompetitionDetailsView(
+            builder: (_) =>
+                CompetitionDetailsView(
 
-              competition: competition,
+                  competition:
+                  competition,
 
-              isOwner: isOwner,
+                  isOwner:
+                  isOwner,
 
-            ),
+                ),
 
           ),
 
@@ -354,9 +533,12 @@ class _CompetitionCard extends StatelessWidget {
 
 
 
+
       child: Container(
 
-        margin: const EdgeInsets.only(
+
+        margin:
+        const EdgeInsets.only(
 
           bottom: 12,
 
@@ -364,19 +546,23 @@ class _CompetitionCard extends StatelessWidget {
 
 
 
-        padding: const EdgeInsets.all(16),
+        padding:
+        const EdgeInsets.all(16),
+
 
 
 
         decoration: BoxDecoration(
 
 
-          color: AppColors.surface,
+          color:
+          AppColors.surface,
 
 
 
           borderRadius:
           BorderRadius.circular(16),
+
 
 
 
@@ -387,12 +573,14 @@ class _CompetitionCard extends StatelessWidget {
 
           ),
 
+
         ),
 
 
 
 
         child: Column(
+
 
           crossAxisAlignment:
           CrossAxisAlignment.start,
@@ -405,6 +593,7 @@ class _CompetitionCard extends StatelessWidget {
 
             Row(
 
+
               children: [
 
 
@@ -413,7 +602,8 @@ class _CompetitionCard extends StatelessWidget {
 
                   Icons.emoji_events,
 
-                  color: AppColors.primary,
+                  color:
+                  AppColors.primary,
 
                 ),
 
@@ -425,22 +615,34 @@ class _CompetitionCard extends StatelessWidget {
 
                 Expanded(
 
+
                   child: Text(
+
 
                     competition.name,
 
 
-                    style: const TextStyle(
+                    style:
+                    const TextStyle(
 
-                      color: Colors.white,
 
-                      fontSize: 18,
+                      color:
+                      Colors.white,
 
-                      fontWeight: FontWeight.bold,
+
+                      fontSize:
+                      18,
+
+
+                      fontWeight:
+                      FontWeight.bold,
+
 
                     ),
 
+
                   ),
+
 
                 ),
 
@@ -448,7 +650,10 @@ class _CompetitionCard extends StatelessWidget {
 
               ],
 
+
             ),
+
+
 
 
 
@@ -459,12 +664,15 @@ class _CompetitionCard extends StatelessWidget {
 
 
 
+
             Text(
+
 
               competition.description,
 
 
-              maxLines: 2,
+              maxLines:
+              2,
 
 
               overflow:
@@ -472,7 +680,8 @@ class _CompetitionCard extends StatelessWidget {
 
 
 
-              style: TextStyle(
+              style:
+              TextStyle(
 
                 color:
                 Colors.white.withOpacity(.7),
@@ -484,13 +693,17 @@ class _CompetitionCard extends StatelessWidget {
 
 
 
+
+
             16.vs,
 
 
 
 
 
+
             Row(
+
 
               mainAxisAlignment:
               MainAxisAlignment.spaceBetween,
@@ -504,13 +717,17 @@ class _CompetitionCard extends StatelessWidget {
                 Text(
 
                   competition.type == "team"
+
                       ? "👥 Teams"
+
                       : "👤 Individuals",
 
 
-                  style: const TextStyle(
+                  style:
+                  const TextStyle(
 
-                    color: AppColors.primary,
+                    color:
+                    AppColors.primary,
 
                   ),
 
@@ -520,10 +737,11 @@ class _CompetitionCard extends StatelessWidget {
 
 
 
+
                 ElevatedButton(
 
 
-                  onPressed: () {
+                  onPressed: (){
 
 
                     if(isOwner){
@@ -533,15 +751,16 @@ class _CompetitionCard extends StatelessWidget {
 
                         context,
 
-
                         MaterialPageRoute(
 
                           builder: (_) =>
                               CompetitionDetailsView(
 
-                                competition: competition,
+                                competition:
+                                competition,
 
-                                isOwner: true,
+                                isOwner:
+                                true,
 
                               ),
 
@@ -550,17 +769,20 @@ class _CompetitionCard extends StatelessWidget {
                       );
 
 
-                    } else {
+                    }
+
+                    else{
 
 
                       // TODO:
-                      // JoinCompetitionCubit
+                      // Join Competition Cubit
 
 
                     }
 
 
                   },
+
 
 
 
@@ -600,21 +822,26 @@ class _CompetitionCard extends StatelessWidget {
 
                 )
 
-
               ],
+
 
             )
 
 
+
           ],
+
 
         ),
 
+
       ),
+
 
     );
 
 
   }
+
 
 }

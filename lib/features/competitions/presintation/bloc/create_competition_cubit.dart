@@ -2,46 +2,80 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:uuid/uuid.dart';
 
-import 'package:ptook/features/competitions/domain/entities/competition_entity.dart';
-import 'package:ptook/features/competitions/domain/usecases/create_competition_usecase.dart';
-
+import '../../domain/entities/competition_entity.dart';
+import '../../domain/usecases/create_competition_usecase.dart';
 import 'create_competition_state.dart';
 
 
-class CreateCompetitionCubit extends Cubit<CreateCompetitionState> {
+
+class CreateCompetitionCubit 
+    extends Cubit<CreateCompetitionState> {
+
 
   final CreateCompetitionUseCase createCompetitionUseCase;
+
   final FirebaseAuth auth;
 
 
   CreateCompetitionCubit({
+
     required this.createCompetitionUseCase,
+
     required this.auth,
+
   }) : super(CreateCompetitionInitial());
 
 
-  Future<void> submitCompetition({
+
+
+
+Future<void> submitCompetition({
 
   required String name,
+
   required String description,
+
   required String type,
+
   required int totalPoints,
-  required String endDate,
+
+  required DateTime startDate,
+
+  required DateTime endDate,
+
   required int maxParticipants,
+
   required bool isPublic,
+
+  required String category,
+
+
+  // Team settings
+
+  int? maxTeams,
+
+  int? membersPerTeam,
+
 
 }) async {
 
-  emit(CreateCompetitionLoading());
+
+
+  emit(
+    CreateCompetitionLoading(),
+  );
+
 
 
   try {
 
-    // ✅ Add safety check here
+
+
     final user = auth.currentUser;
 
 
-    if (user == null) {
+
+    if(user == null){
 
       emit(
         CreateCompetitionError(
@@ -50,32 +84,220 @@ class CreateCompetitionCubit extends Cubit<CreateCompetitionState> {
       );
 
       return;
+
     }
 
 
-    // Create competition object
+
+
+
+    // ============================
+    // Validation
+    // ============================
+
+
+    if(type == "team"){
+
+
+      if(maxTeams == null || membersPerTeam == null){
+
+        emit(
+          CreateCompetitionError(
+            "Team settings are required",
+          ),
+        );
+
+        return;
+
+      }
+
+
+    }else{
+
+
+      if(maxParticipants <= 0){
+
+        emit(
+          CreateCompetitionError(
+            "Maximum participants required",
+          ),
+        );
+
+        return;
+
+      }
+
+
+    }
+
+
+
+
+
+
+
+    // ============================
+    // Private competition code
+    // ============================
+
+
+    String? inviteCode;
+
+
+    if(!isPublic){
+
+      inviteCode =
+          const Uuid()
+              .v4()
+              .substring(0,8);
+
+    }
+
+
+
+
+
+
+
+    final competitionId =
+        const Uuid().v4();
+
+
+
+
+
     final competition = CompetitionEntity(
 
-      id: const Uuid().v4(),
 
-      name: name,
+      id:
+      competitionId,
 
-      description: description,
 
-      type: type,
 
-      totalPoints: totalPoints,
+      name:
+      name,
 
-      endDate: endDate,
 
-      maxParticipants: maxParticipants,
 
-      isPublic: isPublic,
+      description:
+      description,
 
-      // ✅ Now it is safe
-      ownerId: user.uid,
+
+
+      type:
+      type,
+
+
+
+      totalPoints:
+      totalPoints,
+
+
+
+      startDate:
+      startDate,
+
+
+
+      endDate:
+      endDate,
+
+
+
+      maxParticipants:
+
+      type == "individual"
+
+          ? maxParticipants
+
+          : (maxTeams! * membersPerTeam!),
+
+
+
+
+
+      isPublic:
+      isPublic,
+
+
+
+      ownerId:
+      user.uid,
+
+
+
+      inviteCode:
+      inviteCode,
+
+
+
+      category:
+      category,
+
+
+
+      searchKeywords:
+      [],
+
+
+
+
+      // TEAM ONLY
+
+      maxTeams:
+
+      type == "team"
+
+          ? maxTeams
+
+          : null,
+
+
+
+      membersPerTeam:
+
+      type == "team"
+
+          ? membersPerTeam
+
+          : null,
+
+
+
+
+
+
+      participantsCount:
+      0,
+
+
+
+      createdAt:
+      DateTime.now(),
+
+
+
+      status:
+      "upcoming",
+
+
+
+      imageUrl:
+      null,
+
+
+
+      winnerId:
+      null,
+
+
 
     );
+
+
+
+
+
 
 
     await createCompetitionUseCase(
@@ -83,12 +305,20 @@ class CreateCompetitionCubit extends Cubit<CreateCompetitionState> {
     );
 
 
+
+
+
     emit(
       CreateCompetitionSuccess(),
     );
 
 
-  } catch(e) {
+
+
+
+  }catch(e){
+
+
 
     emit(
       CreateCompetitionError(
@@ -96,7 +326,12 @@ class CreateCompetitionCubit extends Cubit<CreateCompetitionState> {
       ),
     );
 
+
   }
 
+
 }
+
+
+
 }

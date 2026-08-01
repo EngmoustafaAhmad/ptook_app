@@ -3,11 +3,14 @@ import 'package:ptook/features/competitions/domain/entities/competition_entity.d
 import 'package:ptook/features/competitions/domain/repositories/i_competition_repository.dart';
 
 
+
 class CompetitionRepositoryImpl 
     implements ICompetitionRepository {
 
 
+
   final ICompetitionRemoteDataSource remoteDataSource;
+
 
 
   CompetitionRepositoryImpl({
@@ -16,9 +19,11 @@ class CompetitionRepositoryImpl
 
 
 
+
+
   @override
   Future<void> createCompetition(
-      CompetitionEntity competition
+      CompetitionEntity competition,
   ) async {
 
     await remoteDataSource.createCompetition(
@@ -29,17 +34,26 @@ class CompetitionRepositoryImpl
 
 
 
+
+
   @override
-  Future<List<CompetitionEntity>> getPublicCompetitions() async {
+  Future<List<CompetitionEntity>>
+  searchPublicCompetitions(
+      String keyword,
+  ) async {
 
-    final competitions = await remoteDataSource
-        .getPublicCompetitions();
 
-
-  return competitions
-    .map<CompetitionEntity>((e) => e)
-    .toList();
+    return await remoteDataSource
+        .searchPublicCompetitions(
+          keyword,
+        );
 
   }
+  
+  @override
+  Future<List<CompetitionEntity>> getPublicCompetitions() {
+    throw UnimplementedError();
+  }
+
 
 }
