@@ -14,7 +14,9 @@ import 'package:ptook/features/competitions/data/datasources/competition_remote_
 import 'package:ptook/features/competitions/data/repositories/competition_repository_impl.dart';
 import 'package:ptook/features/competitions/domain/repositories/i_competition_repository.dart';
 import 'package:ptook/features/competitions/domain/usecases/create_competition_usecase.dart';
+import 'package:ptook/features/competitions/domain/usecases/get_public_competitions_usecase.dart';
 import 'package:ptook/features/competitions/presintation/bloc/create_competition_cubit.dart';
+import 'package:ptook/features/competitions/presintation/bloc/search_competition_cubit.dart';
 
 
 final sl = GetIt.instance;
@@ -120,6 +122,19 @@ Future<void> init() async {
   sl.registerLazySingleton<ICompetitionRemoteDataSource>(
     () => CompetitionRemoteDataSourceImpl(
       firestore: sl(),
+    ),
+  );
+
+  // Get Public Competitions in search screen
+  sl.registerLazySingleton(
+    () => GetPublicCompetitionsUseCase(
+      repository: sl(),
+    ),
+  );
+
+  sl.registerFactory(
+    () => SearchCompetitionCubit(
+      getPublicCompetitionsUseCase: sl(),
     ),
   );
 

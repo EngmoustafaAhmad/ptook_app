@@ -5,5 +5,6 @@ abstract class ICompetitionRepository {
   Future<void> createCompetition(
       CompetitionEntity competition
   );
+  Future<List<CompetitionEntity>> getPublicCompetitions();
 
 }

@@ -9,6 +9,9 @@ abstract class ICompetitionRemoteDataSource {
       CompetitionEntity competition
   );
 
+  Future<List<CompetitionModel>> getPublicCompetitions();
+
+
 }
 
 
@@ -51,5 +54,30 @@ class CompetitionRemoteDataSourceImpl
       .set(model.toJson());
 
   }
+
+  @override
+  Future<List<CompetitionModel>> getPublicCompetitions() async {
+
+  final snapshot = await firestore
+      .collection('competitions')
+      .where(
+        'isPublic',
+        isEqualTo: true,
+      )
+      .get();
+
+
+  return snapshot.docs.map((doc) {
+
+    return CompetitionModel.fromJson(
+      {
+        ...doc.data(),
+        'id': doc.id,
+      },
+    );
+
+  }).toList();
+
+}
 
 }

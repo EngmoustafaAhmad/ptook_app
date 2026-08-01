@@ -6,12 +6,14 @@ import 'package:ptook/features/competitions/domain/repositories/i_competition_re
 class CompetitionRepositoryImpl 
     implements ICompetitionRepository {
 
+
   final ICompetitionRemoteDataSource remoteDataSource;
 
 
   CompetitionRepositoryImpl({
     required this.remoteDataSource,
   });
+
 
 
   @override
@@ -24,4 +26,20 @@ class CompetitionRepositoryImpl
     );
 
   }
+
+
+
+  @override
+  Future<List<CompetitionEntity>> getPublicCompetitions() async {
+
+    final competitions = await remoteDataSource
+        .getPublicCompetitions();
+
+
+  return competitions
+    .map<CompetitionEntity>((e) => e)
+    .toList();
+
+  }
+
 }

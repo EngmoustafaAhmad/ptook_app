@@ -1,8 +1,12 @@
 // lib/features/auth/presintation/views/home_view.dart
 
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ptook/core/Theme/app_colors.dart';
+import 'package:ptook/core/di/injection_container.dart';
 import 'package:ptook/core/extentions/spacing_extentions.dart';
+import 'package:ptook/features/competitions/presintation/bloc/search_competition_cubit.dart';
+import 'package:ptook/features/competitions/presintation/views/competition_search_view.dart';
 
 class HomeView extends StatelessWidget {
   const HomeView({super.key});
@@ -40,7 +44,7 @@ class HomeView extends StatelessWidget {
               24.vs,
 
               // 5️⃣ Search & Filter Bar
-              _buildSearchBar(),
+              _buildSearchBar(context),
               24.vs,
 
               // 6️⃣ Recent Activity Section
@@ -281,22 +285,60 @@ class HomeView extends StatelessWidget {
     );
   }
 
-  Widget _buildSearchBar() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(12)),
-      child: TextField(
-        style: const TextStyle(color: Colors.white),
-        decoration: InputDecoration(
-          icon: Icon(Icons.search, color: Colors.white.withOpacity(0.4)),
-          hintText: "Search for a competition...",
-          hintStyle: TextStyle(color: Colors.white.withOpacity(0.4)),
-          border: InputBorder.none,
-          suffixIcon: Icon(Icons.filter_list, color: AppColors.primary),
+  Widget _buildSearchBar(BuildContext context) {
+  return GestureDetector(
+    onTap: () {
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => BlocProvider(
+            create: (_) => sl<SearchCompetitionCubit>()
+              ..loadPublicCompetitions(),
+      
+            child: const CompetitionSearchView(),
+          ),
         ),
+      );
+
+    },
+    child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      height: 50,
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
       ),
-    );
-  }
+      child: Row(
+        children: [
+
+          Icon(
+            Icons.search,
+            color: Colors.white.withOpacity(0.4),
+          ),
+
+          12.hs,
+
+          Text(
+            "Search for a competition...",
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.4),
+            ),
+          ),
+
+
+          const Spacer(),
+
+          Icon(
+            Icons.filter_list,
+            color: AppColors.primary,
+          )
+
+        ],
+      ),
+    ),
+  );
+}
 
   Widget _buildRecentActivityList() {
     return Container(
