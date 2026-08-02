@@ -11,12 +11,19 @@ import 'package:ptook/features/auth/domain/usecases/register_usecase.dart';
 import 'package:ptook/features/auth/domain/usecases/login_usecase.dart';
 
 import 'package:ptook/features/competitions/data/datasources/competition_remote_data_source.dart';
+import 'package:ptook/features/competitions/data/datasources/team_remote_data_source.dart';
 import 'package:ptook/features/competitions/data/repositories/competition_repository_impl.dart';
+import 'package:ptook/features/competitions/data/repositories/team_remote_data_source_impl.dart';
+import 'package:ptook/features/competitions/data/repositories/team_repository_impl.dart';
 import 'package:ptook/features/competitions/domain/repositories/i_competition_repository.dart';
+import 'package:ptook/features/competitions/domain/repositories/i_team_repository.dart';
 import 'package:ptook/features/competitions/domain/usecases/create_competition_usecase.dart';
+import 'package:ptook/features/competitions/domain/usecases/create_team_usecase.dart';
 import 'package:ptook/features/competitions/domain/usecases/get_public_competitions_usecase.dart';
+import 'package:ptook/features/competitions/domain/usecases/get_teams_usecase.dart';
 import 'package:ptook/features/competitions/domain/usecases/search_public_competitions_usecase.dart';
 import 'package:ptook/features/competitions/presintation/bloc/create_competition_cubit.dart';
+import 'package:ptook/features/competitions/presintation/bloc/create_team_cubit.dart';
 import 'package:ptook/features/competitions/presintation/bloc/search_competition_cubit.dart';
 
 
@@ -137,6 +144,73 @@ Future<void> init() async {
   () => SearchCompetitionCubit(
     searchPublicCompetitionsUseCase: sl(),
   ),
+);
+
+//! 3. Team Feature
+
+
+// Cubit
+
+sl.registerFactory(
+
+  () => CreateTeamCubit(
+
+    createTeamUseCase: sl(),
+
+    auth: sl(),
+
+  ),
+
+);
+
+
+// Use Cases
+sl.registerLazySingleton(
+
+  () => CreateTeamUseCase(
+
+    repository: sl(),
+
+  ),
+
+);
+
+
+
+sl.registerLazySingleton(
+
+  () => GetTeamsUseCase(
+
+    repository: sl(),
+
+  ),
+
+);
+
+
+
+// Repository
+sl.registerLazySingleton<ITeamRepository>(
+
+  () => TeamRepositoryImpl(
+
+    remoteDataSource: sl(),
+
+  ),
+
+);
+
+
+
+// Data Source
+sl.registerLazySingleton<ITeamRemoteDataSource>(
+
+  () => TeamRemoteDataSourceImpl(
+
+    firestore: sl(),
+
+  ),
+
 );
 
 }

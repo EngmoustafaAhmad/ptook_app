@@ -31,9 +31,6 @@ required this.auth,
 
 
 
-
-
-
 Future<void> createTeam({
 
 required String competitionId,
