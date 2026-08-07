@@ -24,6 +24,7 @@ class SearchCompetitionCubit
 
 
 
+
   Future<void> search(String keyword) async {
 
 
@@ -84,4 +85,16 @@ class SearchCompetitionCubit
   }
 
 
+
+
+
+  // Clear search results
+  void clearSearch(){
+
+
+    emit(
+      SearchCompetitionInitial(),
+    );
+
+  }
 }

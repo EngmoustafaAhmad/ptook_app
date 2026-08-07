@@ -6,16 +6,22 @@ import 'package:ptook/core/Theme/app_colors.dart';
 import 'package:ptook/core/extentions/spacing_extentions.dart';
 
 import 'package:ptook/features/competitions/domain/entities/competition_entity.dart';
+
 import 'package:ptook/features/competitions/presintation/bloc/search_competition_cubit.dart';
+
 import 'package:ptook/features/competitions/presintation/views/competition_details_view.dart';
+
+import 'package:ptook/features/competitions/presintation/views/manage_competition_view.dart';
 
 
 
 class CompetitionSearchView extends StatefulWidget {
 
+
   const CompetitionSearchView({
     super.key,
   });
+
 
 
   @override
@@ -27,11 +33,14 @@ class CompetitionSearchView extends StatefulWidget {
 
 
 
+
 class _CompetitionSearchViewState
     extends State<CompetitionSearchView> {
 
 
-  final controller = TextEditingController();
+  final controller =
+  TextEditingController();
+
 
 
 
@@ -48,21 +57,70 @@ class _CompetitionSearchViewState
 
 
 
+
+
+  void _search(String value){
+
+
+    final keyword =
+    value.trim();
+
+
+
+    if(keyword.isEmpty){
+
+
+      context
+          .read<SearchCompetitionCubit>()
+          .clearSearch();
+
+
+      return;
+
+    }
+
+
+
+
+    context
+        .read<SearchCompetitionCubit>()
+        .search(keyword);
+
+
+
+  }
+
+
+
+
+
+
+
+
   @override
   Widget build(BuildContext context) {
 
+
     return Scaffold(
 
-      backgroundColor: AppColors.background,
+
+      backgroundColor:
+      AppColors.background,
+
 
 
       appBar: AppBar(
 
-        backgroundColor: AppColors.background,
 
-        iconTheme: const IconThemeData(
+        backgroundColor:
+        AppColors.background,
+
+
+        iconTheme:
+        const IconThemeData(
           color: Colors.white,
         ),
+
 
 
         title: const Text(
@@ -79,47 +137,51 @@ class _CompetitionSearchViewState
 
 
 
+
+
       body: Padding(
 
-        padding: const EdgeInsets.all(16),
+
+        padding:
+        const EdgeInsets.all(16),
+
 
 
         child: Column(
 
+
           children: [
 
 
-            // Search Field
+
             TextField(
 
-              controller: controller,
 
-
-              autofocus: true,
-
-
-              onChanged: (value){
-
-
-                context
-                    .read<SearchCompetitionCubit>()
-                    .search(value);
-
-
-              },
+              controller:
+              controller,
 
 
 
-              style: const TextStyle(
+              autofocus:
+              true,
 
+
+
+              onChanged:
+              _search,
+
+
+
+              style:
+              const TextStyle(
                 color: Colors.white,
-
               ),
 
 
 
 
-              decoration: InputDecoration(
+              decoration:
+              InputDecoration(
 
 
                 hintText:
@@ -127,66 +189,31 @@ class _CompetitionSearchViewState
 
 
 
-                hintStyle: TextStyle(
-
+                hintStyle:
+                TextStyle(
                   color:
                   Colors.white.withOpacity(.5),
-
                 ),
 
 
 
 
-                prefixIcon: const Icon(
+                prefixIcon:
+                const Icon(
 
                   Icons.search,
 
-                  color: AppColors.primary,
+                  color:
+                  AppColors.primary,
 
                 ),
 
 
 
 
-                suffixIcon:
-                controller.text.isNotEmpty
+                filled:
+                true,
 
-                    ? IconButton(
-
-                  icon: const Icon(
-
-                    Icons.clear,
-
-                    color: Colors.white,
-
-                  ),
-
-
-                  onPressed: (){
-
-
-                    controller.clear();
-
-
-                    context
-                        .read<SearchCompetitionCubit>()
-                        .search("");
-
-                    setState(() {});
-
-
-                  },
-
-                )
-
-                    : null,
-
-
-
-
-
-
-                filled: true,
 
 
                 fillColor:
@@ -195,7 +222,8 @@ class _CompetitionSearchViewState
 
 
 
-                border: OutlineInputBorder(
+                border:
+                OutlineInputBorder(
 
                   borderRadius:
                   BorderRadius.circular(12),
@@ -206,7 +234,9 @@ class _CompetitionSearchViewState
 
                 ),
 
+
               ),
+
 
             ),
 
@@ -220,67 +250,38 @@ class _CompetitionSearchViewState
 
 
 
+
             Expanded(
 
-              child: BlocBuilder<
+
+              child:
+
+              BlocBuilder<
                   SearchCompetitionCubit,
                   SearchCompetitionState
               >(
 
-                builder: (context,state){
+
+
+                builder:
+                    (context,state){
 
 
 
-                  // First open screen
-                  if(state is SearchCompetitionInitial){
-
-                    return _EmptySearch();
-
-
-                  }
-
-
-
-
-
-
-                  if(state is SearchCompetitionLoading){
-
-
-                    return const Center(
-
-                      child:
-                      CircularProgressIndicator(
-
-                        color:
-                        AppColors.primary,
-
-                      ),
-
-                    );
-
-                  }
-
-
-
-
-
-
-                  if(state is SearchCompetitionError){
+                  if(state
+                  is SearchCompetitionInitial){
 
 
                     return Center(
 
                       child: Text(
 
-                        state.message,
+                        "Search for competitions",
 
-
-                        style:
-                        const TextStyle(
+                        style: TextStyle(
 
                           color:
-                          Colors.red,
+                          Colors.white.withOpacity(.5),
 
                         ),
 
@@ -295,9 +296,62 @@ class _CompetitionSearchViewState
 
 
 
+                  if(state
+                  is SearchCompetitionLoading){
 
 
-                  if(state is SearchCompetitionSuccess){
+                    return const Center(
+
+                      child:
+                      CircularProgressIndicator(
+
+                        color:
+                        AppColors.primary,
+
+                      ),
+
+                    );
+
+
+                  }
+
+
+
+
+
+
+
+                  if(state
+                  is SearchCompetitionError){
+
+
+                    return Center(
+
+                      child:
+                      Text(
+
+                        state.message,
+
+                        style:
+                        const TextStyle(
+                          color: Colors.red,
+                        ),
+
+                      ),
+
+                    );
+
+
+                  }
+
+
+
+
+
+
+
+                  if(state
+                  is SearchCompetitionSuccess){
 
 
 
@@ -307,11 +361,13 @@ class _CompetitionSearchViewState
                       return Center(
 
 
-                        child: Text(
+                        child:
+                        Text(
 
                           "No competitions found",
 
-                          style: TextStyle(
+                          style:
+                          TextStyle(
 
                             color:
                             Colors.white.withOpacity(.5),
@@ -331,12 +387,13 @@ class _CompetitionSearchViewState
 
 
 
-
                     return ListView.builder(
+
 
 
                       itemCount:
                       state.competitions.length,
+
 
 
 
@@ -355,7 +412,9 @@ class _CompetitionSearchViewState
                       },
 
 
+
                     );
+
 
 
                   }
@@ -364,97 +423,33 @@ class _CompetitionSearchViewState
 
 
 
-                  return _EmptySearch();
+
+                  return const SizedBox();
 
 
                 },
 
               ),
 
-            )
-
-          ],
-
-        ),
-
-      ),
-
-    );
-
-  }
-
-}
-
-
-
-
-
-
-
-class _EmptySearch extends StatelessWidget {
-
-
-  @override
-  Widget build(BuildContext context) {
-
-
-    return Center(
-
-
-      child: Column(
-
-
-        mainAxisAlignment:
-        MainAxisAlignment.center,
-
-
-
-        children: [
-
-
-
-          Icon(
-
-            Icons.search,
-
-            size: 70,
-
-            color:
-            Colors.white.withOpacity(.3),
-
-          ),
-
-
-
-          16.vs,
-
-
-
-          Text(
-
-            "Search for competitions",
-
-            style: TextStyle(
-
-              color:
-              Colors.white.withOpacity(.5),
-
-              fontSize: 16,
 
             ),
 
-          ),
+
+          ],
 
 
-        ],
+        ),
 
 
       ),
+
 
     );
 
 
   }
+
+
 
 }
 
@@ -473,11 +468,14 @@ class _CompetitionCard extends StatelessWidget {
 
 
 
+
   const _CompetitionCard({
 
     required this.competition,
 
   });
+
+
 
 
 
@@ -489,19 +487,21 @@ class _CompetitionCard extends StatelessWidget {
 
 
     final user =
-        FirebaseAuth.instance.currentUser;
+    FirebaseAuth.instance.currentUser;
 
 
 
-    final bool isOwner =
+    final isOwner =
         user != null &&
-        competition.ownerId == user.uid;
+        user.uid == competition.ownerId;
+
 
 
 
 
 
     return GestureDetector(
+
 
 
       onTap: (){
@@ -534,14 +534,14 @@ class _CompetitionCard extends StatelessWidget {
 
 
 
+
       child: Container(
+
 
 
         margin:
         const EdgeInsets.only(
-
           bottom: 12,
-
         ),
 
 
@@ -552,7 +552,10 @@ class _CompetitionCard extends StatelessWidget {
 
 
 
-        decoration: BoxDecoration(
+
+        decoration:
+        BoxDecoration(
+
 
 
           color:
@@ -566,12 +569,15 @@ class _CompetitionCard extends StatelessWidget {
 
 
 
-          border: Border.all(
+          border:
+          Border.all(
 
             color:
-            AppColors.primary.withOpacity(.3),
+            AppColors.primary
+                .withOpacity(.3),
 
           ),
+
 
 
         ),
@@ -579,7 +585,9 @@ class _CompetitionCard extends StatelessWidget {
 
 
 
+
         child: Column(
+
 
 
           crossAxisAlignment:
@@ -587,11 +595,15 @@ class _CompetitionCard extends StatelessWidget {
 
 
 
+
           children: [
 
 
 
+
+
             Row(
+
 
 
               children: [
@@ -616,30 +628,25 @@ class _CompetitionCard extends StatelessWidget {
                 Expanded(
 
 
-                  child: Text(
 
+                  child:
+                  Text(
 
                     competition.name,
-
 
                     style:
                     const TextStyle(
 
-
                       color:
                       Colors.white,
-
 
                       fontSize:
                       18,
 
-
                       fontWeight:
                       FontWeight.bold,
 
-
                     ),
-
 
                   ),
 
@@ -650,8 +657,8 @@ class _CompetitionCard extends StatelessWidget {
 
               ],
 
-
             ),
+
 
 
 
@@ -668,11 +675,14 @@ class _CompetitionCard extends StatelessWidget {
             Text(
 
 
+
               competition.description,
+
 
 
               maxLines:
               2,
+
 
 
               overflow:
@@ -688,7 +698,10 @@ class _CompetitionCard extends StatelessWidget {
 
               ),
 
+
+
             ),
+
 
 
 
@@ -702,11 +715,14 @@ class _CompetitionCard extends StatelessWidget {
 
 
 
+
             Row(
+
 
 
               mainAxisAlignment:
               MainAxisAlignment.spaceBetween,
+
 
 
 
@@ -716,11 +732,17 @@ class _CompetitionCard extends StatelessWidget {
 
                 Text(
 
-                  competition.type == "team"
 
-                      ? "👥 Teams"
 
-                      : "👤 Individuals",
+                  competition.type ==
+                      "team"
+
+                      ?
+                  "👥 Teams"
+
+                      :
+                  "👤 Individuals",
+
 
 
                   style:
@@ -730,6 +752,7 @@ class _CompetitionCard extends StatelessWidget {
                     AppColors.primary,
 
                   ),
+
 
                 ),
 
@@ -741,10 +764,15 @@ class _CompetitionCard extends StatelessWidget {
                 ElevatedButton(
 
 
+
                   onPressed: (){
 
 
+
+
+
                     if(isOwner){
+
 
 
                       Navigator.push(
@@ -754,13 +782,10 @@ class _CompetitionCard extends StatelessWidget {
                         MaterialPageRoute(
 
                           builder: (_) =>
-                              CompetitionDetailsView(
+                              ManageCompetitionView(
 
                                 competition:
                                 competition,
-
-                                isOwner:
-                                true,
 
                               ),
 
@@ -769,19 +794,25 @@ class _CompetitionCard extends StatelessWidget {
                       );
 
 
-                    }
 
+
+                    }
                     else{
 
 
                       // TODO:
-                      // Join Competition Cubit
+                      // JoinCompetitionCubit
+
 
 
                     }
 
 
+
+
+
                   },
+
 
 
 
@@ -790,12 +821,15 @@ class _CompetitionCard extends StatelessWidget {
                   ElevatedButton.styleFrom(
 
 
+
                     backgroundColor:
                     AppColors.primary,
 
 
+
                     foregroundColor:
                     AppColors.background,
+
 
 
 
@@ -807,25 +841,36 @@ class _CompetitionCard extends StatelessWidget {
 
                     ),
 
+
                   ),
 
 
 
-                  child: Text(
+
+                  child:
+                  Text(
 
                     isOwner
-                        ? "Manage"
-                        : "Join",
+                        ?
+                    "Manage"
+                        :
+                    "Join",
+
 
                   ),
 
 
-                )
+
+                ),
+
+
+
 
               ],
 
 
-            )
+
+            ),
 
 
 
@@ -840,8 +885,8 @@ class _CompetitionCard extends StatelessWidget {
 
     );
 
-
   }
+
 
 
 }
