@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../domain/usecases/join_competition_usecase.dart';
@@ -10,7 +11,7 @@ class JoinCompetitionCubit extends Cubit<JoinCompetitionState> {
 
   JoinCompetitionCubit({
     required this.joinCompetitionUseCase,
-    required this.leaveCompetitionUseCase,
+    required this.leaveCompetitionUseCase, required FirebaseAuth auth,
   }) : super(JoinCompetitionInitial());
 
   /// Triggers joining a competition

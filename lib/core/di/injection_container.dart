@@ -40,6 +40,7 @@ import 'package:ptook/features/participants/domain/repositories/i_participant_re
 import 'package:ptook/features/participants/domain/usecases/join_competition_usecase.dart';
 import 'package:ptook/features/participants/domain/usecases/leave_competition_usecase.dart';
 import 'package:ptook/features/participants/presintation/bloc/join_competition_cubit.dart';
+import 'package:ptook/features/participants/presintation/bloc/participants_cubit.dart';
 
 final sl = GetIt.instance;
 
@@ -177,6 +178,12 @@ Future<void> init() async {
     ),
   );
 
+  sl.registerFactory(
+    () => ParticipantCubit(
+      joinCompetitionUseCase: sl(),
+      leaveCompetitionUseCase: sl(),
+    ),
+  );
   //! =========================
   //! TEAMS FEATURE
   //! =========================

@@ -1,18 +1,36 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:ptook/core/di/injection_container.dart';
 import 'package:ptook/features/participants/presintation/bloc/join_competition_state.dart';
 import 'package:ptook/features/participants/presintation/bloc/participants_cubit.dart';
-import 'package:ptook/features/participants/presintation/bloc/participants_state.dart' hide JoinCompetitionSuccess, LeaveCompetitionSuccess;
+import 'package:ptook/features/participants/presintation/bloc/participants_state.dart'
+    hide JoinCompetitionSuccess, LeaveCompetitionSuccess;
 
 import '../../domain/entities/competition_entity.dart';
-
 
 class CompetitionDetailsView extends StatelessWidget {
   final CompetitionEntity competition;
 
   const CompetitionDetailsView({
     super.key,
+    required this.competition,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    // 🎯 Wraps the entire view with BlocProvider so Navigator routes have access to ParticipantCubit
+    return BlocProvider(
+      create: (context) => sl<ParticipantCubit>(),
+      child: _CompetitionDetailsContent(competition: competition),
+    );
+  }
+}
+
+class _CompetitionDetailsContent extends StatelessWidget {
+  final CompetitionEntity competition;
+
+  const _CompetitionDetailsContent({
     required this.competition,
   });
 
@@ -258,7 +276,9 @@ class CompetitionDetailsView extends StatelessWidget {
                         onPressed: isFull
                             ? null
                             : () {
-                                context.read<ParticipantCubit>().joinCompetition(
+                                context
+                                    .read<ParticipantCubit>()
+                                    .joinCompetition(
                                       competitionId: competition.id,
                                       userId: currentUserId,
                                     );
