@@ -1,7 +1,11 @@
-import 'package:ptook/features/competitions/domain/entities/team_entity.dart';
+part of 'get_teams_cubit.dart';
+
+
 
 
 abstract class GetTeamsState {}
+
+
 
 
 
@@ -10,8 +14,12 @@ class GetTeamsInitial
 
 
 
+
+
 class GetTeamsLoading 
     extends GetTeamsState {}
+
+
 
 
 
@@ -19,16 +27,21 @@ class GetTeamsSuccess
     extends GetTeamsState {
 
 
+
   final List<TeamEntity> teams;
 
 
 
   GetTeamsSuccess(
-      this.teams,
+    this.teams,
   );
 
 
+
 }
+
+
+
 
 
 
@@ -37,13 +50,15 @@ class GetTeamsError
     extends GetTeamsState {
 
 
+
   final String message;
 
 
 
   GetTeamsError(
-      this.message,
+    this.message,
   );
+
 
 
 }

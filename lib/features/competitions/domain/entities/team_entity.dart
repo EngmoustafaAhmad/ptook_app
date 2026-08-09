@@ -1,53 +1,48 @@
 class TeamEntity {
 
 
-  final String id;
+final String id;
 
-  final String competitionId;
+final String name;
 
-  final String name;
+final String competitionId;
 
+final String ownerId;
 
-  // Team invitation code
-  final String joinCode;
+final String joinCode;
 
+final List<String> members;
 
-  final String ownerId;
+final int membersCount;
 
+final int maxMembers;
 
-  final int membersCount;
-
-  final int maxMembers;
-
-
-  final List<String> members;
-
-
-  final DateTime createdAt;
+final DateTime createdAt;
 
 
 
-  TeamEntity({
 
-    required this.id,
+TeamEntity({
 
-    required this.competitionId,
+required this.id,
 
-    required this.name,
+required this.name,
 
-    required this.joinCode,
+required this.competitionId,
 
-    required this.ownerId,
+required this.ownerId,
 
-    required this.membersCount,
+required this.joinCode,
 
-    required this.maxMembers,
+required this.members,
 
-    required this.members,
+required this.membersCount,
 
-    required this.createdAt,
+required this.maxMembers,
 
-  });
+required this.createdAt,
+
+});
 
 
 }

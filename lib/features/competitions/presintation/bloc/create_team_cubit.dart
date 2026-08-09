@@ -1,167 +1,105 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:ptook/features/competitions/presintation/bloc/create_team_state.dart';
-import 'package:uuid/uuid.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:ptook/features/competitions/presintation/bloc/get_teams_cubit.dart';
 
 import '../../domain/entities/team_entity.dart';
-import '../../domain/usecases/create_team_usecase.dart';
+import '../../domain/usecases/get_teams_usecase.dart';
 
 
 
 
-class CreateTeamCubit 
-extends Cubit<CreateTeamState>{
 
+class GetTeamsCubit 
+    extends Cubit<GetTeamsState> {
 
 
-final CreateTeamUseCase createTeamUseCase;
 
-final FirebaseAuth auth;
+  final GetTeamsUseCase getTeamsUseCase;
 
 
 
-CreateTeamCubit({
 
-required this.createTeamUseCase,
+  GetTeamsCubit({
 
-required this.auth,
+    required this.getTeamsUseCase, required Object auth,
 
-}) : super(CreateTeamInitial());
+  }) 
+  : super(
+      GetTeamsInitial()
+    );
 
 
 
 
-Future<void> createTeam({
 
-required String competitionId,
 
-required String name,
 
 
-}) async {
+  Future<void> loadTeams(
 
+      String competitionId
 
+      ) async {
 
-emit(
-CreateTeamLoading()
-);
 
 
+    emit(
+      GetTeamsLoading()
+    );
 
 
-try {
 
 
+    try {
 
-final user =
-auth.currentUser;
 
 
+      final List<TeamEntity> teams =
 
-if(user == null){
+      await getTeamsUseCase(
 
+        competitionId,
 
-emit(
+      );
 
-CreateTeamError(
-"User not logged in"
-)
 
-);
 
 
-return;
 
-}
+      emit(
 
+        GetTeamsSuccess(
 
+          teams,
 
+        ),
 
-final team = TeamEntity(
+      );
 
 
 
-id:
-const Uuid().v4(),
 
 
+    } catch(e) {
 
-name:
-name,
 
 
+      emit(
 
-competitionId:
-competitionId,
+        GetTeamsError(
 
+          e.toString(),
 
+        ),
 
-ownerId:
-user.uid,
+      );
 
 
 
-joinCode:
-const Uuid()
-.v4()
-.substring(0,6)
-.toUpperCase(),
+    }
 
 
 
-members:[
-
-user.uid
-
-],
-
-
-
-createdAt:
-DateTime.now(),
-
-
-
-);
-
-
-
-
-
-await createTeamUseCase(
-team
-);
-
-
-
-
-emit(
-CreateTeamSuccess()
-);
-
-
-
-
-
-}catch(e){
-
-
-
-emit(
-
-CreateTeamError(
-e.toString()
-)
-
-);
-
-
-}
-
-
-
-}
-
+  }
 
 
 

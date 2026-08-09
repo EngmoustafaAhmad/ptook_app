@@ -5,96 +5,95 @@ import '../../domain/usecases/search_public_competitions_usecase.dart';
 
 part 'search_competition_state.dart';
 
-
-
-class SearchCompetitionCubit 
-    extends Cubit<SearchCompetitionState> {
-
-
-  final SearchPublicCompetitionsUseCase
-      searchPublicCompetitionsUseCase;
-
-
+class SearchCompetitionCubit extends Cubit<SearchCompetitionState> {
+  final SearchPublicCompetitionsUseCase _searchPublicCompetitionsUseCase;
 
   SearchCompetitionCubit({
-    required this.searchPublicCompetitionsUseCase,
-  }) : super(SearchCompetitionInitial());
+    required SearchPublicCompetitionsUseCase searchPublicCompetitionsUseCase,
+  })  : _searchPublicCompetitionsUseCase = searchPublicCompetitionsUseCase,
+        super(SearchCompetitionInitial());
 
-
-
-
-
-
+  /// Executes public competition search by keyword.
   Future<void> search(String keyword) async {
+    final sanitizedKeyword = keyword.trim();
 
-
-    // Don't search empty text
-    if(keyword.trim().isEmpty){
-
-      emit(
-        SearchCompetitionInitial(),
-      );
-
+    // 1. Reset state if the search term is empty
+    if (sanitizedKeyword.isEmpty) {
+      _safeEmit(SearchCompetitionInitial());
       return;
-
     }
 
-
-
-    emit(
-      SearchCompetitionLoading(),
-    );
-
-
+    _safeEmit(SearchCompetitionLoading());
 
     try {
-
-
-      final competitions =
-          await searchPublicCompetitionsUseCase(
-            keyword.toLowerCase(),
-          );
-
-
-
-      emit(
-
-        SearchCompetitionSuccess(
-          competitions,
-        ),
-
+      final competitions = await _searchPublicCompetitionsUseCase(
+        sanitizedKeyword.toLowerCase(),
       );
 
-
-
-    } catch(e){
-
-
-      emit(
-
+      _safeEmit(SearchCompetitionSuccess(competitions));
+    } catch (e) {
+      _safeEmit(
         SearchCompetitionError(
-          e.toString(),
+          _formatErrorMessage(e),
         ),
-
       );
-
-
     }
-
-
   }
 
+  /// Clears search query and resets state back to Initial.
+  void clearSearch() {
+    _safeEmit(SearchCompetitionInitial());
+  }
 
+  /// Updates a single competition in the current list without re-fetching from backend.
+  void updateCompetitionInList(CompetitionEntity updatedCompetition) {
+    if (state is SearchCompetitionSuccess) {
+      final currentList = (state as SearchCompetitionSuccess).competitions;
 
+      final updatedList = currentList.map((comp) {
+        return comp.id == updatedCompetition.id ? updatedCompetition : comp;
+      }).toList();
 
+      _safeEmit(SearchCompetitionSuccess(updatedList));
+    }
+  }
 
-  // Clear search results
-  void clearSearch(){
+  /// Toggles or increments/decrements participant counts locally when join/leave actions occur.
+  void toggleParticipationStatus({
+    required String competitionId,
+    required bool isJoining,
+  }) {
+    if (state is SearchCompetitionSuccess) {
+      final currentList = (state as SearchCompetitionSuccess).competitions;
 
+      final updatedList = currentList.map((comp) {
+        if (comp.id == competitionId) {
+          final newCount = isJoining
+              ? comp.participantsCount + 1
+              : (comp.participantsCount > 0 ? comp.participantsCount - 1 : 0);
 
-    emit(
-      SearchCompetitionInitial(),
-    );
+          return comp.copyWith(participantsCount: newCount);
+        }
+        return comp;
+      }).toList();
 
+      _safeEmit(SearchCompetitionSuccess(updatedList));
+    }
+  }
+
+  /// Prevents `StateError` if an async task completes after the Cubit has been closed.
+  void _safeEmit(SearchCompetitionState newState) {
+    if (!isClosed) {
+      emit(newState);
+    }
+  }
+
+  /// Formats raw exception objects into user-friendly strings.
+  String _formatErrorMessage(dynamic error) {
+    final message = error.toString();
+    if (message.startsWith('Exception: ')) {
+      return message.replaceFirst('Exception: ', '');
+    }
+    return message.isEmpty ? 'An unexpected error occurred.' : message;
   }
 }

@@ -1,19 +1,19 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:ptook/features/participants/presintation/bloc/join_competition_state.dart';
 
 import '../../domain/usecases/join_competition_usecase.dart';
 import '../../domain/usecases/leave_competition_usecase.dart';
-import 'join_competition_state.dart';
 
-class JoinCompetitionCubit extends Cubit<JoinCompetitionState> {
+class ParticipantCubit extends Cubit<JoinCompetitionState> {
   final JoinCompetitionUseCase joinCompetitionUseCase;
   final LeaveCompetitionUseCase leaveCompetitionUseCase;
 
-  JoinCompetitionCubit({
+  ParticipantCubit({
     required this.joinCompetitionUseCase,
     required this.leaveCompetitionUseCase,
   }) : super(JoinCompetitionInitial());
 
-  /// Triggers joining a competition
+  /// Executes the join competition workflow
   Future<void> joinCompetition({
     required String competitionId,
     required String userId,
@@ -44,7 +44,7 @@ class JoinCompetitionCubit extends Cubit<JoinCompetitionState> {
     }
   }
 
-  /// Triggers leaving a competition
+  /// Executes the leave competition workflow
   Future<void> leaveCompetition({
     required String competitionId,
     required String userId,
@@ -71,14 +71,14 @@ class JoinCompetitionCubit extends Cubit<JoinCompetitionState> {
     }
   }
 
-  /// Prevents emitting after the Cubit has been disposed
+  /// Safety check to prevent emitting states if the Cubit was closed during async calls
   void _safeEmit(JoinCompetitionState newState) {
     if (!isClosed) {
       emit(newState);
     }
   }
 
-  /// Cleans raw error strings for UI display
+  /// Sanitizes raw exception strings for UI display
   String _formatErrorMessage(dynamic error) {
     final message = error.toString();
     if (message.startsWith('Exception: ')) {

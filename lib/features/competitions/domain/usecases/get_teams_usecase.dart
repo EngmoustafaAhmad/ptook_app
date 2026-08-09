@@ -1,4 +1,5 @@
 import '../entities/team_entity.dart';
+
 import '../repositories/i_team_repository.dart';
 
 
@@ -6,32 +7,38 @@ import '../repositories/i_team_repository.dart';
 class GetTeamsUseCase {
 
 
-  final ITeamRepository repository;
 
-
-
-  GetTeamsUseCase({
-
-    required this.repository,
-
-  });
+final ITeamRepository repository;
 
 
 
 
-  Future<List<TeamEntity>> call(
+GetTeamsUseCase({
 
-      String competitionId
+required this.repository,
 
-  ) async {
-
-
-    return await repository.getTeams(
-      competitionId,
-    );
+});
 
 
-  }
+
+
+
+Future<List<TeamEntity>> call(
+
+String competitionId
+
+){
+
+
+return repository.getTeams(
+
+competitionId
+
+);
+
+
+}
+
 
 
 }

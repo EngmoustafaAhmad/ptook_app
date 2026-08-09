@@ -1,38 +1,49 @@
-import 'package:get_it/get_it.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:get_it/get_it.dart';
 
-import 'package:ptook/features/auth/presintation/cubit/auth_cubit.dart';
-
+// =========================
+// AUTH FEATURE IMPORTS
+// =========================
 import 'package:ptook/features/auth/data/datasources/auth_remote_data_source.dart';
 import 'package:ptook/features/auth/data/repositories/auth_repository_impl.dart';
 import 'package:ptook/features/auth/domain/repositories/i_auth_repository.dart';
-import 'package:ptook/features/auth/domain/usecases/register_usecase.dart';
 import 'package:ptook/features/auth/domain/usecases/login_usecase.dart';
+import 'package:ptook/features/auth/domain/usecases/register_usecase.dart';
+import 'package:ptook/features/auth/presintation/cubit/auth_cubit.dart';
 
+// =========================
+// COMPETITIONS FEATURE IMPORTS
+// =========================
 import 'package:ptook/features/competitions/data/datasources/competition_remote_data_source.dart';
-import 'package:ptook/features/competitions/data/datasources/team_remote_data_source.dart';
 import 'package:ptook/features/competitions/data/repositories/competition_repository_impl.dart';
-import 'package:ptook/features/competitions/data/repositories/team_remote_data_source_impl.dart';
-import 'package:ptook/features/competitions/data/repositories/team_repository_impl.dart';
 import 'package:ptook/features/competitions/domain/repositories/i_competition_repository.dart';
-import 'package:ptook/features/competitions/domain/repositories/i_team_repository.dart';
 import 'package:ptook/features/competitions/domain/usecases/create_competition_usecase.dart';
-import 'package:ptook/features/competitions/domain/usecases/create_team_usecase.dart';
 import 'package:ptook/features/competitions/domain/usecases/get_public_competitions_usecase.dart';
-import 'package:ptook/features/competitions/domain/usecases/get_teams_usecase.dart';
 import 'package:ptook/features/competitions/domain/usecases/search_public_competitions_usecase.dart';
 import 'package:ptook/features/competitions/presintation/bloc/create_competition_cubit.dart';
-import 'package:ptook/features/competitions/presintation/bloc/create_team_cubit.dart';
 import 'package:ptook/features/competitions/presintation/bloc/search_competition_cubit.dart';
 
+// =========================
+// TEAMS FEATURE IMPORTS
+// =========================
+import 'package:ptook/features/competitions/data/datasources/team_remote_data_source.dart';
+
+
+// =========================
+// PARTICIPANTS FEATURE IMPORTS
+// =========================
+import 'package:ptook/features/participants/data/datasources/participant_remote_data_source.dart';
+import 'package:ptook/features/participants/data/datasources/participant_remote_data_source_impl.dart';
+import 'package:ptook/features/participants/data/repositories/participant_repository_impl.dart';
+import 'package:ptook/features/participants/domain/repositories/i_participant_repository.dart';
+import 'package:ptook/features/participants/domain/usecases/join_competition_usecase.dart';
+import 'package:ptook/features/participants/domain/usecases/leave_competition_usecase.dart';
+import 'package:ptook/features/participants/presintation/bloc/join_competition_cubit.dart';
 
 final sl = GetIt.instance;
 
-
 Future<void> init() async {
-
-
   //! =========================
   //! External Dependencies
   //! =========================
@@ -41,19 +52,15 @@ Future<void> init() async {
     () => FirebaseAuth.instance,
   );
 
-
   sl.registerLazySingleton<FirebaseFirestore>(
     () => FirebaseFirestore.instance,
   );
-
-
 
   //! =========================
   //! AUTH FEATURE
   //! =========================
 
-
-  // Cubit
+  // Cubits
   sl.registerFactory(
     () => AuthCubit(
       registerUseCase: sl(),
@@ -61,29 +68,23 @@ Future<void> init() async {
     ),
   );
 
-
   // Use Cases
   sl.registerLazySingleton(
     () => RegisterUseCase(sl()),
   );
 
-
   sl.registerLazySingleton(
     () => LoginUseCase(sl()),
   );
 
-
-
-  // Repository
+  // Repositories
   sl.registerLazySingleton<IAuthRepository>(
     () => AuthRepositoryImpl(
       remoteDataSource: sl(),
     ),
   );
 
-
-
-  // Data Source
+  // Data Sources
   sl.registerLazySingleton<IAuthRemoteDataSource>(
     () => AuthRemoteDataSourceImpl(
       auth: sl(),
@@ -91,126 +92,119 @@ Future<void> init() async {
     ),
   );
 
-
-
   //! =========================
   //! COMPETITIONS FEATURE
   //! =========================
 
-
-  // Cubit
+  // Cubits
   sl.registerFactory(
-  () => CreateCompetitionCubit(
-    createCompetitionUseCase: sl(),
-    auth: sl(),
-  ),
-);
-
-
-
-  // Use Case
-  sl.registerLazySingleton(
-    () => CreateCompetitionUseCase(
-      repository: sl(),
+    () => CreateCompetitionCubit(
+      createCompetitionUseCase: sl(),
+      auth: sl(),
     ),
   );
 
+  sl.registerFactory(
+    () => SearchCompetitionCubit(
+      searchPublicCompetitionsUseCase: sl(),
+    ),
+  );
 
+  // Use Cases (FIXED: Positional arguments used instead of named `repository:`)
+  sl.registerLazySingleton(
+    () => CreateCompetitionUseCase(sl()),
+  );
 
-  // Repository
+  sl.registerLazySingleton(
+    () => SearchPublicCompetitionsUseCase(sl()),
+  );
+
+  sl.registerLazySingleton(
+    () => GetPublicCompetitionsUseCase(sl()),
+  );
+
+  // Repositories
   sl.registerLazySingleton<ICompetitionRepository>(
     () => CompetitionRepositoryImpl(
       remoteDataSource: sl(),
     ),
   );
 
-
-
-  // Data Source
+  // Data Sources
   sl.registerLazySingleton<ICompetitionRemoteDataSource>(
     () => CompetitionRemoteDataSourceImpl(
       firestore: sl(),
     ),
   );
 
-  // Search Competition UseCase
-  sl.registerLazySingleton(
-    () => SearchPublicCompetitionsUseCase(
-      repository: sl(),
+  //! =========================
+  //! PARTICIPANTS FEATURE
+  //! =========================
+
+  // Cubits
+  sl.registerFactory<JoinCompetitionCubit>(
+    () => JoinCompetitionCubit(
+      joinCompetitionUseCase: sl<JoinCompetitionUseCase>(),
+      auth: sl<FirebaseAuth>(),
+      leaveCompetitionUseCase: sl<LeaveCompetitionUseCase>(),
     ),
   );
 
-  sl.registerFactory(
-  () => SearchCompetitionCubit(
-    searchPublicCompetitionsUseCase: sl(),
-  ),
-);
+  // Use Cases (FIXED: Removed invalid `IParticipantRepository: null`)
+  sl.registerLazySingleton<JoinCompetitionUseCase>(
+    () => JoinCompetitionUseCase(
+      sl<IParticipantRepository>(),
+    ),
+  );
 
-//! 3. Team Feature
+  sl.registerLazySingleton<LeaveCompetitionUseCase>(
+    () => LeaveCompetitionUseCase(
+      sl<IParticipantRepository>(),
+    ),
+  );
 
+  // Repositories
+  sl.registerLazySingleton<IParticipantRepository>(
+    () => ParticipantRepositoryImpl(
+      remoteDataSource: sl(),
+    ),
+  );
 
-// Cubit
+  // Data Sources
+  sl.registerLazySingleton<IParticipantRemoteDataSource>(
+    () => ParticipantRemoteDataSourceImpl(
+      firestore: sl(),
+    ),
+  );
 
-sl.registerFactory(
+  //! =========================
+  //! TEAMS FEATURE
+  //! =========================
 
-  () => CreateTeamCubit(
+  // // Use Cases (FIXED: Positional arguments used for team use cases as well if needed)
+  // sl.registerLazySingleton(
+  //   () => CreateTeamUseCase(
+  //     sl(),
+  //   ),
+  // );
 
-    createTeamUseCase: sl(),
+  // sl.registerLazySingleton(
+  //   () => GetTeamsUseCase(
+  //     sl(),
+  //   ),
+  // );
 
-    auth: sl(),
+  // // Repositories
+  // sl.registerLazySingleton<ITeamRepository>(
+  //   () => TeamRepositoryImpl(
+  //     remoteDataSource: sl(),
+  //   ),
+  // );
 
-  ),
-
-);
-
-
-// Use Cases
-sl.registerLazySingleton(
-
-  () => CreateTeamUseCase(
-
-    repository: sl(),
-
-  ),
-
-);
-
-
-
-sl.registerLazySingleton(
-
-  () => GetTeamsUseCase(
-
-    repository: sl(),
-
-  ),
-
-);
-
-
-
-// Repository
-sl.registerLazySingleton<ITeamRepository>(
-
-  () => TeamRepositoryImpl(
-
-    remoteDataSource: sl(),
-
-  ),
-
-);
-
-
-
-// Data Source
-sl.registerLazySingleton<ITeamRemoteDataSource>(
-
-  () => TeamRemoteDataSourceImpl(
-
-    firestore: sl(),
-
-  ),
-
-);
-
+  // Data Sources
+  sl.registerLazySingleton<ITeamRemoteDataSource>(
+    () => TeamRemoteDataSourceImpl(
+      firestore: sl(),
+    ),
+  );
 }
