@@ -19,16 +19,17 @@ import 'package:ptook/features/competitions/data/datasources/competition_remote_
 import 'package:ptook/features/competitions/data/repositories/competition_repository_impl.dart';
 import 'package:ptook/features/competitions/domain/repositories/i_competition_repository.dart';
 import 'package:ptook/features/competitions/domain/usecases/create_competition_usecase.dart';
+import 'package:ptook/features/competitions/domain/usecases/get_competition_bycode_usecase.dart';
 import 'package:ptook/features/competitions/domain/usecases/get_public_competitions_usecase.dart';
 import 'package:ptook/features/competitions/domain/usecases/search_public_competitions_usecase.dart';
+import 'package:ptook/features/competitions/presintation/bloc/competition_cubit.dart';
 import 'package:ptook/features/competitions/presintation/bloc/create_competition_cubit.dart';
 import 'package:ptook/features/competitions/presintation/bloc/search_competition_cubit.dart';
+import 'package:ptook/features/participants/domain/usecases/leave_competition_usecase.dart';
 
 // =========================
 // TEAMS FEATURE IMPORTS
 // =========================
-import 'package:ptook/features/competitions/data/datasources/team_remote_data_source.dart';
-
 
 // =========================
 // PARTICIPANTS FEATURE IMPORTS
@@ -38,7 +39,6 @@ import 'package:ptook/features/participants/data/datasources/participant_remote_
 import 'package:ptook/features/participants/data/repositories/participant_repository_impl.dart';
 import 'package:ptook/features/participants/domain/repositories/i_participant_repository.dart';
 import 'package:ptook/features/participants/domain/usecases/join_competition_usecase.dart';
-import 'package:ptook/features/participants/domain/usecases/leave_competition_usecase.dart';
 import 'package:ptook/features/participants/presintation/bloc/join_competition_cubit.dart';
 import 'package:ptook/features/participants/presintation/bloc/participants_cubit.dart';
 
@@ -61,15 +61,22 @@ Future<void> init() async {
   //! AUTH FEATURE
   //! =========================
 
-  // Cubits
-  sl.registerFactory(
-    () => AuthCubit(
-      registerUseCase: sl(),
-      loginUseCase: sl(),
+  // 1. Data Sources
+  sl.registerLazySingleton<IAuthRemoteDataSource>(
+    () => AuthRemoteDataSourceImpl(
+      auth: sl(),
+      firestore: sl(),
     ),
   );
 
-  // Use Cases
+  // 2. Repositories
+  sl.registerLazySingleton<IAuthRepository>(
+    () => AuthRepositoryImpl(
+      remoteDataSource: sl(),
+    ),
+  );
+
+  // 3. Use Cases
   sl.registerLazySingleton(
     () => RegisterUseCase(sl()),
   );
@@ -78,18 +85,11 @@ Future<void> init() async {
     () => LoginUseCase(sl()),
   );
 
-  // Repositories
-  sl.registerLazySingleton<IAuthRepository>(
-    () => AuthRepositoryImpl(
-      remoteDataSource: sl(),
-    ),
-  );
-
-  // Data Sources
-  sl.registerLazySingleton<IAuthRemoteDataSource>(
-    () => AuthRemoteDataSourceImpl(
-      auth: sl(),
-      firestore: sl(),
+  // 4. Cubits
+  sl.registerFactory(
+    () => AuthCubit(
+      registerUseCase: sl(),
+      loginUseCase: sl(),
     ),
   );
 
@@ -97,7 +97,43 @@ Future<void> init() async {
   //! COMPETITIONS FEATURE
   //! =========================
 
-  // Cubits
+  // 1. Data Sources
+  sl.registerLazySingleton<ICompetitionRemoteDataSource>(
+    () => CompetitionRemoteDataSourceImpl(
+      firestore: sl(),
+      auth: sl(),
+    ),
+  );
+
+  // 2. Repositories
+  sl.registerLazySingleton<ICompetitionRepository>(
+    () => CompetitionRepositoryImpl(
+      sl<ICompetitionRemoteDataSource>(),
+    ),
+  );
+
+  // 3. Use Cases
+  sl.registerLazySingleton(
+    () => CreateCompetitionUseCase(sl()),
+  );
+
+  sl.registerLazySingleton(
+    () => SearchPublicCompetitionsUseCase(sl()),
+  );
+
+  sl.registerLazySingleton(
+    () => GetPublicCompetitionsUseCase(sl()),
+  );
+
+  sl.registerLazySingleton(
+    () => GetCompetitionByCodeUseCase(sl()),
+  );
+
+  // 4. Cubits
+  sl.registerFactory(
+    () => CompetitionCubit(sl()),
+  );
+
   sl.registerFactory(
     () => CreateCompetitionCubit(
       createCompetitionUseCase: sl(),
@@ -111,47 +147,25 @@ Future<void> init() async {
     ),
   );
 
-  // Use Cases (FIXED: Positional arguments used instead of named `repository:`)
-  sl.registerLazySingleton(
-    () => CreateCompetitionUseCase(sl()),
-  );
-
-  sl.registerLazySingleton(
-    () => SearchPublicCompetitionsUseCase(sl()),
-  );
-
-  sl.registerLazySingleton(
-    () => GetPublicCompetitionsUseCase(sl()),
-  );
-
-  // Repositories
-  sl.registerLazySingleton<ICompetitionRepository>(
-    () => CompetitionRepositoryImpl(
-      remoteDataSource: sl(),
-    ),
-  );
-
-  // Data Sources
-  sl.registerLazySingleton<ICompetitionRemoteDataSource>(
-    () => CompetitionRemoteDataSourceImpl(
-      firestore: sl(),
-    ),
-  );
-
   //! =========================
   //! PARTICIPANTS FEATURE
   //! =========================
 
-  // Cubits
-  sl.registerFactory<JoinCompetitionCubit>(
-    () => JoinCompetitionCubit(
-      joinCompetitionUseCase: sl<JoinCompetitionUseCase>(),
-      auth: sl<FirebaseAuth>(),
-      leaveCompetitionUseCase: sl<LeaveCompetitionUseCase>(),
+  // 1. Data Sources
+  sl.registerLazySingleton<IParticipantRemoteDataSource>(
+    () => ParticipantRemoteDataSourceImpl(
+      firestore: sl(),
     ),
   );
 
-  // Use Cases (FIXED: Removed invalid `IParticipantRepository: null`)
+  // 2. Repositories
+  sl.registerLazySingleton<IParticipantRepository>(
+    () => ParticipantRepositoryImpl(
+      remoteDataSource: sl<IParticipantRemoteDataSource>(),
+    ),
+  );
+
+  // 3. Use Cases
   sl.registerLazySingleton<JoinCompetitionUseCase>(
     () => JoinCompetitionUseCase(
       sl<IParticipantRepository>(),
@@ -164,17 +178,12 @@ Future<void> init() async {
     ),
   );
 
-  // Repositories
-  sl.registerLazySingleton<IParticipantRepository>(
-    () => ParticipantRepositoryImpl(
-      remoteDataSource: sl(),
-    ),
-  );
-
-  // Data Sources
-  sl.registerLazySingleton<IParticipantRemoteDataSource>(
-    () => ParticipantRemoteDataSourceImpl(
-      firestore: sl(),
+  // 4. Cubits
+  sl.registerFactory<JoinCompetitionCubit>(
+    () => JoinCompetitionCubit(
+      joinCompetitionUseCase: sl<JoinCompetitionUseCase>(),
+      auth: sl<FirebaseAuth>(),
+      leaveCompetitionUseCase: sl<LeaveCompetitionUseCase>(),
     ),
   );
 
@@ -184,34 +193,15 @@ Future<void> init() async {
       leaveCompetitionUseCase: sl(),
     ),
   );
+
   //! =========================
   //! TEAMS FEATURE
   //! =========================
 
-  // // Use Cases (FIXED: Positional arguments used for team use cases as well if needed)
-  // sl.registerLazySingleton(
-  //   () => CreateTeamUseCase(
-  //     sl(),
-  //   ),
-  // );
-
-  // sl.registerLazySingleton(
-  //   () => GetTeamsUseCase(
-  //     sl(),
-  //   ),
-  // );
-
-  // // Repositories
-  // sl.registerLazySingleton<ITeamRepository>(
-  //   () => TeamRepositoryImpl(
-  //     remoteDataSource: sl(),
-  //   ),
-  // );
-
   // Data Sources
-  sl.registerLazySingleton<ITeamRemoteDataSource>(
-    () => TeamRemoteDataSourceImpl(
-      firestore: sl(),
-    ),
-  );
+  // sl.registerLazySingleton<ITeamRemoteDataSource>(
+  //   () => TeamRemoteDataSourceImpl(
+  //     firestore: sl(),
+  //   ),
+  // );
 }

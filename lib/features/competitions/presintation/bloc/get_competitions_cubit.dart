@@ -1,7 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:ptook/features/competitions/domain/entities/competition_entity.dart';
 import 'package:ptook/features/competitions/domain/usecases/get_competition_usecase.dart';
-
-import '../../domain/entities/competition_entity.dart';
 
 part 'get_competitions_state.dart';
 
@@ -15,21 +14,20 @@ class GetCompetitionsCubit extends Cubit<GetCompetitionsState> {
   Future<void> fetchCompetitions() async {
     emit(GetCompetitionsLoading());
 
-    try {
-      final competitions = await getCompetitionsUseCase();
-      emit(GetCompetitionsSuccess(competitions));
-    } catch (e) {
-      emit(GetCompetitionsError(e.toString()));
-    }
+    final result = await getCompetitionsUseCase();
+
+    result.fold(
+      (failure) => emit(GetCompetitionsError(failure.message)),
+      (competitions) => emit(GetCompetitionsSuccess(competitions)),
+    );
   }
 
   /// Senior Method: Updates a single competition in the list in-memory 
   /// without triggering a full network refetch.
   void updateCompetitionInList(CompetitionEntity updatedCompetition) {
-    if (state is GetCompetitionsSuccess) {
-      final currentCompetitions = (state as GetCompetitionsSuccess).competitions;
-
-      final updatedList = currentCompetitions.map((comp) {
+    final currentState = state;
+    if (currentState is GetCompetitionsSuccess) {
+      final updatedList = currentState.competitions.map((comp) {
         return comp.id == updatedCompetition.id ? updatedCompetition : comp;
       }).toList();
 
@@ -39,10 +37,9 @@ class GetCompetitionsCubit extends Cubit<GetCompetitionsState> {
 
   /// Senior Method: Adds a newly joined competition to the top of the list if it isn't already present.
   void addOrUpdateCompetition(CompetitionEntity competition) {
-    if (state is GetCompetitionsSuccess) {
-      final currentList = List<CompetitionEntity>.from(
-        (state as GetCompetitionsSuccess).competitions,
-      );
+    final currentState = state;
+    if (currentState is GetCompetitionsSuccess) {
+      final currentList = List<CompetitionEntity>.from(currentState.competitions);
 
       final index = currentList.indexWhere((c) => c.id == competition.id);
 

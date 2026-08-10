@@ -1,10 +1,13 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:ptook/core/Theme/app_colors.dart';
 import 'package:ptook/core/extentions/spacing_extentions.dart';
 import 'package:ptook/features/competitions/domain/entities/competition_entity.dart';
+import 'package:ptook/features/competitions/presintation/bloc/competition_cubit.dart';
 import 'package:ptook/features/competitions/presintation/views/manage_competition_view.dart';
+import 'package:ptook/features/participants/domain/entities/participant_entity.dart';
 
 class CompetitionHomeView extends StatefulWidget {
   final CompetitionEntity competition;
@@ -22,6 +25,7 @@ class _CompetitionHomeViewState extends State<CompetitionHomeView>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final String? _currentUserId = FirebaseAuth.instance.currentUser?.uid;
+  bool _isFavorite = false;
 
   @override
   void initState() {
@@ -40,33 +44,93 @@ class _CompetitionHomeViewState extends State<CompetitionHomeView>
 
   bool get _isTeamCompetition => widget.competition.type == "team";
 
+  bool get _isParticipant =>
+      _currentUserId != null &&
+      (widget.competition.participantIds.contains(_currentUserId));
+
   Future<void> _onRefresh() async {
-    // TODO: Trigger Cubit/Bloc event to refresh competition state
+    // TODO: Refresh leaderboard data via Cubit/Bloc
     await Future.delayed(const Duration(seconds: 1));
+  }
+
+  void _toggleFavorite() {
+    setState(() => _isFavorite = !_isFavorite);
+    ScaffoldMessenger.of(context).clearSnackBars();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(_isFavorite ? "Saved to favorites!" : "Removed from favorites"),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  void _showLeaveConfirmationDialog() {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        title: const Text(
+          "Leave Competition?",
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        content: const Text(
+          "Are you sure? Leaving will reset your points and rank on this leaderboard.",
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text("Cancel", style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            onPressed: () async {
+              Navigator.pop(dialogContext); // 1. Close alert dialog
+          
+              // 2. Dispatch leave event to backend / state management
+              // Replace with your actual Cubit/Bloc method name:
+              await context.read<CompetitionCubit>().leaveCompetition(widget.competition.id);
+          
+              if (context.mounted) {
+                // 3. Return 'true' to indicate a state change to the previous screen
+                Navigator.pop(context, true); 
+              }
+            },
+            child: const Text("Leave", style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
   }
 
   void _navigateToManage(BuildContext context) {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => ManageCompetitionView(
-          competition: widget.competition,
-        ),
+        builder: (_) => ManageCompetitionView(competition: widget.competition),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final participants = widget.competition.participants ?? [];
-    
-    // Sort items by points descending
-    final sortedList = List.from(participants)
-      ..sort((a, b) => (b.points ?? 0).compareTo(a.points ?? 0));
+    final List<ParticipantEntity> participants = 
+    widget.competition.participants?.cast<ParticipantEntity>() ?? [];
 
-    final userIndex = sortedList.indexWhere((p) => p.id == _currentUserId);
+    // 1. Sort participants by points descending
+    final sortedList = List<ParticipantEntity>.from(participants)
+      ..sort((a, b) => b.points.compareTo(a.points));
+
+    // 2. Find Current User Stats using `userId`
+    final userIndex = sortedList.indexWhere((p) => p.userId == _currentUserId);
+    final currentUser = userIndex != -1 ? sortedList[userIndex] : null;
     final userRank = userIndex != -1 ? userIndex + 1 : null;
-    final userPoints = userIndex != -1 ? sortedList[userIndex].points ?? 0 : 0;
+    final userPoints = currentUser?.points ?? 0;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -83,11 +147,16 @@ class _CompetitionHomeViewState extends State<CompetitionHomeView>
           ),
         ),
         actions: [
-          // Owner Settings Button -> Navigate to ManageCompetitionView
+          IconButton(
+            icon: Icon(
+              _isFavorite ? Icons.bookmark : Icons.bookmark_border,
+              color: _isFavorite ? AppColors.primary : Colors.white70,
+            ),
+            onPressed: _toggleFavorite,
+          ),
           if (_isOwner)
             IconButton(
               icon: const Icon(Icons.settings, color: AppColors.primary),
-              tooltip: "Manage Competition",
               onPressed: () => _navigateToManage(context),
             ),
         ],
@@ -105,31 +174,36 @@ class _CompetitionHomeViewState extends State<CompetitionHomeView>
                     child: Column(
                       children: [
                         12.vs,
-                        // Standing summary card (Custom tailored for Owner vs Participant)
+
+                        // Hero Header Tile
                         _StandingHeroCard(
                           isOwner: _isOwner,
                           userRank: userRank,
                           userPoints: userPoints,
+                          totalStars: currentUser?.totalStarsEarned ?? 0,
                           totalParticipants: sortedList.length,
-                          isTeamType: _isTeamCompetition,
                           endDate: widget.competition.endDate,
                         ),
-                        20.vs,
+                        16.vs,
 
-                        // Podium (Top 3)
-                        if (sortedList.length >= 3) ...[
-                          _PodiumView(
-                            first: sortedList[0],
-                            second: sortedList[1],
-                            third: sortedList[2],
-                          ),
+                        // Gamified Level / Progress Bar
+                        _GamifiedProgressBar(
+                          userPoints: userPoints,
+                          totalStars: currentUser?.totalStarsEarned ?? 0,
+                        ),
+                        24.vs,
+
+                        // Dynamic Top 3 Podium Standings
+                        if (sortedList.isNotEmpty) ...[
+                          _PodiumView(sortedList: sortedList),
                           24.vs,
                         ],
                       ],
                     ),
                   ),
                 ),
-                // Persistent Tab Header
+
+                // Sticky Tab Bar
                 SliverPersistentHeader(
                   pinned: true,
                   delegate: _SliverTabBarDelegate(
@@ -146,7 +220,7 @@ class _CompetitionHomeViewState extends State<CompetitionHomeView>
                       tabs: [
                         Tab(
                           text: _isTeamCompetition
-                              ? "Team Leaderboard"
+                              ? "Team Standings"
                               : "Leaderboard",
                         ),
                         const Tab(text: "Rules & Overview"),
@@ -159,19 +233,20 @@ class _CompetitionHomeViewState extends State<CompetitionHomeView>
             body: TabBarView(
               controller: _tabController,
               children: [
-                // TAB 1: LEADERBOARD
+                // TAB 1: RANKED LEADERBOARD LIST
                 _LeaderboardListView(
                   sortedList: sortedList,
                   currentUserId: _currentUserId,
                   isTeamType: _isTeamCompetition,
-                  isOwner: _isOwner,
                 ),
 
                 // TAB 2: RULES & OVERVIEW
                 _RulesAndOverviewTab(
                   competition: widget.competition,
                   isOwner: _isOwner,
+                  isParticipant: _isParticipant,
                   onManageTap: () => _navigateToManage(context),
+                  onLeaveTap: _showLeaveConfirmationDialog,
                 ),
               ],
             ),
@@ -183,95 +258,70 @@ class _CompetitionHomeViewState extends State<CompetitionHomeView>
 }
 
 // =============================================================================
-// HERO STANDING / STATS CARD
+// HERO STANDING CARD
 // =============================================================================
 class _StandingHeroCard extends StatelessWidget {
   final bool isOwner;
   final int? userRank;
   final int userPoints;
+  final int totalStars;
   final int totalParticipants;
-  final bool isTeamType;
   final DateTime endDate;
 
   const _StandingHeroCard({
     required this.isOwner,
     required this.userRank,
     required this.userPoints,
+    required this.totalStars,
     required this.totalParticipants,
-    required this.isTeamType,
     required this.endDate,
   });
 
   @override
   Widget build(BuildContext context) {
-    final daysRemaining = endDate.difference(DateTime.now()).inDays;
-
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            AppColors.primary.withOpacity(0.25),
+            AppColors.primary.withOpacity(0.2),
             AppColors.surface,
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: AppColors.primary.withOpacity(0.3),
-        ),
+        border: Border.all(color: AppColors.primary.withOpacity(0.3)),
       ),
       child: Column(
         children: [
-          if (isOwner) ...[
-            // Owner Badge Header
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.admin_panel_settings,
-                    color: AppColors.primary, size: 18),
-                6.hs,
-                const Text(
-                  "Owner Control Active",
-                  style: TextStyle(
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13,
-                  ),
-                ),
-              ],
-            ),
-            12.vs,
-          ],
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
               _StatTile(
-                label: isOwner
-                    ? (isTeamType ? "Total Teams" : "Participants")
-                    : "Your Rank",
+                label: isOwner ? "Players" : "Your Rank",
                 value: isOwner
                     ? "$totalParticipants"
                     : (userRank != null ? "#$userRank" : "--"),
-                subtext: isOwner ? "registered" : "of $totalParticipants",
+                subtext: isOwner ? "joined" : "of $totalParticipants",
                 accentColor: AppColors.primary,
+                icon: Icons.leaderboard,
               ),
               Container(height: 36, width: 1, color: Colors.white12),
               _StatTile(
-                label: isOwner ? "Type" : "Your Points",
-                value: isOwner
-                    ? (isTeamType ? "Team" : "Solo")
-                    : "$userPoints",
-                subtext: isOwner ? "competition" : "pts",
-                accentColor: Colors.greenAccent,
+                label: "Points",
+                value: "$userPoints",
+                subtext: "pts",
+                accentColor: Colors.amberAccent,
+                icon: Icons.stars,
               ),
               Container(height: 36, width: 1, color: Colors.white12),
               _StatTile(
-                label: "Time Left",
-                value: daysRemaining > 0 ? "${daysRemaining}d" : "Ended",
-                subtext: "remaining",
+                label: "Total Stars",
+                value: "$totalStars ⭐",
+                subtext: "all time",
                 accentColor: Colors.orangeAccent,
+                icon: Icons.auto_awesome,
               ),
             ],
           ),
@@ -286,31 +336,40 @@ class _StatTile extends StatelessWidget {
   final String value;
   final String subtext;
   final Color accentColor;
+  final IconData icon;
 
   const _StatTile({
     required this.label,
     required this.value,
     required this.subtext,
     required this.accentColor,
+    required this.icon,
   });
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Text(
-          label,
-          style: TextStyle(
-            color: Colors.white.withOpacity(0.6),
-            fontSize: 12,
-          ),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 14, color: accentColor),
+            4.hs,
+            Text(
+              label,
+              style: TextStyle(
+                color: Colors.white.withOpacity(0.6),
+                fontSize: 12,
+              ),
+            ),
+          ],
         ),
         6.vs,
         Text(
           value,
           style: TextStyle(
             color: accentColor,
-            fontSize: 20,
+            fontSize: 18,
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -328,63 +387,142 @@ class _StatTile extends StatelessWidget {
 }
 
 // =============================================================================
-// PODIUM WIDGET (TOP 3)
+// GAMIFIED XP & STARS PROGRESS BAR
 // =============================================================================
-class _PodiumView extends StatelessWidget {
-  final dynamic first;
-  final dynamic second;
-  final dynamic third;
+class _GamifiedProgressBar extends StatelessWidget {
+  final int userPoints;
+  final int totalStars;
 
-  const _PodiumView({
-    required this.first,
-    required this.second,
-    required this.third,
+  const _GamifiedProgressBar({
+    required this.userPoints,
+    required this.totalStars,
   });
 
   @override
   Widget build(BuildContext context) {
+    const nextLevelTarget = 500;
+    final progress = (userPoints / nextLevelTarget).clamp(0.0, 1.0);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.military_tech,
+                      color: Colors.amberAccent, size: 18),
+                  6.hs,
+                  const Text(
+                    "Next Tier Progress",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              ),
+              Text(
+                "$userPoints / $nextLevelTarget XP",
+                style: const TextStyle(
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+          8.vs,
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: LinearProgressIndicator(
+              value: progress,
+              minHeight: 8,
+              backgroundColor: Colors.white10,
+              valueColor:
+                  const AlwaysStoppedAnimation<Color>(AppColors.primary),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// =============================================================================
+// TOP 3 PODIUM VIEW
+// =============================================================================
+class _PodiumView extends StatelessWidget {
+  final List<ParticipantEntity> sortedList;
+
+  const _PodiumView({required this.sortedList});
+
+  @override
+  Widget build(BuildContext context) {
+    final first = sortedList.isNotEmpty ? sortedList[0] : null;
+    final second = sortedList.length > 1 ? sortedList[1] : null;
+    final third = sortedList.length > 2 ? sortedList[2] : null;
+
+    if (first == null) return const SizedBox.shrink();
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
-        _PodiumColumn(
-          name: second.name ?? "2nd Place",
-          points: second.points ?? 0,
-          rank: 2,
-          height: 85,
-          color: const Color(0xFFC0C0C0),
-        ),
+        // 2ND PLACE (SILVER)
+        if (second != null)
+          _PodiumColumn(
+            participant: second,
+            rank: 2,
+            height: 90,
+            color: const Color(0xFFC0C0C0),
+          )
+        else
+          const SizedBox(width: 80),
+
         12.hs,
+
+        // 1ST PLACE (GOLD)
         _PodiumColumn(
-          name: first.name ?? "1st Place",
-          points: first.points ?? 0,
+          participant: first,
           rank: 1,
-          height: 115,
+          height: 120,
           color: const Color(0xFFFFD700),
         ),
+
         12.hs,
-        _PodiumColumn(
-          name: third.name ?? "3rd Place",
-          points: third.points ?? 0,
-          rank: 3,
-          height: 65,
-          color: const Color(0xFFCD7F32),
-        ),
+
+        // 3RD PLACE (BRONZE)
+        if (third != null)
+          _PodiumColumn(
+            participant: third,
+            rank: 3,
+            height: 70,
+            color: const Color(0xFFCD7F32),
+          )
+        else
+          const SizedBox(width: 80),
       ],
     );
   }
 }
 
 class _PodiumColumn extends StatelessWidget {
-  final String name;
-  final int points;
+  final ParticipantEntity participant;
   final int rank;
   final double height;
   final Color color;
 
   const _PodiumColumn({
-    required this.name,
-    required this.points,
+    required this.participant,
     required this.rank,
     required this.height,
     required this.color,
@@ -392,21 +530,50 @@ class _PodiumColumn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final displayName = participant.name.isNotEmpty ? participant.name : 'Participant';
+    final hasAvatar = participant.avatarUrl != null && participant.avatarUrl!.isNotEmpty;
+
     return Column(
       children: [
-        CircleAvatar(
-          radius: 18,
-          backgroundColor: color.withOpacity(0.2),
-          child: Text(
-            "$rank",
-            style: TextStyle(color: color, fontWeight: FontWeight.bold),
-          ),
+        Stack(
+          alignment: Alignment.bottomRight,
+          children: [
+            CircleAvatar(
+              radius: 22,
+              backgroundColor: color.withOpacity(0.2),
+              backgroundImage: hasAvatar ? NetworkImage(participant.avatarUrl!) : null,
+              child: !hasAvatar
+                  ? Text(
+                      participant.initials,
+                      style: TextStyle(
+                        color: color,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    )
+                  : null,
+            ),
+            Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: color,
+                shape: BoxShape.circle,
+              ),
+              child: Text(
+                "$rank",
+                style: const TextStyle(
+                  color: Colors.black,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
         ),
         6.vs,
         SizedBox(
           width: 80,
           child: Text(
-            name,
+            displayName,
             textAlign: TextAlign.center,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
@@ -417,9 +584,9 @@ class _PodiumColumn extends StatelessWidget {
             ),
           ),
         ),
-        4.vs,
+        2.vs,
         Text(
-          "$points pts",
+          "${participant.points} pts",
           style: TextStyle(
             color: color,
             fontSize: 11,
@@ -427,16 +594,39 @@ class _PodiumColumn extends StatelessWidget {
           ),
         ),
         8.vs,
-        Container(
+        AnimatedContainer(
+          duration: const Duration(milliseconds: 300),
           width: 80,
           height: height,
           decoration: BoxDecoration(
-            color: color.withOpacity(0.15),
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-            border: Border.all(color: color.withOpacity(0.4)),
+            gradient: LinearGradient(
+              colors: [
+                color.withOpacity(0.3),
+                color.withOpacity(0.05),
+              ],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+            ),
+            borderRadius:
+                const BorderRadius.vertical(top: Radius.circular(12)),
+            border: Border.all(color: color.withOpacity(0.5), width: 1.5),
           ),
-          child: Center(
-            child: Icon(Icons.emoji_events, color: color, size: 26),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.emoji_events, color: color, size: 24),
+              if (participant.currentCompetitionStars > 0) ...[
+                2.vs,
+                Text(
+                  "+${participant.currentCompetitionStars} ⭐",
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ],
           ),
         ),
       ],
@@ -445,27 +635,36 @@ class _PodiumColumn extends StatelessWidget {
 }
 
 // =============================================================================
-// TAB 1: LEADERBOARD LIST
+// TAB 1: LEADERBOARD LIST VIEW
 // =============================================================================
 class _LeaderboardListView extends StatelessWidget {
-  final List<dynamic> sortedList;
+  final List<ParticipantEntity> sortedList;
   final String? currentUserId;
   final bool isTeamType;
-  final bool isOwner;
 
   const _LeaderboardListView({
     required this.sortedList,
     required this.currentUserId,
     required this.isTeamType,
-    required this.isOwner,
   });
+
+  int _calculateRank(int index) {
+    if (index == 0) return 1;
+    final currentPoints = sortedList[index].points;
+    final previousPoints = sortedList[index - 1].points;
+
+    if (currentPoints == previousPoints) {
+      return _calculateRank(index - 1);
+    }
+    return index + 1;
+  }
 
   @override
   Widget build(BuildContext context) {
     if (sortedList.isEmpty) {
       return Center(
         child: Text(
-          isTeamType ? "No teams joined yet." : "No participants joined yet.",
+          isTeamType ? "No teams joined yet" : "No participants joined yet",
           style: TextStyle(color: Colors.white.withOpacity(0.5)),
         ),
       );
@@ -474,71 +673,133 @@ class _LeaderboardListView extends StatelessWidget {
     return ListView.separated(
       padding: const EdgeInsets.all(16),
       itemCount: sortedList.length,
-      separatorBuilder: (_, __) => 10.vs,
+      separatorBuilder: (_, __) => 8.vs,
       itemBuilder: (context, index) {
-        final item = sortedList[index];
-        final isCurrentUser = item.id == currentUserId;
-        final rank = index + 1;
+        final participant = sortedList[index];
+        final isCurrentUser = participant.userId == currentUserId;
+        final rank = _calculateRank(index);
+
+        Color rankColor;
+        switch (rank) {
+          case 1:
+            rankColor = const Color(0xFFFFD700);
+            break;
+          case 2:
+            rankColor = const Color(0xFFC0C0C0);
+            break;
+          case 3:
+            rankColor = const Color(0xFFCD7F32);
+            break;
+          default:
+            rankColor = Colors.white54;
+        }
+
+        final displayName = participant.name.isNotEmpty ? participant.name : 'Participant';
+        final hasAvatar = participant.avatarUrl != null && participant.avatarUrl!.isNotEmpty;
 
         return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           decoration: BoxDecoration(
             color: isCurrentUser
-                ? AppColors.primary.withOpacity(0.2)
+                ? AppColors.primary.withOpacity(0.18)
                 : AppColors.surface,
             borderRadius: BorderRadius.circular(14),
-            border: isCurrentUser
-                ? Border.all(color: AppColors.primary, width: 1.5)
-                : Border.all(color: Colors.white.withOpacity(0.05)),
+            border: Border.all(
+              color: isCurrentUser
+                  ? AppColors.primary
+                  : Colors.white.withOpacity(0.06),
+              width: isCurrentUser ? 1.5 : 1.0,
+            ),
           ),
           child: Row(
             children: [
-              // Rank
               SizedBox(
-                width: 32,
+                width: 36,
                 child: Text(
                   "#$rank",
                   style: TextStyle(
-                    color: rank <= 3 ? AppColors.primary : Colors.grey,
+                    color: rankColor,
                     fontWeight: FontWeight.bold,
-                    fontSize: 15,
+                    fontSize: 16,
                   ),
                 ),
               ),
-              10.hs,
-
-              // Type Icon
-              Icon(
-                isTeamType ? Icons.groups_outlined : Icons.person_outline,
-                size: 20,
-                color: Colors.white.withOpacity(0.6),
+              CircleAvatar(
+                radius: 16,
+                backgroundColor: AppColors.primary.withOpacity(0.1),
+                backgroundImage: hasAvatar ? NetworkImage(participant.avatarUrl!) : null,
+                child: !hasAvatar
+                    ? (isTeamType
+                        ? const Icon(Icons.groups, size: 18, color: Colors.white70)
+                        : Text(
+                            participant.initials,
+                            style: TextStyle(
+                              color: isCurrentUser ? AppColors.primary : Colors.white70,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ))
+                    : null,
               ),
-              10.hs,
-
-              // Name
+              12.hs,
               Expanded(
-                child: Text(
-                  item.name ??
-                      (isTeamType
-                          ? "Team #$rank"
-                          : "Participant #$rank"),
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight:
-                        isCurrentUser ? FontWeight.bold : FontWeight.w500,
-                    fontSize: 15,
-                  ),
+                child: Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        displayName,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: isCurrentUser
+                              ? FontWeight.bold
+                              : FontWeight.w500,
+                          fontSize: 14,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (isCurrentUser) ...[
+                      6.hs,
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: const Text(
+                          "YOU",
+                          style: TextStyle(
+                            color: Colors.black,
+                            fontSize: 9,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
-
-              // Points
-              Text(
-                "${item.points ?? 0} pts",
-                style: const TextStyle(
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 15,
-                ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    "${participant.points} pts",
+                    style: TextStyle(
+                      color: isCurrentUser ? AppColors.primary : Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
+                  if (participant.totalStarsEarned > 0)
+                    Text(
+                      "${participant.totalStarsEarned} ⭐",
+                      style: const TextStyle(
+                        color: Colors.amberAccent,
+                        fontSize: 11,
+                      ),
+                    ),
+                ],
               ),
             ],
           ),
@@ -554,12 +815,16 @@ class _LeaderboardListView extends StatelessWidget {
 class _RulesAndOverviewTab extends StatelessWidget {
   final CompetitionEntity competition;
   final bool isOwner;
+  final bool isParticipant;
   final VoidCallback onManageTap;
+  final VoidCallback onLeaveTap;
 
   const _RulesAndOverviewTab({
     required this.competition,
     required this.isOwner,
+    required this.isParticipant,
     required this.onManageTap,
+    required this.onLeaveTap,
   });
 
   @override
@@ -570,7 +835,6 @@ class _RulesAndOverviewTab extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (isOwner) ...[
-            // Quick Manage Banner for Owners
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
@@ -584,12 +848,8 @@ class _RulesAndOverviewTab extends StatelessWidget {
                   12.hs,
                   const Expanded(
                     child: Text(
-                      "Manage settings, participants & points",
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                      ),
+                      "Manage points & settings",
+                      style: TextStyle(color: Colors.white, fontSize: 13),
                     ),
                   ),
                   TextButton(
@@ -603,7 +863,7 @@ class _RulesAndOverviewTab extends StatelessWidget {
           ],
 
           const Text(
-            "Description",
+            "Overview",
             style: TextStyle(
               color: Colors.white,
               fontSize: 16,
@@ -621,79 +881,26 @@ class _RulesAndOverviewTab extends StatelessWidget {
           ),
           24.vs,
 
-          const Text(
-            "Rules & Information",
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          12.vs,
-          _InfoTile(
-            icon: Icons.emoji_events_outlined,
-            title: "Fair Scoring",
-            subtitle: "Points update live on the leaderboard.",
-          ),
-          10.vs,
-          _InfoTile(
-            icon: Icons.groups_outlined,
-            title: "Competition Format",
-            subtitle: competition.type == "team"
-                ? "Team-based rankings and collaboration."
-                : "Individual competitor standings.",
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _InfoTile extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-
-  const _InfoTile({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, color: AppColors.primary, size: 22),
-          12.hs,
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
+          if (!isOwner && isParticipant) ...[
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: Colors.redAccent),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                2.vs,
-                Text(
-                  subtitle,
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.6),
-                    fontSize: 12,
-                  ),
+                onPressed: onLeaveTap,
+                icon: const Icon(Icons.exit_to_app, color: Colors.redAccent),
+                label: const Text(
+                  "Leave Competition",
+                  style: TextStyle(color: Colors.redAccent),
                 ),
-              ],
+              ),
             ),
-          ),
+          ],
         ],
       ),
     );
@@ -701,7 +908,7 @@ class _InfoTile extends StatelessWidget {
 }
 
 // =============================================================================
-// SLIVER TAB BAR DELEGATE
+// SLIVER TAB DELEGATE
 // =============================================================================
 class _SliverTabBarDelegate extends SliverPersistentHeaderDelegate {
   final TabBar tabBar;

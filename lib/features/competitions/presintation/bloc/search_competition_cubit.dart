@@ -1,5 +1,4 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
-
 import '../../domain/entities/competition_entity.dart';
 import '../../domain/usecases/search_public_competitions_usecase.dart';
 
@@ -25,19 +24,14 @@ class SearchCompetitionCubit extends Cubit<SearchCompetitionState> {
 
     _safeEmit(SearchCompetitionLoading());
 
-    try {
-      final competitions = await _searchPublicCompetitionsUseCase(
-        sanitizedKeyword.toLowerCase(),
-      );
+    final result = await _searchPublicCompetitionsUseCase(
+      sanitizedKeyword.toLowerCase(),
+    );
 
-      _safeEmit(SearchCompetitionSuccess(competitions));
-    } catch (e) {
-      _safeEmit(
-        SearchCompetitionError(
-          _formatErrorMessage(e),
-        ),
-      );
-    }
+    result.fold(
+      (failure) => _safeEmit(SearchCompetitionError(failure.message)),
+      (competitions) => _safeEmit(SearchCompetitionSuccess(competitions)),
+    );
   }
 
   /// Clears search query and resets state back to Initial.
@@ -47,10 +41,9 @@ class SearchCompetitionCubit extends Cubit<SearchCompetitionState> {
 
   /// Updates a single competition in the current list without re-fetching from backend.
   void updateCompetitionInList(CompetitionEntity updatedCompetition) {
-    if (state is SearchCompetitionSuccess) {
-      final currentList = (state as SearchCompetitionSuccess).competitions;
-
-      final updatedList = currentList.map((comp) {
+    final currentState = state;
+    if (currentState is SearchCompetitionSuccess) {
+      final updatedList = currentState.competitions.map((comp) {
         return comp.id == updatedCompetition.id ? updatedCompetition : comp;
       }).toList();
 
@@ -63,10 +56,9 @@ class SearchCompetitionCubit extends Cubit<SearchCompetitionState> {
     required String competitionId,
     required bool isJoining,
   }) {
-    if (state is SearchCompetitionSuccess) {
-      final currentList = (state as SearchCompetitionSuccess).competitions;
-
-      final updatedList = currentList.map((comp) {
+    final currentState = state;
+    if (currentState is SearchCompetitionSuccess) {
+      final updatedList = currentState.competitions.map((comp) {
         if (comp.id == competitionId) {
           final newCount = isJoining
               ? comp.participantsCount + 1
@@ -86,14 +78,5 @@ class SearchCompetitionCubit extends Cubit<SearchCompetitionState> {
     if (!isClosed) {
       emit(newState);
     }
-  }
-
-  /// Formats raw exception objects into user-friendly strings.
-  String _formatErrorMessage(dynamic error) {
-    final message = error.toString();
-    if (message.startsWith('Exception: ')) {
-      return message.replaceFirst('Exception: ', '');
-    }
-    return message.isEmpty ? 'An unexpected error occurred.' : message;
   }
 }

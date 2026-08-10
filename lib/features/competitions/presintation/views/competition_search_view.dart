@@ -172,6 +172,7 @@ class _CompetitionSearchViewState extends State<CompetitionSearchView> {
                             competition,
                           ),
                           child: CompetitionCard(
+                            key: ValueKey(competition.id), // 👈 ADD THIS KEY
                             competition: competition,
                             isOwner: isOwner,
                             isJoined: isJoined,

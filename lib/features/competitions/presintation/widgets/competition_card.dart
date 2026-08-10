@@ -35,21 +35,25 @@ class _CompetitionCardState extends State<CompetitionCard> {
   @override
   void initState() {
     super.initState();
-    _isJoined = widget.isJoined;
-    _participantsCount = widget.competition.participantsCount;
+    _syncStateWithWidget();
   }
 
   @override
   void didUpdateWidget(covariant CompetitionCard oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.isJoined != widget.isJoined ||
-        oldWidget.competition.participantsCount !=
-            widget.competition.participantsCount) {
-      setState(() {
-        _isJoined = widget.isJoined;
-        _participantsCount = widget.competition.participantsCount;
-      });
+    // Re-sync if the competition ID changed or parent passed updated properties
+    if (oldWidget.competition.id != widget.competition.id ||
+        oldWidget.isJoined != widget.isJoined ||
+        oldWidget.competition.participantsCount != widget.competition.participantsCount) {
+      _syncStateWithWidget();
     }
+  }
+
+  /// Ensures local state strictly reflects parent props and edge cases
+  void _syncStateWithWidget() {
+    _participantsCount = widget.competition.participantsCount;
+    // 🛡️ Guard: If count is 0, user cannot be joined!
+    _isJoined = _participantsCount > 0 && widget.isJoined;
   }
 
   @override
@@ -71,7 +75,6 @@ class _CompetitionCardState extends State<CompetitionCard> {
               ),
             );
 
-            // Navigate to CompetitionHomeView after successfully joining
             _navigateToHome(context);
           } else if (state is JoinCompetitionFailure) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -94,7 +97,6 @@ class _CompetitionCardState extends State<CompetitionCard> {
             ),
             child: InkWell(
               borderRadius: BorderRadius.circular(16),
-              // Tap anywhere -> CompetitionDetailsView
               onTap: () => _navigateToDetails(context),
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
@@ -147,7 +149,7 @@ class _CompetitionCardState extends State<CompetitionCard> {
                     ),
                     16.vs,
 
-                    // Action Button (Manage / Open / Join)
+                    // Action Button
                     SizedBox(
                       width: double.infinity,
                       height: 44,
@@ -189,7 +191,7 @@ class _CompetitionCardState extends State<CompetitionCard> {
       );
     }
 
-    // 2. PARTICIPANT FLOW
+    // 2. PARTICIPANT FLOW (Joined)
     if (_isJoined) {
       return ElevatedButton.icon(
         onPressed: () => _navigateToHome(context),
@@ -203,7 +205,7 @@ class _CompetitionCardState extends State<CompetitionCard> {
     return ElevatedButton.icon(
       onPressed: () => _handleJoin(context),
       icon: const Icon(Icons.login, size: 18),
-      label: const Text("Join"),
+      label: const Text("Join Competition"),
       style: _buttonStyle(AppColors.primary),
     );
   }
@@ -223,9 +225,6 @@ class _CompetitionCardState extends State<CompetitionCard> {
     );
   }
 
-  // ===========================================================================
-  // JOIN VALIDATION & LOGIC
-  // ===========================================================================
   void _handleJoin(BuildContext context) {
     final userId = FirebaseAuth.instance.currentUser?.uid;
 
@@ -234,7 +233,6 @@ class _CompetitionCardState extends State<CompetitionCard> {
       return;
     }
 
-    // 1. Check Max Participants
     if (widget.competition.maxParticipants != null &&
         _participantsCount >= widget.competition.maxParticipants!) {
       _showErrorSnackBar(
@@ -244,7 +242,6 @@ class _CompetitionCardState extends State<CompetitionCard> {
       return;
     }
 
-    // 2. Check End Date
     if (DateTime.now().isAfter(widget.competition.endDate)) {
       _showErrorSnackBar(
         context,
@@ -253,7 +250,6 @@ class _CompetitionCardState extends State<CompetitionCard> {
       return;
     }
 
-    // Execute Join Cubit Action
     context.read<JoinCompetitionCubit>().joinCompetition(
           competitionId: widget.competition.id,
           userId: userId,
@@ -269,9 +265,6 @@ class _CompetitionCardState extends State<CompetitionCard> {
     );
   }
 
-  // ===========================================================================
-  // NAVIGATION ROUTERS
-  // ===========================================================================
   Future<void> _navigateToDetails(BuildContext context) async {
     final updatedCompetition = await Navigator.push<CompetitionEntity>(
       context,
@@ -285,8 +278,8 @@ class _CompetitionCardState extends State<CompetitionCard> {
     if (updatedCompetition != null && mounted) {
       final currentUserId = FirebaseAuth.instance.currentUser?.uid;
       setState(() {
-        _isJoined = updatedCompetition.isJoinedBy(currentUserId);
         _participantsCount = updatedCompetition.participantsCount;
+        _isJoined = _participantsCount > 0 && updatedCompetition.isJoinedBy(currentUserId);
       });
     }
   }
