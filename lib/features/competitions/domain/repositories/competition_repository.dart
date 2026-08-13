@@ -8,17 +8,40 @@ abstract class CompetitionRepository {
   Future<Either<Failure, List<CompetitionEntity>>> getCompetitions();
 
   /// Fetches all public competitions.
-  Future<Either<Failure, List<CompetitionEntity>>> getPublicCompetitions();
+  Future<Either<Failure, List<CompetitionEntity>>> getPublicCompetitions({
+    int limit = 10,
+    String? lastCompetitionId,
+  });
+
+  /// Searches public competitions by keyword.
+  Future<Either<Failure, List<CompetitionEntity>>> searchPublicCompetitions({
+    String query = '',
+    int limit = 10,
+    String? lastCompetitionId,
+  });
+
+  /// Fetches competitions joined by the current user.
+  Future<Either<Failure, List<CompetitionEntity>>> getJoinedCompetitions({
+    String? query = '',
+    int limit = 10,
+    String? lastCompetitionId,
+  });
+
+  /// Fetches competitions created by the current user.
+  Future<Either<Failure, List<CompetitionEntity>>> getCreatedCompetitions({
+    String? query = '',
+    int limit = 10,
+    String? lastCompetitionId,
+  });
 
   /// Fetches a single competition by its ID.
   Future<Either<Failure, CompetitionEntity>> getCompetitionById(String competitionId);
 
-  /// Searches public competitions by keyword.
-  Future<Either<Failure, List<CompetitionEntity>>> searchPublicCompetitions(String keyword);
-
   /// Fetches a single competition by its invite code (returns null if not found).
   Future<Either<Failure, CompetitionEntity?>> getCompetitionByCode(String code);
 
+  Future<CompetitionEntity> getCompetitionDetails(String competitionId);
+  
   /// Creates a new competition (for organizers).
   Future<Either<Failure, void>> createCompetition(CompetitionEntity competition);
 
@@ -44,3 +67,4 @@ abstract class CompetitionRepository {
   /// Realtime Stream for participant leaderboards.
   Stream<List<ParticipantEntity>> streamParticipants(String competitionId);
 }
+

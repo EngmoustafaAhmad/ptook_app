@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // 🌟 Added Firebase Auth
 
 import '../../domain/entities/podium_tier.dart';
 import '../models/participant_model.dart';
@@ -6,8 +7,12 @@ import 'participant_remote_data_source.dart';
 
 class ParticipantRemoteDataSourceImpl implements IParticipantRemoteDataSource {
   final FirebaseFirestore firestore;
+  final FirebaseAuth auth; // 🌟 Injected Auth instance
 
-  ParticipantRemoteDataSourceImpl({required this.firestore});
+  ParticipantRemoteDataSourceImpl({
+    required this.firestore,
+    required this.auth,
+  });
 
   @override
   Future<void> joinCompetition({
@@ -18,6 +23,7 @@ class ParticipantRemoteDataSourceImpl implements IParticipantRemoteDataSource {
   }) async {
     final competitionRef = firestore.collection('competitions').doc(competitionId);
     final participantRef = competitionRef.collection('participants').doc(userId);
+    final userRef = firestore.collection('users').doc(userId); // 🌟 To read user data
 
     return firestore.runTransaction((transaction) async {
       final snapshot = await transaction.get(competitionRef);
@@ -25,6 +31,18 @@ class ParticipantRemoteDataSourceImpl implements IParticipantRemoteDataSource {
       if (!snapshot.exists) {
         throw Exception('Competition no longer exists');
       }
+
+      // 🌟 Fetch user doc inside transaction (or fallback to Auth currentUser)
+      final userSnapshot = await transaction.get(userRef);
+      final currentUser = auth.currentUser;
+
+      // Extract registered name
+      final userName = userSnapshot.data()?['name'] ?? 
+          currentUser?.displayName ?? 
+          'Participant';
+
+      final userAvatar = userSnapshot.data()?['avatarUrl'] ?? 
+          currentUser?.photoURL;
 
       final data = snapshot.data();
       final currentCount = data?['participantsCount'] ?? 0;
@@ -41,10 +59,12 @@ class ParticipantRemoteDataSourceImpl implements IParticipantRemoteDataSource {
         throw Exception('This competition has reached max capacity!');
       }
 
-      // 3. Add to participants sub-collection
+      // 3. Add to participants sub-collection WITH NAME & AVATAR
       transaction.set(participantRef, {
         'userId': userId,
         'competitionId': competitionId,
+        'name': userName,         // 👈 🌟 Saved to participant document!
+        'avatarUrl': userAvatar,   // 👈 🌟 Saved to participant document!
         'role': role,
         'teamId': teamId,
         'points': 0,

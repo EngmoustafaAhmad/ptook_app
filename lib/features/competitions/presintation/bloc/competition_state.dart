@@ -14,11 +14,29 @@ class CompetitionLoading extends CompetitionState {}
 
 class CompetitionsLoaded extends CompetitionState {
   final List<CompetitionEntity> competitions;
+  final bool hasReachedMax;
+  final bool isLoadingMore;
 
-  const CompetitionsLoaded(this.competitions);
+  const CompetitionsLoaded({
+    required this.competitions,
+    this.hasReachedMax = false,
+    this.isLoadingMore = false,
+  });
+
+  CompetitionsLoaded copyWith({
+    List<CompetitionEntity>? competitions,
+    bool? hasReachedMax,
+    bool? isLoadingMore,
+  }) {
+    return CompetitionsLoaded(
+      competitions: competitions ?? this.competitions,
+      hasReachedMax: hasReachedMax ?? this.hasReachedMax,
+      isLoadingMore: isLoadingMore ?? this.isLoadingMore,
+    );
+  }
 
   @override
-  List<Object?> get props => [competitions];
+  List<Object?> get props => [competitions, hasReachedMax, isLoadingMore];
 }
 
 class CompetitionDetailsLoaded extends CompetitionState {

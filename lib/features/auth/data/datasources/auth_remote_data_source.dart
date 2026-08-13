@@ -29,38 +29,38 @@ class AuthRemoteDataSourceImpl implements IAuthRemoteDataSource {
   });
 
 
-  @override
-  Future<UserModel> register({
-    required String email,
-    required String password,
-    required String name,
-  }) async {
+@override
+Future<UserModel> register({
+  required String email,
+  required String password,
+  required String name,
+}) async {
 
-    final credential =
-        await auth.createUserWithEmailAndPassword(
-      email: email,
-      password: password,
-    );
+  final credential = await auth.createUserWithEmailAndPassword(
+    email: email,
+    password: password,
+  );
 
+  // 🌟 CRITICAL ADDITION: Update Firebase Auth Profile
+  // This allows auth.currentUser.displayName to hold the name in local memory!
+  await credential.user?.updateDisplayName(name);
 
-    final userModel = UserModel(
-      uid: credential.user!.uid,
-      email: email,
-      name: name,
-      points: 0,
-    );
+  final userModel = UserModel(
+    uid: credential.user!.uid,
+    email: email,
+    name: name,
+    points: 0,
+  );
 
+  await firestore
+      .collection('users')
+      .doc(userModel.uid)
+      .set(
+        userModel.toJson(),
+      );
 
-    await firestore
-        .collection('users')
-        .doc(userModel.uid)
-        .set(
-          userModel.toJson(),
-        );
-
-
-    return userModel;
-  }
+  return userModel;
+}
 
 
   @override

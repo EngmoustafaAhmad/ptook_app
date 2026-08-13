@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:ptook/core/errors/exceptions.dart';
 import 'package:ptook/features/competitions/data/models/competition_model.dart';
 import 'package:ptook/features/participants/data/models/participant_model.dart';
@@ -7,14 +8,37 @@ import 'package:ptook/features/participants/data/models/participant_model.dart';
 abstract class ICompetitionRemoteDataSource {
   Future<List<CompetitionModel>> getCompetitions();
   Future<CompetitionModel> getCompetitionById(String competitionId);
+  Future<CompetitionModel> getCompetitionDetails(String competitionId);
+  Future<CompetitionModel?> getCompetitionByCode(String code);
   Future<void> createCompetition(CompetitionModel competition);
   Future<void> updateCompetition(CompetitionModel competition);
   Future<void> deleteCompetition(String competitionId);
   Future<void> joinCompetition(String competitionId);
   Future<void> leaveCompetition(String competitionId);
-  Future<List<CompetitionModel>> searchPublicCompetitions(String keyword);
-  Future<CompetitionModel?> getCompetitionByCode(String code);
-  Future<List<CompetitionModel>> getPublicCompetitions({int limit = 20});
+
+  // Paginated Fetching & Search
+  Future<List<CompetitionModel>> getPublicCompetitions({
+    int limit = 10,
+    String? lastCompetitionId,
+  });
+
+  Future<List<CompetitionModel>> searchPublicCompetitions({
+    String query = '',
+    int limit = 10,
+    String? lastCompetitionId,
+  });
+
+  Future<List<CompetitionModel>> getJoinedCompetitions({
+    String? query = '',
+    int limit = 10,
+    String? lastCompetitionId,
+  });
+
+  Future<List<CompetitionModel>> getCreatedCompetitions({
+    String? query = '',
+    int limit = 10,
+    String? lastCompetitionId,
+  });
 
   // Realtime Streams
   Stream<CompetitionModel> streamCompetition(String competitionId);
@@ -38,6 +62,134 @@ class CompetitionRemoteDataSourceImpl implements ICompetitionRemoteDataSource {
     return getPublicCompetitions();
   }
 
+  // ===========================================================================
+  // PAGINATED FETCHING & FILTERS
+  // ===========================================================================
+
+  @override
+  Future<List<CompetitionModel>> getPublicCompetitions({
+    int limit = 10,
+    String? lastCompetitionId,
+  }) async {
+    try {
+      Query<Map<String, dynamic>> query = _competitionsRef
+          .where('isPublic', isEqualTo: true)
+          .orderBy('createdAt', descending: true);
+
+      query = await _applyPagination(query, lastCompetitionId);
+
+      final snapshot = await query.limit(limit).get();
+      return snapshot.docs.map(_mapDocToModel).toList();
+    } on FirebaseException catch (e) {
+      debugPrint('Firestore Error in getPublicCompetitions: ${e.message}');
+      throw ServerException(message: e.message ?? 'Failed to fetch public competitions');
+    } catch (e) {
+      throw ServerException(message: e.toString());
+    }
+  }
+
+  @override
+  Future<List<CompetitionModel>> searchPublicCompetitions({
+    String query = '',
+    int limit = 10,
+    String? lastCompetitionId,
+  }) async {
+    final cleanQuery = query.trim().toLowerCase();
+    if (cleanQuery.isEmpty) {
+      return getPublicCompetitions(limit: limit, lastCompetitionId: lastCompetitionId);
+    }
+
+    try {
+      Query<Map<String, dynamic>> firestoreQuery = _competitionsRef
+          .where('isPublic', isEqualTo: true)
+          .where('searchKeywords', arrayContains: cleanQuery);
+
+      firestoreQuery = await _applyPagination(firestoreQuery, lastCompetitionId);
+
+      final snapshot = await firestoreQuery.limit(limit).get();
+      return snapshot.docs.map(_mapDocToModel).toList();
+    } on FirebaseException catch (e) {
+      throw ServerException(message: e.message ?? 'Search query failed');
+    } catch (e) {
+      throw ServerException(message: e.toString());
+    }
+  }
+
+  @override
+  Future<List<CompetitionModel>> getJoinedCompetitions({
+    String? query = '',
+    int limit = 10,
+    String? lastCompetitionId,
+  }) async {
+    final user = auth.currentUser;
+    if (user == null) {
+      throw const ServerException(message: 'User must be logged in');
+    }
+
+    try {
+      Query<Map<String, dynamic>> firestoreQuery = _competitionsRef
+          .where('participantIds', arrayContains: user.uid)
+          .orderBy('createdAt', descending: true);
+
+      firestoreQuery = await _applyPagination(firestoreQuery, lastCompetitionId);
+
+      final snapshot = await firestoreQuery.limit(limit).get();
+      final competitions = snapshot.docs.map(_mapDocToModel).toList();
+
+      final cleanKeyword = query?.trim().toLowerCase() ?? '';
+      if (cleanKeyword.isNotEmpty) {
+        return competitions
+            .where((comp) => comp.name.toLowerCase().contains(cleanKeyword))
+            .toList();
+      }
+
+      return competitions;
+    } on FirebaseException catch (e) {
+      debugPrint('Firestore Error in getJoinedCompetitions: ${e.message}');
+      throw ServerException(message: e.message ?? 'Failed to fetch joined competitions');
+    } catch (e) {
+      throw ServerException(message: e.toString());
+    }
+  }
+
+  @override
+  Future<List<CompetitionModel>> getCreatedCompetitions({
+    String? query = '',
+    int limit = 10,
+    String? lastCompetitionId,
+  }) async {
+    final user = auth.currentUser;
+    if (user == null) {
+      throw const ServerException(message: 'User must be logged in');
+    }
+
+    try {
+      final cleanKeyword = query?.trim().toLowerCase() ?? '';
+      Query<Map<String, dynamic>> firestoreQuery =
+          _competitionsRef.where('ownerId', isEqualTo: user.uid);
+
+      if (cleanKeyword.isNotEmpty) {
+        firestoreQuery = firestoreQuery.where('searchKeywords', arrayContains: cleanKeyword);
+      } else {
+        firestoreQuery = firestoreQuery.orderBy('createdAt', descending: true);
+      }
+
+      firestoreQuery = await _applyPagination(firestoreQuery, lastCompetitionId);
+
+      final snapshot = await firestoreQuery.limit(limit).get();
+      return snapshot.docs.map(_mapDocToModel).toList();
+    } on FirebaseException catch (e) {
+      debugPrint('Firestore Error in getCreatedCompetitions: ${e.message}');
+      throw ServerException(message: e.message ?? 'Failed to fetch created competitions');
+    } catch (e) {
+      throw ServerException(message: e.toString());
+    }
+  }
+
+  // ===========================================================================
+  // CRUD & PARTICIPATION ACTIONS
+  // ===========================================================================
+
   @override
   Future<CompetitionModel> getCompetitionById(String competitionId) async {
     try {
@@ -51,6 +203,11 @@ class CompetitionRemoteDataSourceImpl implements ICompetitionRemoteDataSource {
     } catch (e) {
       throw ServerException(message: e.toString());
     }
+  }
+
+  @override
+  Future<CompetitionModel> getCompetitionDetails(String competitionId) async {
+    return getCompetitionById(competitionId);
   }
 
   @override
@@ -85,44 +242,45 @@ class CompetitionRemoteDataSourceImpl implements ICompetitionRemoteDataSource {
       throw ServerException(message: e.toString());
     }
   }
-@override
-Future<void> joinCompetition(String competitionId) async {
-  final user = auth.currentUser;
-  if (user == null) {
-    throw const ServerException(message: 'User must be logged in to join');
+
+  @override
+  Future<void> joinCompetition(String competitionId) async {
+    final user = auth.currentUser;
+    if (user == null) {
+      throw const ServerException(message: 'User must be logged in to join');
+    }
+
+    try {
+      final batch = firestore.batch();
+      final compDocRef = _competitionsRef.doc(competitionId);
+      final participantDocRef = compDocRef.collection('participants').doc(user.uid);
+
+      batch.update(compDocRef, {
+        'participantIds': FieldValue.arrayUnion([user.uid]),
+        'participantsCount': FieldValue.increment(1),
+      });
+
+      final participantModel = ParticipantModel(
+        id: user.uid,
+        userId: user.uid,
+        competitionId: competitionId,
+        name: user.displayName ?? 'Anonymous User',
+        avatarUrl: user.photoURL ?? '',
+        points: 0,
+        role: 'participant',
+        joinedAt: DateTime.now(),
+      );
+
+      batch.set(participantDocRef, participantModel.toJson());
+
+      await batch.commit();
+    } on FirebaseException catch (e) {
+      throw ServerException(message: e.message ?? 'Failed to join competition');
+    } catch (e) {
+      throw ServerException(message: e.toString());
+    }
   }
 
-  try {
-    final batch = firestore.batch();
-    final compDocRef = _competitionsRef.doc(competitionId);
-    final participantDocRef = compDocRef.collection('participants').doc(user.uid);
-
-    // 1. Add user ID atomically to participantIds array on the main competition document
-    batch.update(compDocRef, {
-      'participantIds': FieldValue.arrayUnion([user.uid]),
-    });
-
-    // 2. Build full participant model with actual IDs and default role
-    final participantModel = ParticipantModel(
-      id: user.uid,
-      userId: user.uid,                     //  Use actual user UID
-      competitionId: competitionId,         //  Use parameter competitionId
-      name: user.displayName ?? 'Anonymous User',
-      avatarUrl: user.photoURL ?? '',
-      points: 0,
-      role: 'participant',                  //  Set default role ('participant' or 'member')
-      joinedAt: DateTime.now(),
-    );
-
-    batch.set(participantDocRef, participantModel.toJson());
-
-    await batch.commit();
-  } on FirebaseException catch (e) {
-    throw ServerException(message: e.message ?? 'Failed to join competition');
-  } catch (e) {
-    throw ServerException(message: e.toString());
-  }
-}
   @override
   Future<void> leaveCompetition(String competitionId) async {
     final user = auth.currentUser;
@@ -135,39 +293,16 @@ Future<void> joinCompetition(String competitionId) async {
       final compDocRef = _competitionsRef.doc(competitionId);
       final participantDocRef = compDocRef.collection('participants').doc(user.uid);
 
-      // 1. Remove user ID atomically from participantIds array
       batch.update(compDocRef, {
         'participantIds': FieldValue.arrayRemove([user.uid]),
+        'participantsCount': FieldValue.increment(-1),
       });
 
-      // 2. Remove user from participants sub-collection
       batch.delete(participantDocRef);
 
       await batch.commit();
     } on FirebaseException catch (e) {
       throw ServerException(message: e.message ?? 'Failed to leave competition');
-    } catch (e) {
-      throw ServerException(message: e.toString());
-    }
-  }
-
-  @override
-  Future<List<CompetitionModel>> searchPublicCompetitions(String keyword) async {
-    final cleanKeyword = keyword.trim().toLowerCase();
-    if (cleanKeyword.isEmpty) {
-      return getPublicCompetitions();
-    }
-
-    try {
-      final snapshot = await _competitionsRef
-          .where('isPublic', isEqualTo: true)
-          .where('searchKeywords', arrayContains: cleanKeyword)
-          .limit(20)
-          .get();
-
-      return snapshot.docs.map(_mapDocToModel).toList();
-    } on FirebaseException catch (e) {
-      throw ServerException(message: e.message ?? 'Search query failed');
     } catch (e) {
       throw ServerException(message: e.toString());
     }
@@ -188,23 +323,6 @@ Future<void> joinCompetition(String competitionId) async {
       return _mapDocToModel(snapshot.docs.first);
     } on FirebaseException catch (e) {
       throw ServerException(message: e.message ?? 'Failed to get competition by code');
-    } catch (e) {
-      throw ServerException(message: e.toString());
-    }
-  }
-
-  @override
-  Future<List<CompetitionModel>> getPublicCompetitions({int limit = 20}) async {
-    try {
-      final snapshot = await _competitionsRef
-          .where('isPublic', isEqualTo: true)
-          .orderBy('createdAt', descending: true)
-          .limit(limit)
-          .get();
-
-      return snapshot.docs.map(_mapDocToModel).toList();
-    } on FirebaseException catch (e) {
-      throw ServerException(message: e.message ?? 'Failed to fetch public competitions');
     } catch (e) {
       throw ServerException(message: e.toString());
     }
@@ -237,7 +355,26 @@ Future<void> joinCompetition(String competitionId) async {
             .toList());
   }
 
-  // 💡 Private Helper to reduce code duplication
+  // ===========================================================================
+  // PRIVATE HELPERS
+  // ===========================================================================
+
+  Future<Query<Map<String, dynamic>>> _applyPagination(
+    Query<Map<String, dynamic>> query,
+    String? lastCompetitionId,
+  ) async {
+    if (lastCompetitionId == null || lastCompetitionId.isEmpty) {
+      return query;
+    }
+
+    final lastDoc = await _competitionsRef.doc(lastCompetitionId).get();
+    if (lastDoc.exists) {
+      return query.startAfterDocument(lastDoc);
+    }
+
+    return query;
+  }
+
   CompetitionModel _mapDocToModel(DocumentSnapshot<Map<String, dynamic>> doc) {
     final data = doc.data();
     if (data == null) {

@@ -4,78 +4,162 @@ import 'package:ptook/core/errors/failures.dart';
 import 'package:ptook/features/competitions/data/datasources/competition_remote_data_source.dart';
 import 'package:ptook/features/competitions/data/models/competition_model.dart';
 import 'package:ptook/features/competitions/domain/entities/competition_entity.dart';
-import 'package:ptook/features/competitions/domain/repositories/competition_repository.dart';
 import 'package:ptook/features/competitions/domain/repositories/i_competition_repository.dart';
 import 'package:ptook/features/participants/domain/entities/participant_entity.dart';
 
-class CompetitionRepositoryImpl implements CompetitionRepository, ICompetitionRepository {
+class CompetitionRepositoryImpl implements ICompetitionRepository {
   final ICompetitionRemoteDataSource remoteDataSource;
 
-  CompetitionRepositoryImpl(this.remoteDataSource);
-
+CompetitionRepositoryImpl(this.remoteDataSource);
   @override
   Future<Either<Failure, List<CompetitionEntity>>> getCompetitions() async {
     try {
-      final competitions = await remoteDataSource.getCompetitions();
-      return Right(competitions);
+      final result = await remoteDataSource.getCompetitions();
+      return Right(result);
     } on ServerException catch (e) {
       return Left(ServerFailure(e.message));
-    } catch (e) {
-      return Left(ServerFailure(e.toString()));
     }
   }
 
   @override
-  Future<Either<Failure, List<CompetitionEntity>>> getPublicCompetitions() async {
+  Future<Either<Failure, List<CompetitionEntity>>> getPublicCompetitions({
+    int limit = 10,
+    String? lastCompetitionId,
+  }) async {
     try {
-      final competitions = await remoteDataSource.getPublicCompetitions();
-      return Right(competitions);
+      final result = await remoteDataSource.getPublicCompetitions(
+        limit: limit,
+        lastCompetitionId: lastCompetitionId,
+      );
+      return Right(result);
     } on ServerException catch (e) {
       return Left(ServerFailure(e.message));
-    } catch (e) {
-      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, List<CompetitionEntity>>> searchPublicCompetitions({
+    String query = '',
+    int limit = 10,
+    String? lastCompetitionId,
+  }) async {
+    try {
+      final result = await remoteDataSource.searchPublicCompetitions(
+        query: query,
+        limit: limit,
+        lastCompetitionId: lastCompetitionId,
+      );
+      return Right(result);
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message));
+    }
+  }
+
+  @override
+  Future<Either<Failure, List<CompetitionEntity>>> getJoinedCompetitions({
+    String? query = '',
+    int limit = 10,
+    String? lastCompetitionId,
+  }) async {
+    try {
+      final result = await remoteDataSource.getJoinedCompetitions(
+        query: query,
+        limit: limit,
+        lastCompetitionId: lastCompetitionId,
+      );
+      return Right(result);
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message));
+    }
+  }
+
+  @override
+  Future<Either<Failure, List<CompetitionEntity>>> getCreatedCompetitions({
+    String? query = '',
+    int limit = 10,
+    String? lastCompetitionId,
+  }) async {
+    try {
+      final result = await remoteDataSource.getCreatedCompetitions(
+        query: query,
+        limit: limit,
+        lastCompetitionId: lastCompetitionId,
+      );
+      return Right(result);
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message));
     }
   }
 
   @override
   Future<Either<Failure, CompetitionEntity>> getCompetitionById(
-    String competitionId,
-  ) async {
+      String competitionId) async {
     try {
-      final competition = await remoteDataSource.getCompetitionById(competitionId);
-      return Right(competition);
+      final result = await remoteDataSource.getCompetitionById(competitionId);
+      return Right(result);
     } on ServerException catch (e) {
       return Left(ServerFailure(e.message));
-    } catch (e) {
-      return Left(ServerFailure(e.toString()));
-    }
-  }
-
-  @override
-  Future<Either<Failure, List<CompetitionEntity>>> searchPublicCompetitions(
-    String keyword,
-  ) async {
-    try {
-      final competitions = await remoteDataSource.searchPublicCompetitions(keyword);
-      return Right(competitions);
-    } on ServerException catch (e) {
-      return Left(ServerFailure(e.message));
-    } catch (e) {
-      return Left(ServerFailure(e.toString()));
     }
   }
 
   @override
   Future<Either<Failure, CompetitionEntity?>> getCompetitionByCode(
-    String code,
-  ) async {
+      String code) async {
     try {
-      final competition = await remoteDataSource.getCompetitionByCode(code);
-      return Right(competition);
+      final result = await remoteDataSource.getCompetitionByCode(code);
+      return Right(result);
     } on ServerException catch (e) {
       return Left(ServerFailure(e.message));
-    } catch (e) {
-      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, CompetitionEntity>> getCompetitionDetails(
+      String competitionId) async {
+    try {
+      final result =
+          await remoteDataSource.getCompetitionDetails(competitionId);
+      return Right(result);
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> createCompetition(
+      CompetitionEntity competition) async {
+    try {
+      final model = competition is CompetitionModel
+          ? competition
+          : CompetitionModel.fromEntity(competition);
+      await remoteDataSource.createCompetition(model);
+      return const Right(null);
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> updateCompetition(
+      CompetitionEntity competition) async {
+    try {
+      final model = competition is CompetitionModel
+          ? competition
+          : CompetitionModel.fromEntity(competition);
+      await remoteDataSource.updateCompetition(model);
+      return const Right(null);
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> deleteCompetition(String competitionId) async {
+    try {
+      await remoteDataSource.deleteCompetition(competitionId);
+      return const Right(null);
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message));
     }
   }
 
@@ -86,8 +170,6 @@ class CompetitionRepositoryImpl implements CompetitionRepository, ICompetitionRe
       return const Right(null);
     } on ServerException catch (e) {
       return Left(ServerFailure(e.message));
-    } catch (e) {
-      return Left(ServerFailure(e.toString()));
     }
   }
 
@@ -98,58 +180,8 @@ class CompetitionRepositoryImpl implements CompetitionRepository, ICompetitionRe
       return const Right(null);
     } on ServerException catch (e) {
       return Left(ServerFailure(e.message));
-    } catch (e) {
-      return Left(ServerFailure(e.toString()));
     }
   }
-
-  @override
-  Future<Either<Failure, void>> createCompetition(
-    CompetitionEntity competition,
-  ) async {
-    try {
-      final model = CompetitionModel.fromEntity(competition);
-      await remoteDataSource.createCompetition(model);
-      return const Right(null);
-    } on ServerException catch (e) {
-      return Left(ServerFailure(e.message));
-    } catch (e) {
-      return Left(ServerFailure(e.toString()));
-    }
-  }
-
-  @override
-  Future<Either<Failure, void>> updateCompetition(
-    CompetitionEntity competition,
-  ) async {
-    try {
-      final model = CompetitionModel.fromEntity(competition);
-      await remoteDataSource.updateCompetition(model);
-      return const Right(null);
-    } on ServerException catch (e) {
-      return Left(ServerFailure(e.message));
-    } catch (e) {
-      return Left(ServerFailure(e.toString()));
-    }
-  }
-
-  @override
-  Future<Either<Failure, void>> deleteCompetition(
-    String competitionId,
-  ) async {
-    try {
-      await remoteDataSource.deleteCompetition(competitionId);
-      return const Right(null);
-    } on ServerException catch (e) {
-      return Left(ServerFailure(e.message));
-    } catch (e) {
-      return Left(ServerFailure(e.toString()));
-    }
-  }
-
-  // ===========================================================================
-  // REALTIME STREAMS
-  // ===========================================================================
 
   @override
   Stream<CompetitionEntity> streamCompetition(String competitionId) {

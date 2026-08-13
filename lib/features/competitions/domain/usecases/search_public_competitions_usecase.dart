@@ -8,12 +8,25 @@ class SearchPublicCompetitionsUseCase {
 
   SearchPublicCompetitionsUseCase(this.repository);
 
-  /// Searches public competitions by keyword, or returns all public competitions if search term is empty.
-  Future<Either<Failure, List<CompetitionEntity>>> call(String keyword) async {
-    final cleanKeyword = keyword.trim();
+  /// Searches public competitions by keyword or fetches default public list with pagination support.
+  Future<Either<Failure, List<CompetitionEntity>>> call({
+    String query = '',
+    int limit = 10,
+    String? lastCompetitionId,
+  }) async {
+    final cleanKeyword = query.trim().toLowerCase();
+
     if (cleanKeyword.isEmpty) {
-      return await repository.getPublicCompetitions();
+      return await repository.getPublicCompetitions(
+        limit: limit,
+        lastCompetitionId: lastCompetitionId,
+      );
     }
-    return await repository.searchPublicCompetitions(cleanKeyword);
+
+    return await repository.searchPublicCompetitions(
+      query: cleanKeyword,
+      limit: limit,
+      lastCompetitionId: lastCompetitionId,
+    );
   }
 }

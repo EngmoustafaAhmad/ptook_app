@@ -8,8 +8,14 @@ class GetPublicCompetitionsUseCase {
 
   GetPublicCompetitionsUseCase(this.repository);
 
-  /// Executes the use case to fetch all public competitions.
-  Future<Either<Failure, List<CompetitionEntity>>> call() async {
-    return await repository.getPublicCompetitions();
+  /// Executes the use case to fetch public competitions with pagination support.
+  Future<Either<Failure, List<CompetitionEntity>>> call({
+    int limit = 10,
+    String? lastCompetitionId,
+  }) async {
+    return await repository.getPublicCompetitions(
+      limit: limit,
+      lastCompetitionId: lastCompetitionId,
+    );
   }
 }

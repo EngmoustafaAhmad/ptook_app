@@ -1,6 +1,5 @@
-
-
 import 'package:equatable/equatable.dart';
+import '../../domain/entities/participant_entity.dart';
 
 abstract class ParticipantState extends Equatable {
   const ParticipantState();
@@ -9,34 +8,58 @@ abstract class ParticipantState extends Equatable {
   List<Object?> get props => [];
 }
 
-/// Initial state before any join/leave action is triggered
 class ParticipantInitial extends ParticipantState {}
 
-/// Emitted while network requests (join/leave) are processing
+/// General loading state (e.g. initial leaderboard load)
 class ParticipantLoading extends ParticipantState {}
 
-/// Emitted when joining a competition completes successfully
-class JoinCompetitionSuccess extends ParticipantState {}
+/// Button/Action-specific loading state (e.g. tapping Join/Leave)
+class ParticipantActionLoading extends ParticipantState {}
 
-/// Emitted when leaving a competition completes successfully
-class LeaveCompetitionSuccess extends ParticipantState {}
+/// Loaded state with sorted participants
+class ParticipantLoaded extends ParticipantState {
+  final List<ParticipantEntity> participants;
 
-/// Emitted when participant list is retrieved successfully
-class ParticipantsLoaded extends ParticipantState {
-  final List<dynamic> participants;
-
-  const ParticipantsLoaded(this.participants);
+  const ParticipantLoaded({required this.participants});
 
   @override
   List<Object?> get props => [participants];
 }
 
-/// Emitted when an exception occurs during any participant action
-class ParticipantError extends ParticipantState {
+class JoinCompetitionSuccess extends ParticipantState {
+  final String message;
+
+  const JoinCompetitionSuccess({required this.message});
+
+  @override
+  List<Object?> get props => [message];
+}
+
+class LeaveCompetitionSuccess extends ParticipantState {
+  final String message;
+
+  const LeaveCompetitionSuccess({required this.message});
+
+  @override
+  List<Object?> get props => [message];
+}
+
+class ParticipantFailure extends ParticipantState {
   final String errorMessage;
 
-  const ParticipantError(this.errorMessage);
+  const ParticipantFailure({required this.errorMessage});
 
   @override
   List<Object?> get props => [errorMessage];
+}
+
+
+
+class ParticipantError extends ParticipantState {
+  final String message;
+
+  const ParticipantError(this.message);
+
+  @override
+  List<Object?> get props => [message];
 }

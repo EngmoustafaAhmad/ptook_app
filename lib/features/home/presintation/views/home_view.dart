@@ -1,5 +1,3 @@
-// lib/features/auth/presintation/views/home_view.dart
-
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ptook/core/Theme/app_colors.dart';
@@ -17,40 +15,37 @@ class HomeView extends StatelessWidget {
       backgroundColor: AppColors.background,
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16.0),
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 1️⃣ Header Section
-              _buildHeader(),
+              // 1️⃣ Custom Top Bar
+              _buildTopBar(context),
+              20.vs,
+
+              // 2️⃣ Profile Header Card
+              _buildProfileHeaderCard(),
+              16.vs,
+
+              // 3️⃣ Quick Stats Grid Bar (4 Columns)
+              _buildQuickStatsBar(),
               24.vs,
 
-              // 2️⃣ Quick Stats Section
-              _buildSectionTitle(Icons.bar_chart, "Quick Stats"),
+              // 4️⃣ My Competitions Section
+              _buildSectionTitle("My Competitions", onSeeAllTap: () {}),
               12.vs,
-              _buildQuickStats(),
+              _buildMyCompetitionsHorizontalList(),
               24.vs,
 
-              // 3️⃣ My Competitions Section
-              _buildSectionTitle(Icons.emoji_events_outlined, "My Competitions", hasViewAll: true),
-              12.vs,
-              _buildMyCompetitionsList(),
-              24.vs,
-
-              // 4️⃣ Explore Competitions Section
-              _buildSectionTitle(Icons.explore_outlined, "Explore Competitions", hasViewAll: true),
-              12.vs,
-              _buildExploreCompetitionsList(),
-              24.vs,
-
-              // 5️⃣ Search & Filter Bar
+              // 5️⃣ Search & Filter Trigger Bar
               _buildSearchBar(context),
               24.vs,
 
               // 6️⃣ Recent Activity Section
-              _buildSectionTitle(Icons.flash_on, "Recent Activity", hasViewAll: true),
+              _buildSectionTitle("Recent Activity", onSeeAllTap: () {}),
               12.vs,
               _buildRecentActivityList(),
+              16.vs,
             ],
           ),
         ),
@@ -58,376 +53,572 @@ class HomeView extends StatelessWidget {
     );
   }
 
-  // --- Widgets البناء المخصصة للتصميم ---
-
-  Widget _buildHeader() {
+  // --- 1️⃣ TOP APP BAR ---
+  Widget _buildTopBar(BuildContext context) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        // Menu Icon Button
+        Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.white12),
+          ),
+          child: IconButton(
+            icon: const Icon(Icons.menu, color: Colors.amber, size: 22),
+            onPressed: () {},
+          ),
+        ),
+
+        // Brand Logo Center
+        Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Row(
-              children: [
-                const Icon(Icons.emoji_events, color: AppColors.primary, size: 28),
-                8.hs,
-                const Text(
-                  "PTOOK",
-                  style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold, letterSpacing: 1.2),
-                ),
-              ],
-            ),
-            12.vs,
+            const Icon(Icons.emoji_events, color: Colors.amber, size: 24),
+            8.hs,
             const Text(
-              "Welcome back, Ahmed 👋",
-              style: TextStyle(color: AppColors.primary, fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            4.vs,
-            Text(
-              "Let's keep competing and winning!",
-              style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 14),
+              "PTOOK",
+              style: TextStyle(
+                color: Colors.amber,
+                fontSize: 22,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 1.5,
+              ),
             ),
           ],
         ),
+
+        // Notification Icon with Badge
         Stack(
+          clipBehavior: Clip.none,
           children: [
-            IconButton(
-              icon: const Icon(Icons.notifications_none, color: AppColors.primary, size: 28),
-              onPressed: () {},
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.white12),
+              ),
+              child: IconButton(
+                icon: const Icon(Icons.notifications_none_outlined,
+                    color: Colors.amber, size: 22),
+                onPressed: () {},
+              ),
             ),
             Positioned(
-              right: 12,
-              top: 12,
+              right: -2,
+              top: -2,
               child: Container(
                 padding: const EdgeInsets.all(4),
-                decoration: const BoxDecoration(color: Colors.amber, shape: BoxShape.circle),
+                decoration: const BoxDecoration(
+                  color: Colors.amber,
+                  shape: BoxShape.circle,
+                ),
+                constraints: const BoxConstraints(
+                  minWidth: 16,
+                  minHeight: 16,
+                ),
+                child: const Text(
+                  '3',
+                  style: TextStyle(
+                    color: Colors.black,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
               ),
-            )
-          ],
-        )
-      ],
-    );
-  }
-
-  Widget _buildSectionTitle(IconData icon, String title, {bool hasViewAll = false}) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Row(
-          children: [
-            Icon(icon, color: AppColors.primary, size: 20),
-            8.hs,
-            Text(
-              title,
-              style: const TextStyle(color: AppColors.primary, fontSize: 16, fontWeight: FontWeight.bold),
             ),
           ],
         ),
-        if (hasViewAll)
-          TextButton(
-            onPressed: () {},
-            child: Row(
-              children: [
-                Text("View All", style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 12)),
-                Icon(Icons.arrow_forward_ios, color: Colors.white.withOpacity(0.6), size: 10),
-              ],
-            ),
-          ),
       ],
     );
   }
 
-  Widget _buildQuickStats() {
-    return Row(
-      children: [
-        _buildStatCard(Icons.star, "2,450", "Total Points"),
-        12.hs,
-        _buildStatCard(Icons.emoji_events, "#4", "Best Rank"),
-        12.hs,
-        _buildStatCard(Icons.group, "7", "Joined Competitions"),
-      ],
-    );
-  }
-
-  Widget _buildStatCard(IconData icon, String value, String label) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Column(
-          children: [
-            Icon(icon, color: AppColors.primary, size: 24),
-            8.vs,
-            Text(value, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-            4.vs,
-            Text(label, textAlign: TextAlign.center, style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 10)),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMyCompetitionsList() {
-    return Column(
-      children: [
-        _buildMyCompetitionCard("Flutter Championship", "Individual", "128 Members", "#4", "540", const Icon(Icons.emoji_events, color: Colors.amber)),
-        12.vs,
-        _buildMyCompetitionCard("Code Warriors", "Team", "8 Teams", "#2", "1,280", const Icon(Icons.shield, color: Colors.amber)),
-      ],
-    );
-  }
-
-  Widget _buildMyCompetitionCard(String title, String type, String members, String rank, String points, Widget icon) {
+  // --- 2️⃣ PROFILE HEADER CARD ---
+  Widget _buildProfileHeaderCard() {
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(16)),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white10),
+      ),
       child: Row(
         children: [
+          // User Avatar with Glow Border
           Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(color: Colors.black.withOpacity(0.3), shape: BoxShape.circle),
-            child: icon,
+            padding: const EdgeInsets.all(2),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.amber, width: 1.5),
+            ),
+            child: const CircleAvatar(
+              radius: 24,
+              backgroundColor: Colors.white10,
+              child: Icon(Icons.person, color: Colors.white70, size: 28),
+            ),
           ),
-          12.hs,
+          14.hs,
+
+          // Name and Subtitle
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    Text(title, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-                    8.hs,
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                      decoration: BoxDecoration(color: Colors.black26, borderRadius: BorderRadius.circular(8)),
-                      child: Text(type, style: const TextStyle(color: AppColors.primary, fontSize: 10)),
-                    )
+                    const Text(
+                      "Hi, Ahmed",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    6.hs,
+                    const Text("👋", style: TextStyle(fontSize: 16)),
                   ],
                 ),
-                8.vs,
-                Row(
-                  children: [
-                    Icon(Icons.group_outlined, size: 14, color: Colors.white.withOpacity(0.5)),
-                    4.hs,
-                    Text(members, style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 12)),
-                    16.hs,
-                    Icon(Icons.bar_chart, size: 14, color: Colors.white.withOpacity(0.5)),
-                    4.hs,
-                    Text("Your Rank: $rank", style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 12)),
-                  ],
-                )
+                4.vs,
+                Text(
+                  "Ready to compete today?",
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.6),
+                    fontSize: 12,
+                  ),
+                ),
               ],
             ),
           ),
+
+          // Total Points Counter
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text("Your Points", style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 10)),
-              Text(points, style: const TextStyle(color: AppColors.primary, fontSize: 18, fontWeight: FontWeight.bold)),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: const [
+                  Icon(Icons.star, color: Colors.amber, size: 18),
+                  SizedBox(width: 4),
+                  Text(
+                    "2,850",
+                    style: TextStyle(
+                      color: Colors.amber,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+              2.vs,
+              Text(
+                "Total Points",
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.5),
+                  fontSize: 10,
+                ),
+              ),
             ],
           ),
-          12.hs,
-          Icon(Icons.arrow_forward_ios, color: Colors.white.withOpacity(0.3), size: 16),
         ],
       ),
     );
   }
 
-  Widget _buildExploreCompetitionsList() {
+  // --- 3️⃣ QUICK STATS BAR ---
+  Widget _buildQuickStatsBar() {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white10),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _buildStatItem(Icons.emoji_events_outlined, "8", "COMPETITIONS"),
+          _buildStatItem(Icons.groups_outlined, "3", "TEAMS"),
+          _buildStatItem(Icons.trending_up, "1st", "BEST RANK"),
+          _buildStatItem(Icons.local_fire_department_outlined, "12", "DAY STREAK"),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatItem(IconData icon, String value, String label) {
+    return Column(
+      children: [
+        Icon(icon, color: Colors.amber, size: 22),
+        6.vs,
+        Text(
+          value,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        4.vs,
+        Text(
+          label,
+          style: TextStyle(
+            color: Colors.white.withOpacity(0.5),
+            fontSize: 9,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.5,
+          ),
+        ),
+      ],
+    );
+  }
+
+  // --- SECTION TITLE HELPER ---
+  Widget _buildSectionTitle(String title, {required VoidCallback onSeeAllTap}) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            color: Colors.amber,
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        GestureDetector(
+          onTap: onSeeAllTap,
+          child: const Text(
+            "View all",
+            style: TextStyle(
+              color: Colors.amber,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // --- 4️⃣ MY COMPETITIONS HORIZONTAL LIST ---
+  Widget _buildMyCompetitionsHorizontalList() {
     return SizedBox(
-      height: 190,
+      height: 200,
       child: ListView(
         scrollDirection: Axis.horizontal,
+        clipBehavior: Clip.none,
         children: [
-          _buildExploreCard("Code Sprint 2026", "Individual", "96 Members", Icons.code),
-          12.hs,
-          _buildExploreCard("Dev Teams Cup", "Team", "16 Teams", Icons.security),
-          12.hs,
-          _buildExploreCard("Speed Coders", "Individual", "64 Members", Icons.flash_on),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildExploreCard(String title, String type, String count, IconData icon) {
-    return Container(
-      width: 150,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(16)),
-      child: Column(
-        children: [
-          Icon(icon, color: AppColors.primary, size: 36),
-          12.vs,
-          Text(title, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
-          4.vs,
-          Text(type, style: const TextStyle(color: AppColors.primary, fontSize: 11)),
-          8.vs,
-          Text(count, style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 11)),
-          const Spacer(),
-          SizedBox(
-            width: double.infinity,
-            height: 32,
-            child: ElevatedButton(
-              onPressed: () {},
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.transparent,
-                side: const BorderSide(color: AppColors.primary),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              ),
-              child: const Text("Join", style: TextStyle(color: AppColors.primary, fontSize: 12)),
-            ),
-          )
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSearchBar(BuildContext context) {
-
-  return GestureDetector(
-
-    onTap: () {
-
-      Navigator.push(
-
-        context,
-
-        MaterialPageRoute(
-
-          builder: (_) => BlocProvider(
-
-            create: (_) =>
-                sl<SearchCompetitionCubit>(),
-
-            child: const CompetitionSearchView(),
-
+          _buildCompetitionCard(
+            title: "Flutter Battle",
+            subtitle: "Teams • 12 members",
+            points: "1,250 pts",
+            badgeNumber: "1",
+            isSelected: true,
+            icon: Icons.workspace_premium,
           ),
+          16.hs,
+          _buildCompetitionCard(
+            title: "Study Challenge",
+            subtitle: "Individuals • 35 members",
+            points: "980 pts",
+            badgeNumber: null,
+            isSelected: false,
+            icon: Icons.grid_view_rounded,
+          ),
+        ],
+      ),
+    );
+  }
 
+  Widget _buildCompetitionCard({
+    required String title,
+    required String subtitle,
+    required String points,
+    required String? badgeNumber,
+    required bool isSelected,
+    required IconData icon,
+  }) {
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Container(
+          width: 170,
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: isSelected ? Colors.amber : Colors.white10,
+              width: isSelected ? 1.5 : 1.0,
+            ),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              10.vs,
+
+              // Top Image / Trophy Thumbnail Container
+              Container(
+                height: 56,
+                width: 72,
+                decoration: BoxDecoration(
+                  color: Colors.black38,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: Colors.amber, size: 32),
+              ),
+
+              Column(
+                children: [
+                  Text(
+                    title,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  4.vs,
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.5),
+                      fontSize: 10,
+                    ),
+                  ),
+                ],
+              ),
+
+              // Bottom Points Pill Container
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.black26,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    if (isSelected) ...[
+                      const Icon(Icons.emoji_events,
+                          color: Colors.amber, size: 12),
+                      4.hs,
+                    ],
+                    Text(
+                      points,
+                      style: const TextStyle(
+                        color: Colors.amber,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
 
-      );
-
-    },
-
-
-    child: Container(
-
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-
-      height: 50,
-
-
-      decoration: BoxDecoration(
-
-        color: AppColors.surface,
-
-        borderRadius:
-        BorderRadius.circular(12),
-
-      ),
-
-
-      child: Row(
-
-        children: [
-
-          Icon(
-
-            Icons.search,
-
-            color:
-            Colors.white.withOpacity(0.4),
-
-          ),
-
-
-          12.hs,
-
-
-          Text(
-
-            "Search for a competition...",
-
-            style: TextStyle(
-
-              color:
-              Colors.white.withOpacity(0.4),
-
+        // Badge Icon on Top Right corner if rank active
+        if (badgeNumber != null)
+          Positioned(
+            top: -6,
+            right: -6,
+            child: Container(
+              padding: const EdgeInsets.all(6),
+              decoration: const BoxDecoration(
+                color: Colors.amber,
+                shape: BoxShape.circle,
+              ),
+              child: Text(
+                badgeNumber,
+                style: const TextStyle(
+                  color: Colors.black,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
-
           ),
+      ],
+    );
+  }
 
-
-          const Spacer(),
-
-
-          const Icon(
-
-            Icons.filter_list,
-
-            color:
-            AppColors.primary,
-
+  // --- 5️⃣ SEARCH BAR ---
+  Widget _buildSearchBar(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => BlocProvider(
+              create: (_) => sl<SearchCompetitionCubit>(),
+              child: const CompetitionSearchView(),
+            ),
           ),
-
-        ],
-
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        height: 50,
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.white10),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              Icons.search,
+              color: Colors.white.withOpacity(0.4),
+            ),
+            12.hs,
+            Text(
+              "Search for a competition...",
+              style: TextStyle(
+                color: Colors.white.withOpacity(0.4),
+                fontSize: 13,
+              ),
+            ),
+            const Spacer(),
+            const Icon(
+              Icons.filter_list,
+              color: Colors.amber,
+              size: 20,
+            ),
+          ],
+        ),
       ),
+    );
+  }
 
-    ),
-
-  );
-
-}
-
+  // --- 6️⃣ RECENT ACTIVITY SECTION ---
   Widget _buildRecentActivityList() {
     return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(16)),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white10),
+      ),
       child: Column(
         children: [
-          _buildActivityItem("You earned 50 points in Flutter Championship", "2 hours ago", "+50 pts"),
-          const Divider(color: Colors.black26),
-          _buildActivityItem("Your team earned 100 points in Code Warriors", "Yesterday", "+100 pts"),
-          const Divider(color: Colors.black26),
-          _buildActivityItem("You moved up to #4 in Flutter Championship", "2 days ago", null, isRankUp: true),
+          _buildActivityItem(
+            badgeWidget: Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.amber, width: 1.5),
+              ),
+              child: const Center(
+                child: Text(
+                  "+50",
+                  style: TextStyle(
+                    color: Colors.amber,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+            title: "You added 50 points to Ali",
+            subtitle: "Flutter Battle",
+            time: "2m ago",
+          ),
+          const Divider(color: Colors.white10, height: 20),
+          _buildActivityItem(
+            badgeWidget: const CircleAvatar(
+              radius: 19,
+              backgroundColor: Colors.purpleAccent,
+              child: Icon(Icons.person, color: Colors.white, size: 20),
+            ),
+            title: "Sara joined Study Challenge",
+            subtitle: "Study Challenge",
+            time: "10m ago",
+          ),
+          const Divider(color: Colors.white10, height: 20),
+          _buildActivityItem(
+            badgeWidget: Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.amber, width: 1.5),
+              ),
+              child: const Center(
+                child: Text(
+                  "+30",
+                  style: TextStyle(
+                    color: Colors.amber,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+            title: "Mohamed earned 30 points",
+            subtitle: "Gym Warriors",
+            time: "1h ago",
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildActivityItem(String text, String time, String? pts, {bool isRankUp = false}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(color: Colors.black26, shape: BoxShape.circle),
-            child: Icon(
-              isRankUp ? Icons.trending_up : Icons.add,
-              color: AppColors.primary,
-              size: 18,
-            ),
+  Widget _buildActivityItem({
+    required Widget badgeWidget,
+    required String title,
+    required String subtitle,
+    required String time,
+  }) {
+    return Row(
+      children: [
+        badgeWidget,
+        12.hs,
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              4.vs,
+              Text(
+                subtitle,
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.4),
+                  fontSize: 11,
+                ),
+              ),
+            ],
           ),
-          12.hs,
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(text, style: const TextStyle(color: Colors.white, fontSize: 13)),
-                4.vs,
-                Text(time, style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 11)),
-              ],
-            ),
+        ),
+        Text(
+          time,
+          style: TextStyle(
+            color: Colors.white.withOpacity(0.5),
+            fontSize: 11,
           ),
-          if (pts != null)
-            Text(pts, style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 13)),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
