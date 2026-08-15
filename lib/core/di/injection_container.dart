@@ -116,7 +116,7 @@ Future<void> init() async {
   // 2. Repositories
   sl.registerLazySingleton<ICompetitionRepository>(
   () => CompetitionRepositoryImpl(
-    sl<ICompetitionRemoteDataSource>(), // أو sl() مباشرة
+    sl<ICompetitionRemoteDataSource>(),
   ),
 );
 

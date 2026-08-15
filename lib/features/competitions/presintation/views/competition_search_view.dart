@@ -9,6 +9,7 @@ import 'package:ptook/core/extentions/spacing_extentions.dart';
 import 'package:ptook/features/competitions/domain/entities/competition_entity.dart';
 import 'package:ptook/features/competitions/presintation/bloc/search_competition_cubit.dart';
 import 'package:ptook/features/competitions/presintation/views/competition_details_view.dart';
+import 'package:ptook/features/competitions/presintation/views/create_competition_view.dart';
 import 'package:ptook/features/competitions/presintation/widgets/competition_card.dart';
 
 class CompetitionSearchView extends StatefulWidget {
@@ -46,42 +47,41 @@ class _CompetitionSearchViewState extends State<CompetitionSearchView> {
     super.dispose();
   }
 
-  /// 🌟 CORE LOGIC: Handles empty search vs query search
-  void _fetchCompetitions() {
-  final cubit = context.read<SearchCompetitionCubit>();
-  final trimmedQuery = _controller.text.trim();
-  // Send null if empty so the Cubit/Backend knows to fetch the FULL list
-  final String? searchQuery = trimmedQuery.isEmpty ? null : trimmedQuery;
+  /// Handles empty search vs query search
+  Future<void> _fetchCompetitions() async {
+    final cubit = context.read<SearchCompetitionCubit>();
+    final trimmedQuery = _controller.text.trim();
+    final String? searchQuery = trimmedQuery.isEmpty ? null : trimmedQuery;
 
-  // 1️⃣ CASE 1: SEARCHBAR IS EMPTY (searchQuery is null)
-  if (searchQuery == null) {
-    switch (_selectedFilterIndex) {
-      case 0: // All / Public
-        cubit.getPublicCompetitions();
-        break;
-      case 1: // Joined
-        cubit.getJoinedCompetitions(); // Call without query (or query: null)
-        break;
-      case 2: // My Created
-        cubit.getCreatedCompetitions(); // Call without query (or query: null)
-        break;
-    }
-  } 
-  // 2️⃣ CASE 2: SEARCHBAR HAS TEXT
-  else {
-    switch (_selectedFilterIndex) {
-      case 0:
-        cubit.search(searchQuery);
-        break;
-      case 1:
-        cubit.getJoinedCompetitions(query: searchQuery);
-        break;
-      case 2:
-        cubit.getCreatedCompetitions(query: searchQuery);
-        break;
+    // 1. SEARCHBAR IS EMPTY
+    if (searchQuery == null) {
+      switch (_selectedFilterIndex) {
+        case 0: // All / Public
+          cubit.getPublicCompetitions();
+          break;
+        case 1: // Joined
+          cubit.getJoinedCompetitions();
+          break;
+        case 2: // My Created
+          cubit.getCreatedCompetitions();
+          break;
+      }
+    } 
+    // 2. SEARCHBAR HAS TEXT
+    else {
+      switch (_selectedFilterIndex) {
+        case 0:
+          cubit.search(searchQuery);
+          break;
+        case 1:
+          cubit.getJoinedCompetitions(query: searchQuery);
+          break;
+        case 2:
+          cubit.getCreatedCompetitions(query: searchQuery);
+          break;
+      }
     }
   }
-}
 
   /// Debounces user input to avoid making backend requests on every single keystroke
   void _onSearchChanged(String value) {
@@ -89,7 +89,7 @@ class _CompetitionSearchViewState extends State<CompetitionSearchView> {
     _debounce = Timer(const Duration(milliseconds: 500), () {
       _fetchCompetitions();
     });
-    setState(() {}); // Updates clear icon visibility in the search field
+    setState(() {}); // Updates clear icon visibility
   }
 
   void _onFilterSelected(int index) {
@@ -99,7 +99,6 @@ class _CompetitionSearchViewState extends State<CompetitionSearchView> {
       _selectedFilterIndex = index;
     });
 
-    // Fetch immediately when filter chip changes
     _fetchCompetitions();
   }
 
@@ -120,24 +119,41 @@ class _CompetitionSearchViewState extends State<CompetitionSearchView> {
     BuildContext context,
     CompetitionEntity competition,
   ) async {
-    // جلب الـ ID للمستخدم الحالي مباشرة هنا
     final currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
 
-    final updatedCompetition = await Navigator.push<CompetitionEntity>(
+    final updatedCompetition = await Navigator.push<CompetitionEntity?>(
       context,
       MaterialPageRoute(
         builder: (_) => CompetitionDetailsView(
-          competition: competition, 
-          currentUserId: currentUserId, 
+          competition: competition,
+          currentUserId: currentUserId,
           competitionId: competition.id,
         ),
       ),
     );
 
-    if (updatedCompetition != null && context.mounted) {
+    if (!context.mounted) return;
+
+    if (updatedCompetition != null) {
       context
           .read<SearchCompetitionCubit>()
           .updateCompetitionInList(updatedCompetition);
+    } else {
+      // Re-fetch list if item was deleted or state needs full sync
+      _fetchCompetitions();
+    }
+  }
+
+  Future<void> _navigateToCreateCompetition() async {
+    final isCreated = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const CreateCompetitionView(),
+      ),
+    );
+
+    if (isCreated == true && context.mounted) {
+      _fetchCompetitions();
     }
   }
 
@@ -148,6 +164,11 @@ class _CompetitionSearchViewState extends State<CompetitionSearchView> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: _buildCustomAppBar(),
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: AppColors.primary,
+        onPressed: _navigateToCreateCompetition,
+        child: const Icon(Icons.add, color: Colors.black),
+      ),
       body: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16.0),
         child: Column(
@@ -196,55 +217,75 @@ class _CompetitionSearchViewState extends State<CompetitionSearchView> {
 
                   if (state is SearchCompetitionSuccess) {
                     if (state.competitions.isEmpty) {
-                      return Center(
-                        child: Text(
-                          "No competitions found",
-                          style: TextStyle(
-                            color: Colors.white.withOpacity(.5),
-                            fontSize: 16,
-                          ),
+                      return RefreshIndicator(
+                        onRefresh: _fetchCompetitions,
+                        color: AppColors.primary,
+                        backgroundColor: const Color(0xFF14161D),
+                        child: ListView(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          children: [
+                            SizedBox(
+                              height: MediaQuery.of(context).size.height * 0.4,
+                              child: Center(
+                                child: Text(
+                                  "No competitions found",
+                                  style: TextStyle(
+                                    color: Colors.white.withOpacity(.5),
+                                    fontSize: 16,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       );
                     }
 
-                    return ListView.separated(
-                      controller: _scrollController,
-                      physics: const BouncingScrollPhysics(),
-                      itemCount: state.competitions.length +
-                          (state.isLoadingMore ? 1 : 0),
-                      separatorBuilder: (_, __) => 12.vs,
-                      itemBuilder: (context, index) {
-                        // Pagination Bottom Loader
-                        if (index == state.competitions.length) {
-                          return const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 16.0),
-                            child: Center(
-                              child: CircularProgressIndicator(
-                                color: AppColors.primary,
-                                strokeWidth: 2.5,
+                    return RefreshIndicator(
+                      onRefresh: _fetchCompetitions,
+                      color: AppColors.primary,
+                      backgroundColor: const Color(0xFF14161D),
+                      child: ListView.separated(
+                        controller: _scrollController,
+                        physics: const AlwaysScrollableScrollPhysics(
+                          parent: BouncingScrollPhysics(),
+                        ),
+                        itemCount: state.competitions.length +
+                            (state.isLoadingMore ? 1 : 0),
+                        separatorBuilder: (_, __) => 12.vs,
+                        itemBuilder: (context, index) {
+                          if (index == state.competitions.length) {
+                            return const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 16.0),
+                              child: Center(
+                                child: CircularProgressIndicator(
+                                  color: AppColors.primary,
+                                  strokeWidth: 2.5,
+                                ),
                               ),
+                            );
+                          }
+
+                          final competition = state.competitions[index];
+                          final isOwner = currentUserId != null &&
+                              currentUserId == competition.ownerId;
+                          final isJoined =
+                              competition.isJoinedBy(currentUserId);
+
+                          return GestureDetector(
+                            onTap: () => _navigateToDetails(
+                              context,
+                              competition,
+                            ),
+                            child: CompetitionCard(
+                              key: ValueKey(competition.id),
+                              competition: competition,
+                              isOwner: isOwner,
+                              isJoined: isJoined,
                             ),
                           );
-                        }
-
-                        final competition = state.competitions[index];
-                        final isOwner = currentUserId != null &&
-                            currentUserId == competition.ownerId;
-                        final isJoined = competition.isJoinedBy(currentUserId);
-
-                        return GestureDetector(
-                          onTap: () => _navigateToDetails(
-                            context,
-                            competition,
-                          ),
-                          child: CompetitionCard(
-                            key: ValueKey(competition.id),
-                            competition: competition,
-                            isOwner: isOwner,
-                            isJoined: isJoined,
-                          ),
-                        );
-                      },
+                        },
+                      ),
                     );
                   }
 
@@ -349,7 +390,7 @@ class _CompetitionSearchViewState extends State<CompetitionSearchView> {
                     _debounce?.cancel();
                     _controller.clear();
                     setState(() {});
-                    _fetchCompetitions(); // Instant refresh back to empty state
+                    _fetchCompetitions();
                   },
                 )
               : null,

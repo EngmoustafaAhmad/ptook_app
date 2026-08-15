@@ -3,9 +3,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ptook/features/competitions/domain/entities/competition_entity.dart';
 import 'package:ptook/features/competitions/presintation/bloc/manage_competition_cubit.dart';
 import 'package:ptook/features/competitions/presintation/bloc/manage_competition_state.dart';
+import 'package:ptook/features/participants/domain/entities/participant_entity.dart';
 
-
-class ManageTeamCompetitionView extends StatelessWidget {
+class ManageTeamCompetitionView extends StatefulWidget {
   final CompetitionEntity competition;
 
   const ManageTeamCompetitionView({
@@ -14,73 +14,177 @@ class ManageTeamCompetitionView extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    return DefaultTabController(
-      length: 2,
-      child: Scaffold(
-        backgroundColor: const Color(0xFF0D0F17),
-        appBar: AppBar(
-          backgroundColor: const Color(0xFF0D0F17),
-          elevation: 0,
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.white),
-            onPressed: () => Navigator.pop(context),
-          ),
-          title: BlocBuilder<ManageCompetitionCubit, ManageCompetitionState>(
-            builder: (context, state) {
-              final title = state.competition?.name ?? competition.name;
-              final status = state.competition?.status ?? competition.status;
+  State<ManageTeamCompetitionView> createState() =>
+      _ManageTeamCompetitionViewState();
+}
 
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18,
-                    ),
-                  ),
-                  Row(
-                    children: [
-                      const CircleAvatar(radius: 3, backgroundColor: Colors.green),
-                      const SizedBox(width: 6),
-                      Text(
-                        status,
-                        style: const TextStyle(color: Colors.green, fontSize: 12),
-                      ),
-                    ],
-                  ),
-                ],
-              );
-            },
+class _ManageTeamCompetitionViewState extends State<ManageTeamCompetitionView> {
+  @override
+  void initState() {
+    super.initState();
+    context.read<ManageCompetitionCubit>().initialize(widget.competition);
+  }
+
+  void _showConfirmationDialog({
+    required BuildContext context,
+    required String title,
+    required String content,
+    required String confirmText,
+    required VoidCallback onConfirm,
+    Color confirmColor = Colors.redAccent,
+  }) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: const Color(0xFF161925),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          title,
+          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        content: Text(
+          content,
+          style: const TextStyle(color: Colors.white70, fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
           ),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.settings_outlined, color: Colors.white),
-              onPressed: () {
-                // Navigate to Competition Settings
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: confirmColor,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            onPressed: () {
+              Navigator.pop(dialogContext);
+              onConfirm();
+            },
+            child: Text(
+              confirmText,
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocListener<ManageCompetitionCubit, ManageCompetitionState>(
+      listener: (context, state) {
+        if (state.status == ManageCompetitionStatus.failure &&
+            state.errorMessage != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(state.errorMessage!),
+              backgroundColor: Colors.redAccent,
+            ),
+          );
+        } else if (state.status == ManageCompetitionStatus.actionSuccess &&
+            state.successMessage != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(state.successMessage!),
+              backgroundColor: Colors.green,
+            ),
+          );
+        } else if (state.status == ManageCompetitionStatus.finished) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(state.successMessage ?? 'Competition finished!'),
+              backgroundColor: Colors.amber.shade800,
+            ),
+          );
+        } else if (state.status == ManageCompetitionStatus.deleted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(state.successMessage ?? 'Competition deleted successfully'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          Navigator.of(context).pop();
+        }
+      },
+      child: DefaultTabController(
+        length: 2,
+        child: Scaffold(
+          backgroundColor: const Color(0xFF0D0F17),
+          appBar: AppBar(
+            backgroundColor: const Color(0xFF0D0F17),
+            elevation: 0,
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back, color: Colors.white),
+              onPressed: () => Navigator.pop(context),
+            ),
+            title: BlocBuilder<ManageCompetitionCubit, ManageCompetitionState>(
+              builder: (context, state) {
+                final title = state.competition?.name ?? widget.competition.name;
+                final status = state.competition?.status ?? widget.competition.status;
+                final isFinished = status.toLowerCase() == 'finished' ||
+                    state.status == ManageCompetitionStatus.finished;
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                      ),
+                    ),
+                    Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 3,
+                          backgroundColor: isFinished ? Colors.amber : Colors.green,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          isFinished ? 'FINISHED' : status.toUpperCase(),
+                          style: TextStyle(
+                            color: isFinished ? Colors.amber : Colors.green,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                );
               },
             ),
-          ],
-          bottom: const TabBar(
-            indicatorColor: Color(0xFFFFC107),
-            indicatorWeight: 3,
-            labelColor: Color(0xFFFFC107),
-            unselectedLabelColor: Colors.white60,
-            labelStyle: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-            tabs: [
-              Tab(text: 'Overview'),
-              Tab(text: 'Manage'),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.settings_outlined, color: Colors.white),
+                onPressed: () {
+                  // Navigate to Competition Settings
+                },
+              ),
+            ],
+            bottom: const TabBar(
+              indicatorColor: Color(0xFFFFC107),
+              indicatorWeight: 3,
+              labelColor: Color(0xFFFFC107),
+              unselectedLabelColor: Colors.white60,
+              labelStyle: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+              tabs: [
+                Tab(text: 'Overview'),
+                Tab(text: 'Manage'),
+              ],
+            ),
+          ),
+          body: TabBarView(
+            children: [
+              const _TeamOverviewTabView(),
+              _TeamManageTabView(
+                onShowConfirmDialog: _showConfirmationDialog,
+              ),
             ],
           ),
-        ),
-        body: const TabBarView(
-          children: [
-            _TeamOverviewTabView(),
-            _TeamManageTabView(),
-          ],
         ),
       ),
     );
@@ -95,62 +199,76 @@ class _TeamOverviewTabView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        children: [
-          Row(
+    return BlocBuilder<ManageCompetitionCubit, ManageCompetitionState>(
+      builder: (context, state) {
+        final totalParticipants = state.participants.length;
+
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
             children: [
-              _buildStatCard('12', 'Teams', Icons.groups_outlined),
-              const SizedBox(width: 8),
-              _buildStatCard('120', 'Participants', Icons.person_outline),
-              const SizedBox(width: 8),
-              _buildStatCard('45', 'Days\nDuration', Icons.access_time),
+              Row(
+                children: [
+                  _buildStatCard('12', 'Teams', Icons.groups_outlined),
+                  const SizedBox(width: 8),
+                  _buildStatCard(
+                    '$totalParticipants',
+                    'Participants',
+                    Icons.person_outline,
+                  ),
+                  const SizedBox(width: 8),
+                  _buildStatCard('45', 'Days\nDuration', Icons.access_time),
+                ],
+              ),
+              const SizedBox(height: 24),
+              const Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Top Teams',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Text(
+                    'View All Teams',
+                    style: TextStyle(color: Colors.white54, fontSize: 13),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              _buildTeamRankCard(
+                rank: '1',
+                badgeColor: const Color(0xFFFFC107),
+                teamName: 'Team Alpha',
+                membersCount: '10 Members',
+                points: '12,500 pts',
+                progress: 0.85,
+              ),
+              const SizedBox(height: 12),
+              _buildTeamRankCard(
+                rank: '2',
+                badgeColor: Colors.grey,
+                teamName: 'Data Wolves',
+                membersCount: '10 Members',
+                points: '8,450 pts',
+                progress: 0.60,
+              ),
+              const SizedBox(height: 12),
+              _buildTeamRankCard(
+                rank: '3',
+                badgeColor: Colors.orangeAccent,
+                teamName: 'Neural Nets',
+                membersCount: '10 Members',
+                points: '7,200 pts',
+                progress: 0.45,
+              ),
             ],
           ),
-          const SizedBox(height: 24),
-          const Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Top Teams',
-                style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-              Text(
-                'View All Teams',
-                style: TextStyle(color: Colors.white54, fontSize: 13),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          _buildTeamRankCard(
-            rank: '1',
-            badgeColor: const Color(0xFFFFC107),
-            teamName: 'Team Alpha',
-            membersCount: '10 Members',
-            points: '12,500 pts',
-            progress: 0.85,
-          ),
-          const SizedBox(height: 12),
-          _buildTeamRankCard(
-            rank: '2',
-            badgeColor: Colors.grey,
-            teamName: 'Data Wolves',
-            membersCount: '10 Members',
-            points: '8,450 pts',
-            progress: 0.60,
-          ),
-          const SizedBox(height: 12),
-          _buildTeamRankCard(
-            rank: '3',
-            badgeColor: Colors.orangeAccent,
-            teamName: 'Neural Nets',
-            membersCount: '10 Members',
-            points: '7,200 pts',
-            progress: 0.45,
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -167,8 +285,19 @@ class _TeamOverviewTabView extends StatelessWidget {
           children: [
             Icon(icon, color: const Color(0xFFFFC107), size: 24),
             const SizedBox(height: 6),
-            Text(value, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-            Text(label, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white54, fontSize: 11)),
+            Text(
+              value,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.white54, fontSize: 11),
+            ),
           ],
         ),
       ),
@@ -197,13 +326,33 @@ class _TeamOverviewTabView extends StatelessWidget {
           child: Column(
             children: [
               const SizedBox(height: 12),
-              const CircleAvatar(radius: 28, backgroundColor: Colors.white12),
+              const CircleAvatar(
+                radius: 28,
+                backgroundColor: Colors.white12,
+              ),
               const SizedBox(height: 8),
-              Text(teamName, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+              Text(
+                teamName,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
               const SizedBox(height: 4),
-              Text(membersCount, style: const TextStyle(color: Color(0xFFFFC107), fontSize: 12)),
+              Text(
+                membersCount,
+                style: const TextStyle(color: Color(0xFFFFC107), fontSize: 12),
+              ),
               const SizedBox(height: 4),
-              Text(points, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
+              Text(
+                points,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
               const SizedBox(height: 12),
               ClipRRect(
                 borderRadius: BorderRadius.circular(4),
@@ -220,7 +369,14 @@ class _TeamOverviewTabView extends StatelessWidget {
         CircleAvatar(
           radius: 12,
           backgroundColor: badgeColor,
-          child: Text(rank, style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 12)),
+          child: Text(
+            rank,
+            style: const TextStyle(
+              color: Colors.black,
+              fontWeight: FontWeight.bold,
+              fontSize: 12,
+            ),
+          ),
         ),
       ],
     );
@@ -231,7 +387,18 @@ class _TeamOverviewTabView extends StatelessWidget {
 // 2. MANAGE TAB VIEW
 // -----------------------------------------------------------------------------
 class _TeamManageTabView extends StatelessWidget {
-  const _TeamManageTabView();
+  final void Function({
+    required BuildContext context,
+    required String title,
+    required String content,
+    required String confirmText,
+    required VoidCallback onConfirm,
+    Color confirmColor,
+  }) onShowConfirmDialog;
+
+  const _TeamManageTabView({
+    required this.onShowConfirmDialog,
+  });
 
   void _showCreateTeamDialog(BuildContext context) {
     final controller = TextEditingController();
@@ -239,6 +406,7 @@ class _TeamManageTabView extends StatelessWidget {
       context: context,
       builder: (dialogContext) => AlertDialog(
         backgroundColor: const Color(0xFF161925),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('Create New Team', style: TextStyle(color: Colors.white)),
         content: TextField(
           controller: controller,
@@ -246,8 +414,12 @@ class _TeamManageTabView extends StatelessWidget {
           decoration: const InputDecoration(
             hintText: 'Enter team name',
             hintStyle: TextStyle(color: Colors.white38),
-            enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Color(0xFFFFC107))),
-            focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: Color(0xFFFFC107))),
+            enabledBorder: UnderlineInputBorder(
+              borderSide: BorderSide(color: Color(0xFFFFC107)),
+            ),
+            focusedBorder: UnderlineInputBorder(
+              borderSide: BorderSide(color: Color(0xFFFFC107)),
+            ),
           ),
         ),
         actions: [
@@ -256,15 +428,26 @@ class _TeamManageTabView extends StatelessWidget {
             child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFFC107)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFFFC107),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
             onPressed: () {
               final teamName = controller.text.trim();
               if (teamName.isNotEmpty) {
-                // context.read<ManageCompetitionCubit>().createTeam(teamName);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Team "$teamName" created!'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
               }
               Navigator.pop(dialogContext);
             },
-            child: const Text('Create', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+            child: const Text(
+              'Create',
+              style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+            ),
           ),
         ],
       ),
@@ -273,169 +456,360 @@ class _TeamManageTabView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header + Create Team Button
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return BlocBuilder<ManageCompetitionCubit, ManageCompetitionState>(
+      builder: (context, state) {
+        final participants = state.participants;
+
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Teams Management',
-                style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+              // Header + Create Team Button
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Teams Management',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  ElevatedButton.icon(
+                    onPressed: () => _showCreateTeamDialog(context),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFFFC107),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    ),
+                    icon: const Icon(Icons.add, color: Colors.black, size: 18),
+                    label: const Text(
+                      'Create Team',
+                      style: TextStyle(
+                        color: Colors.black,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              ElevatedButton.icon(
-                onPressed: () => _showCreateTeamDialog(context),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFFFC107),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              const SizedBox(height: 16),
+
+              // Active/Expanded Team Card
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF161925),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.white12),
                 ),
-                icon: const Icon(Icons.add, color: Colors.black, size: 18),
-                label: const Text(
-                  'Create Team',
-                  style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 12),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.black26,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(Icons.groups_outlined, color: Color(0xFFFFC107)),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Code Kings',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 15,
+                                ),
+                              ),
+                              Text(
+                                '${participants.isNotEmpty ? participants.length : 2} Members • Active',
+                                style: const TextStyle(color: Colors.white54, fontSize: 12),
+                              ),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.delete_outline, color: Colors.white54),
+                          onPressed: () {
+                            onShowConfirmDialog(
+                              context: context,
+                              title: 'Delete Team',
+                              content: 'Are you sure you want to delete Code Kings team?',
+                              confirmText: 'Delete',
+                              onConfirm: () {},
+                            );
+                          },
+                        ),
+                        const Icon(Icons.keyboard_arrow_up, color: Colors.white54),
+                      ],
+                    ),
+                    const Divider(color: Colors.white12, height: 20),
+
+                    // Editable Member Rows
+                    if (participants.isNotEmpty)
+                      ...participants.asMap().entries.map((entry) {
+                        final index = entry.key;
+                        final ParticipantEntity participant = entry.value;
+                        return _EditableMemberRow(
+                          rank: '#${index + 1}',
+                          name: participant.name,
+                          currentPoints: participant.points,
+                          onAddPoints: (addedPoints) {
+                            context
+                                .read<ManageCompetitionCubit>()
+                                .updateParticipantPoints(
+                                  participantId: participant.id,
+                                  addedPoints: addedPoints,
+                                );
+                          },
+                          onDelete: () {
+                            onShowConfirmDialog(
+                              context: context,
+                              title: 'Remove Member',
+                              content:
+                                  'Are you sure you want to remove "${participant.name}" from this competition?',
+                              confirmText: 'Remove',
+                              onConfirm: () {
+                                context
+                                    .read<ManageCompetitionCubit>()
+                                    .removeParticipant(participant.id);
+                              },
+                            );
+                          },
+                        );
+                      })
+                    else ...[
+                      _EditableMemberRow(
+                        rank: '#1',
+                        name: 'Ahmed Ali',
+                        currentPoints: 850,
+                        onAddPoints: (addedPoints) {
+                          context
+                              .read<ManageCompetitionCubit>()
+                              .updateParticipantPoints(
+                                participantId: 'ahmed_id',
+                                addedPoints: addedPoints,
+                              );
+                        },
+                        onDelete: () {
+                          onShowConfirmDialog(
+                            context: context,
+                            title: 'Remove Member',
+                            content: 'Are you sure you want to remove Ahmed Ali?',
+                            confirmText: 'Remove',
+                            onConfirm: () {
+                              context
+                                  .read<ManageCompetitionCubit>()
+                                  .removeParticipant('ahmed_id');
+                            },
+                          );
+                        },
+                      ),
+                      _EditableMemberRow(
+                        rank: '#2',
+                        name: 'Omar Khaled',
+                        currentPoints: 720,
+                        onAddPoints: (addedPoints) {
+                          context
+                              .read<ManageCompetitionCubit>()
+                              .updateParticipantPoints(
+                                participantId: 'omar_id',
+                                addedPoints: addedPoints,
+                              );
+                        },
+                        onDelete: () {
+                          onShowConfirmDialog(
+                            context: context,
+                            title: 'Remove Member',
+                            content: 'Are you sure you want to remove Omar Khaled?',
+                            confirmText: 'Remove',
+                            onConfirm: () {
+                              context
+                                  .read<ManageCompetitionCubit>()
+                                  .removeParticipant('omar_id');
+                            },
+                          );
+                        },
+                      ),
+                    ],
+                    const SizedBox(height: 8),
+
+                    // Add Member Button
+                    OutlinedButton.icon(
+                      onPressed: () {},
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size(double.infinity, 40),
+                        side: const BorderSide(
+                          color: Colors.white24,
+                          style: BorderStyle.solid,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      icon: const Icon(Icons.add, color: Colors.white70, size: 16),
+                      label: const Text(
+                        'Add Member',
+                        style: TextStyle(color: Colors.white70, fontSize: 13),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              // Collapsed Team Cards
+              _buildCollapsedTeamCard(
+                context: context,
+                name: 'Null Pointers',
+                details: '4 Members • 980 pts',
+              ),
+              const SizedBox(height: 12),
+              _buildCollapsedTeamCard(
+                context: context,
+                name: 'Widget Wizards',
+                details: '2 Members • 620 pts',
+              ),
+              const SizedBox(height: 24),
+
+              // Danger Zone
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF161925),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.white12),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(
+                          Icons.warning_amber_rounded,
+                          color: Colors.redAccent,
+                          size: 20,
+                        ),
+                        SizedBox(width: 8),
+                        Text(
+                          'Danger Zone',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'End Competition',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const Text(
+                      'Stop allowing new points. Finalizes leaderboard.',
+                      style: TextStyle(color: Colors.white54, fontSize: 12),
+                    ),
+                    const SizedBox(height: 8),
+                    ElevatedButton(
+                      onPressed: () {
+                        onShowConfirmDialog(
+                          context: context,
+                          title: 'End Competition',
+                          content:
+                              'Are you sure you want to end this competition? Points will no longer be editable.',
+                          confirmText: 'END COMPETITION',
+                          confirmColor: Colors.orange,
+                          onConfirm: () {
+                            context
+                                .read<ManageCompetitionCubit>()
+                                .finishCompetition();
+                          },
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white10,
+                        minimumSize: const Size(double.infinity, 44),
+                      ),
+                      child: const Text(
+                        'END COMPETITION',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Delete Competition',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const Text(
+                      'Permanently remove this competition and all its data.',
+                      style: TextStyle(color: Colors.white54, fontSize: 12),
+                    ),
+                    const SizedBox(height: 8),
+                    OutlinedButton(
+                      onPressed: () {
+                        onShowConfirmDialog(
+                          context: context,
+                          title: 'Delete Competition',
+                          content:
+                              'This action is irreversible. Are you sure you want to delete this competition permanently?',
+                          confirmText: 'DELETE PERMANENTLY',
+                          confirmColor: Colors.redAccent,
+                          onConfirm: () {
+                            context
+                                .read<ManageCompetitionCubit>()
+                                .deleteCompetition();
+                          },
+                        );
+                      },
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size(double.infinity, 44),
+                        side: const BorderSide(color: Colors.redAccent),
+                      ),
+                      child: const Text(
+                        'DELETE COMPETITION',
+                        style: TextStyle(
+                          color: Colors.redAccent,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 16),
-
-          // Expanded Team Card
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: const Color(0xFF161925),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.white12),
-            ),
-            child: Column(
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(color: Colors.black26, borderRadius: BorderRadius.circular(8)),
-                      child: const Icon(Icons.groups_outlined, color: Color(0xFFFFC107)),
-                    ),
-                    const SizedBox(width: 12),
-                    const Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Code Kings', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
-                          Text('3 Members • 1,250 pts', style: TextStyle(color: Colors.white54, fontSize: 12)),
-                        ],
-                      ),
-                    ),
-                    IconButton(icon: const Icon(Icons.delete_outline, color: Colors.white54), onPressed: () {}),
-                    const Icon(Icons.keyboard_arrow_up, color: Colors.white54),
-                  ],
-                ),
-                const Divider(color: Colors.white12, height: 20),
-
-                // Editable Member Rows with Direct Input & Controls
-                _EditableMemberRow(
-                  rank: '#1',
-                  name: 'Ahmed Ali',
-                  currentPoints: 850,
-                  onAddPoints: (addedPoints) {
-                    context.read<ManageCompetitionCubit>().updateParticipantPoints(
-                          participantId: 'ahmed_id',
-                          addedPoints: addedPoints,
-                        );
-                  },
-                  onDelete: () {},
-                ),
-                _EditableMemberRow(
-                  rank: '#2',
-                  name: 'Omar Khaled',
-                  currentPoints: 720,
-                  onAddPoints: (addedPoints) {
-                    context.read<ManageCompetitionCubit>().updateParticipantPoints(
-                          participantId: 'omar_id',
-                          addedPoints: addedPoints,
-                        );
-                  },
-                  onDelete: () {},
-                ),
-                const SizedBox(height: 8),
-
-                // Add Member Button
-                OutlinedButton.icon(
-                  onPressed: () {},
-                  style: OutlinedButton.styleFrom(
-                    minimumSize: const Size(double.infinity, 40),
-                    side: const BorderSide(color: Colors.white24, style: BorderStyle.solid),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  ),
-                  icon: const Icon(Icons.add, color: Colors.white70, size: 16),
-                  label: const Text('Add Member', style: TextStyle(color: Colors.white70, fontSize: 13)),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          // Collapsed Team Cards
-          _buildCollapsedTeamCard('Null Pointers', '4 Members • 980 pts'),
-          const SizedBox(height: 12),
-          _buildCollapsedTeamCard('Widget Wizards', '2 Members • 620 pts'),
-          const SizedBox(height: 24),
-
-          // Danger Zone
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: const Color(0xFF161925),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.white12),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Row(
-                  children: [
-                    Icon(Icons.warning_amber_rounded, color: Colors.redAccent, size: 20),
-                    SizedBox(width: 8),
-                    Text('Danger Zone', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                const Text('End Competition', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                const Text('Stop allowing new points. Finalizes leaderboard.', style: TextStyle(color: Colors.white54, fontSize: 12)),
-                const SizedBox(height: 8),
-                ElevatedButton(
-                  onPressed: () => context.read<ManageCompetitionCubit>().finishCompetition(),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white10,
-                    minimumSize: const Size(double.infinity, 44),
-                  ),
-                  child: const Text('END COMPETITION', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                ),
-                const SizedBox(height: 16),
-                const Text('Delete Competition', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                const Text('Permanently remove this competition and all its data.', style: TextStyle(color: Colors.white54, fontSize: 12)),
-                const SizedBox(height: 8),
-                OutlinedButton(
-                  onPressed: () => context.read<ManageCompetitionCubit>().deleteCompetition(),
-                  style: OutlinedButton.styleFrom(
-                    minimumSize: const Size(double.infinity, 44),
-                    side: const BorderSide(color: Colors.redAccent),
-                  ),
-                  child: const Text('DELETE COMPETITION', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
-  Widget _buildCollapsedTeamCard(String name, String details) {
+  Widget _buildCollapsedTeamCard({
+    required BuildContext context,
+    required String name,
+    required String details,
+  }) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -447,7 +821,10 @@ class _TeamManageTabView extends StatelessWidget {
         children: [
           Container(
             padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(color: Colors.black26, borderRadius: BorderRadius.circular(8)),
+            decoration: BoxDecoration(
+              color: Colors.black26,
+              borderRadius: BorderRadius.circular(8),
+            ),
             child: const Icon(Icons.groups_outlined, color: Colors.white54),
           ),
           const SizedBox(width: 12),
@@ -455,12 +832,33 @@ class _TeamManageTabView extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
-                Text(details, style: const TextStyle(color: Colors.white54, fontSize: 12)),
+                Text(
+                  name,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                  ),
+                ),
+                Text(
+                  details,
+                  style: const TextStyle(color: Colors.white54, fontSize: 12),
+                ),
               ],
             ),
           ),
-          IconButton(icon: const Icon(Icons.delete_outline, color: Colors.white54), onPressed: () {}),
+          IconButton(
+            icon: const Icon(Icons.delete_outline, color: Colors.white54),
+            onPressed: () {
+              onShowConfirmDialog(
+                context: context,
+                title: 'Delete Team',
+                content: 'Are you sure you want to delete "$name"?',
+                confirmText: 'Delete',
+                onConfirm: () {},
+              );
+            },
+          ),
           const Icon(Icons.keyboard_arrow_down, color: Colors.white54),
         ],
       ),
@@ -530,12 +928,16 @@ class _EditableMemberRowState extends State<_EditableMemberRow> {
         children: [
           Text(
             widget.rank,
-            style: const TextStyle(color: Color(0xFFFFC107), fontWeight: FontWeight.bold, fontSize: 12),
+            style: const TextStyle(
+              color: Color(0xFFFFC107),
+              fontWeight: FontWeight.bold,
+              fontSize: 12,
+            ),
           ),
           const SizedBox(width: 8),
           const CircleAvatar(radius: 14, backgroundColor: Colors.white24),
           const SizedBox(width: 8),
-          
+
           // Member Details
           Expanded(
             child: Column(
@@ -543,7 +945,11 @@ class _EditableMemberRowState extends State<_EditableMemberRow> {
               children: [
                 Text(
                   widget.name,
-                  style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 Text(
                   '${widget.currentPoints} pts',
@@ -583,7 +989,9 @@ class _EditableMemberRowState extends State<_EditableMemberRow> {
                     color: const Color(0xFF0D0F17),
                     borderRadius: BorderRadius.circular(6),
                     border: Border.all(
-                      color: _pointDelta > 0 ? const Color(0xFFFFC107) : Colors.white24,
+                      color: _pointDelta > 0
+                          ? const Color(0xFFFFC107)
+                          : Colors.white24,
                     ),
                   ),
                   child: TextField(
@@ -591,7 +999,9 @@ class _EditableMemberRowState extends State<_EditableMemberRow> {
                     keyboardType: TextInputType.number,
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      color: _pointDelta > 0 ? const Color(0xFFFFC107) : Colors.white,
+                      color: _pointDelta > 0
+                          ? const Color(0xFFFFC107)
+                          : Colors.white,
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
                     ),
@@ -627,7 +1037,9 @@ class _EditableMemberRowState extends State<_EditableMemberRow> {
                   child: Container(
                     padding: const EdgeInsets.all(4),
                     decoration: BoxDecoration(
-                      color: _pointDelta > 0 ? Colors.green.withAlpha(40) : Colors.transparent,
+                      color: _pointDelta > 0
+                          ? Colors.green.withOpacity(0.2)
+                          : Colors.transparent,
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Icon(
@@ -643,7 +1055,11 @@ class _EditableMemberRowState extends State<_EditableMemberRow> {
 
           // Delete Member Button
           IconButton(
-            icon: const Icon(Icons.delete_outline, color: Colors.white38, size: 18),
+            icon: const Icon(
+              Icons.delete_outline,
+              color: Colors.white38,
+              size: 18,
+            ),
             onPressed: widget.onDelete,
           ),
         ],

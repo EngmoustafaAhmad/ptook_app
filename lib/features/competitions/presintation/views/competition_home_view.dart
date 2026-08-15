@@ -235,14 +235,12 @@ void _shareCompetition() {
 
                   // 5. Dynamic Action Buttons Group
                   _ActionButtonsGroup(
-                    isJoined: isJoined,
                     isFavorite: _isFavorite,
                     isLoading: state is ParticipantActionLoading,
                     onFavoriteToggle: () {
                       setState(() => _isFavorite = !_isFavorite);
                     },
-                    onJoinLeavePressed: () =>
-                        _handleJoinLeave(isJoined: isJoined),
+                    onLeavePressed: () => _handleLeave(),
                   ),
                   const SizedBox(height: 32),
                 ],
@@ -337,20 +335,12 @@ void _shareCompetition() {
     );
   }
 
-  void _handleJoinLeave({required bool isJoined}) {
-    final cubit = context.read<ParticipantCubit>();
-    if (isJoined) {
-      cubit.leaveCompetition(
+void _handleLeave() {
+  context.read<ParticipantCubit>().leaveCompetition(
         competitionId: widget.competition.id,
         userId: widget.currentUserId,
       );
-    } else {
-      cubit.joinCompetition(
-        competitionId: widget.competition.id,
-        userId: widget.currentUserId,
-      );
-    }
-  }
+}
 
   void _navigateToParticipants(BuildContext context) {
     Navigator.push(
@@ -918,46 +908,49 @@ class _ParticipantAvatarItem extends StatelessWidget {
   }
 }
 
-/// 5. Dynamic Action Buttons Group
 class _ActionButtonsGroup extends StatelessWidget {
-  final bool isJoined;
   final bool isFavorite;
   final bool isLoading;
   final VoidCallback onFavoriteToggle;
-  final VoidCallback onJoinLeavePressed;
+  final VoidCallback onLeavePressed;
 
   const _ActionButtonsGroup({
-    required this.isJoined,
     required this.isFavorite,
     required this.isLoading,
     required this.onFavoriteToggle,
-    required this.onJoinLeavePressed,
+    required this.onLeavePressed,
   });
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
-        // Primary Action Button (Join / Leave)
+        // Primary Action Button (Leave Competition)
         Container(
           width: double.infinity,
           height: 50,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(14),
-            gradient: isJoined
-                ? null
-                : const LinearGradient(colors: _AppColors.secondaryGradient),
-            color: isJoined ? Colors.redAccent.withValues(alpha: 0.15) : null,
-            border: isJoined
-                ? Border.all(color: Colors.redAccent.withValues(alpha: 0.5))
-                : null,
+            color: Colors.redAccent.withValues(alpha: 0.15),
+            border: Border.all(
+              color: Colors.redAccent.withValues(alpha: 0.5),
+            ),
           ),
           child: ElevatedButton(
-            onPressed: isLoading ? null : onJoinLeavePressed,
+            onPressed: isLoading
+                ? null
+                : () {
+                    onLeavePressed();
+                    if (Navigator.canPop(context)) {
+                      Navigator.pop(context, true);
+                    }
+                  },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.transparent,
               shadowColor: Colors.transparent,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
             ),
             child: isLoading
                 ? const SizedBox(
@@ -965,22 +958,22 @@ class _ActionButtonsGroup extends StatelessWidget {
                     height: 22,
                     child: CircularProgressIndicator(
                       strokeWidth: 2.5,
-                      color: Colors.white,
+                      color: Colors.redAccent,
                     ),
                   )
-                : Row(
+                : const Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(
-                        isJoined ? Icons.logout : Icons.login,
-                        color: isJoined ? Colors.redAccent : Colors.white,
+                        Icons.logout,
+                        color: Colors.redAccent,
                         size: 20,
                       ),
-                      const SizedBox(width: 8),
+                      SizedBox(width: 8),
                       Text(
-                        isJoined ? 'Leave Competition' : 'Join Competition',
+                        'Leave Competition',
                         style: TextStyle(
-                          color: isJoined ? Colors.redAccent : Colors.white,
+                          color: Colors.redAccent,
                           fontWeight: FontWeight.bold,
                           fontSize: 15,
                         ),
@@ -998,8 +991,12 @@ class _ActionButtonsGroup extends StatelessWidget {
           child: OutlinedButton.icon(
             onPressed: onFavoriteToggle,
             style: OutlinedButton.styleFrom(
-              side: BorderSide(color: Colors.white.withValues(alpha: 0.15)),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              side: BorderSide(
+                color: Colors.white.withValues(alpha: 0.15),
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
             ),
             icon: Icon(
               isFavorite ? Icons.star_rounded : Icons.star_outline_rounded,

@@ -245,15 +245,30 @@ class CompetitionRemoteDataSourceImpl implements ICompetitionRemoteDataSource {
   }
 
   @override
-  Future<void> deleteCompetition(String competitionId) async {
-    try {
-      await _competitionsRef.doc(competitionId).delete();
-    } on FirebaseException catch (e) {
-      throw ServerException(message: e.message ?? 'Failed to delete competition');
-    } catch (e) {
-      throw ServerException(message: e.toString());
+Future<void> deleteCompetition(String competitionId) async {
+  try {
+    final compRef = firestore.collection('competitions').doc(competitionId);
+
+    // 1. Fetch all documents inside the 'participants' subcollection
+    final participantsSnapshot = await compRef.collection('participants').get();
+
+    // 2. Initialize a WriteBatch to execute all deletions together atomically
+    final batch = firestore.batch();
+
+    // 3. Add each participant document deletion to the batch
+    for (var doc in participantsSnapshot.docs) {
+      batch.delete(doc.reference);
     }
+
+    // 4. Add the parent competition document deletion to the batch
+    batch.delete(compRef);
+
+    // 5. Commit all deletions at once
+    await batch.commit();
+  } catch (e) {
+    throw Exception('Failed to delete competition: $e');
   }
+}
 
   @override
   Future<void> joinCompetition(String competitionId) async {
@@ -410,12 +425,19 @@ class CompetitionRemoteDataSourceImpl implements ICompetitionRemoteDataSource {
   // REALTIME STREAMS
   // ===========================================================================
 
+
   @override
   Stream<CompetitionModel> streamCompetition(String competitionId) {
-    return _competitionsRef
+    return firestore
+        .collection('competitions')
         .doc(competitionId)
         .snapshots()
-        .map((doc) => _mapDocToModel(doc));
+        .where((doc) => doc.exists && doc.data() != null) // Filters out deleted snapshots
+        .map((doc) {
+          final data = doc.data()!;
+          data['id'] = doc.id;
+          return CompetitionModel.fromJson(data);
+        });
   }
 
   @override
@@ -463,4 +485,6 @@ class CompetitionRemoteDataSourceImpl implements ICompetitionRemoteDataSource {
       ...data,
     });
   }
+
+
 }

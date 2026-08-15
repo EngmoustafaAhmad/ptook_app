@@ -172,4 +172,32 @@ class CompetitionEntity extends Equatable {
         searchKeywords,
         participantIds,
       ];
+
+  CompetitionEntity toEntity() {
+    return CompetitionEntity(
+      id: id,
+      name: name,
+      description: description,
+      ownerId: ownerId,
+      category: category,
+      status: status,
+      type: type,
+      imageUrl: imageUrl,
+      startDate: startDate,
+      endDate: endDate,
+      totalPoints: totalPoints,
+      maxParticipants: maxParticipants,
+      participantsCount: participantsCount,
+      isPublic: isPublic,
+      inviteCode: inviteCode,
+      maxTeams: maxTeams,
+      membersPerTeam: membersPerTeam,
+      participants: participants,
+      teams: teams,
+      createdAt: createdAt,
+      winnerId: winnerId,
+      searchKeywords: searchKeywords,
+      participantIds: participantIds,
+    );
+  }
 }

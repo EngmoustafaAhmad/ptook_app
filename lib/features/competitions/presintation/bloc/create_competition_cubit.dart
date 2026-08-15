@@ -40,9 +40,7 @@ class CreateCompetitionCubit extends Cubit<CreateCompetitionState> {
         return;
       }
 
-      // ============================
       // Validation
-      // ============================
       if (type == "team") {
         if (maxTeams == null || membersPerTeam == null) {
           _safeEmit(CreateCompetitionError("Team settings are required"));
@@ -55,9 +53,7 @@ class CreateCompetitionCubit extends Cubit<CreateCompetitionState> {
         }
       }
 
-      // ============================
       // Private competition invite code
-      // ============================
       String? inviteCode;
       if (!isPublic) {
         inviteCode = const Uuid().v4().substring(0, 8);
@@ -65,9 +61,7 @@ class CreateCompetitionCubit extends Cubit<CreateCompetitionState> {
 
       final competitionId = const Uuid().v4();
 
-      // ============================
       // Build Competition Entity
-      // ============================
       final competition = CompetitionEntity(
         id: competitionId,
         name: name,
@@ -85,9 +79,9 @@ class CreateCompetitionCubit extends Cubit<CreateCompetitionState> {
         category: category,
         searchKeywords: _generateSearchKeywords(name),
         
-        // Initial participant registration (Includes creator if auto-joined)
-        participantIds: [user.uid],
-        participantsCount: 1,
+        // Starts with 0 participants
+        participantIds: const [],
+        participantsCount: 0,
 
         // Team settings
         maxTeams: type == "team" ? maxTeams : null,
@@ -107,14 +101,12 @@ class CreateCompetitionCubit extends Cubit<CreateCompetitionState> {
     }
   }
 
-  /// Helper to safely emit states if the Cubit hasn't been disposed.
   void _safeEmit(CreateCompetitionState newState) {
     if (!isClosed) {
       emit(newState);
     }
   }
 
-  /// Generates substring search tokens for Firestore querying.
   List<String> _generateSearchKeywords(String name) {
     final List<String> keywords = [];
     final lowerName = name.toLowerCase().trim();
@@ -125,7 +117,6 @@ class CreateCompetitionCubit extends Cubit<CreateCompetitionState> {
     return keywords;
   }
 
-  /// Cleans up raw exceptions for the UI.
   String _formatErrorMessage(dynamic error) {
     final message = error.toString();
     if (message.startsWith('Exception: ')) {

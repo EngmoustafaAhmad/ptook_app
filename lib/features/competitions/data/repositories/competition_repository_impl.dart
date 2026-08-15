@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:dartz/dartz.dart';
 import 'package:ptook/core/errors/exceptions.dart';
 import 'package:ptook/core/errors/failures.dart';
@@ -9,8 +10,8 @@ import 'package:ptook/features/participants/domain/entities/participant_entity.d
 
 class CompetitionRepositoryImpl implements ICompetitionRepository {
   final ICompetitionRemoteDataSource remoteDataSource;
-
-  CompetitionRepositoryImpl(this.remoteDataSource);
+  
+  CompetitionRepositoryImpl(this.remoteDataSource,);
 
   @override
   Future<Either<Failure, List<CompetitionEntity>>> getCompetitions() async {
@@ -21,6 +22,8 @@ class CompetitionRepositoryImpl implements ICompetitionRepository {
       return Left(ServerFailure(e.message));
     }
   }
+
+  
 
   @override
   Future<Either<Failure, List<CompetitionEntity>>> getPublicCompetitions({
@@ -237,9 +240,9 @@ class CompetitionRepositoryImpl implements ICompetitionRepository {
   // ---------------------------------------------------------------------------
 
   @override
-  Stream<CompetitionEntity> streamCompetition(String competitionId) {
-    return remoteDataSource.streamCompetition(competitionId);
-  }
+    Stream<CompetitionEntity> streamCompetition(String competitionId) {
+      return remoteDataSource.streamCompetition(competitionId);
+    }
 
   @override
   Stream<List<ParticipantEntity>> streamParticipants(String competitionId) {
