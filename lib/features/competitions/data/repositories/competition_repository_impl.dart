@@ -10,7 +10,8 @@ import 'package:ptook/features/participants/domain/entities/participant_entity.d
 class CompetitionRepositoryImpl implements ICompetitionRepository {
   final ICompetitionRemoteDataSource remoteDataSource;
 
-CompetitionRepositoryImpl(this.remoteDataSource);
+  CompetitionRepositoryImpl(this.remoteDataSource);
+
   @override
   Future<Either<Failure, List<CompetitionEntity>>> getCompetitions() async {
     try {
@@ -182,6 +183,58 @@ CompetitionRepositoryImpl(this.remoteDataSource);
       return Left(ServerFailure(e.message));
     }
   }
+
+  // ---------------------------------------------------------------------------
+  // 🌟 NEW METHODS FOR FINISHING COMPETITION & MANAGING PARTICIPANT POINTS
+  // ---------------------------------------------------------------------------
+
+  @override
+  Future<Either<Failure, void>> finishCompetition(String competitionId) async {
+    try {
+      await remoteDataSource.finishCompetition(competitionId);
+      return const Right(null);
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> updateParticipantPoints({
+    required String competitionId,
+    required String participantId,
+    required int addedPoints,
+  }) async {
+    try {
+      await remoteDataSource.updateParticipantPoints(
+        competitionId: competitionId,
+        participantId: participantId,
+        addedPoints: addedPoints,
+      );
+      return const Right(null);
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> removeParticipant({
+    required String competitionId,
+    required String participantId,
+  }) async {
+    try {
+      await remoteDataSource.removeParticipant(
+        competitionId: competitionId,
+        participantId: participantId,
+      );
+      return const Right(null);
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message));
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // STREAMS
+  // ---------------------------------------------------------------------------
 
   @override
   Stream<CompetitionEntity> streamCompetition(String competitionId) {

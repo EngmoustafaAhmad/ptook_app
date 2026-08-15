@@ -16,6 +16,18 @@ abstract class ICompetitionRemoteDataSource {
   Future<void> joinCompetition(String competitionId);
   Future<void> leaveCompetition(String competitionId);
 
+  // Management Actions
+  Future<void> finishCompetition(String competitionId);
+  Future<void> updateParticipantPoints({
+    required String competitionId,
+    required String participantId,
+    required int addedPoints,
+  });
+  Future<void> removeParticipant({
+    required String competitionId,
+    required String participantId,
+  });
+
   // Paginated Fetching & Search
   Future<List<CompetitionModel>> getPublicCompetitions({
     int limit = 10,
@@ -323,6 +335,72 @@ class CompetitionRemoteDataSourceImpl implements ICompetitionRemoteDataSource {
       return _mapDocToModel(snapshot.docs.first);
     } on FirebaseException catch (e) {
       throw ServerException(message: e.message ?? 'Failed to get competition by code');
+    } catch (e) {
+      throw ServerException(message: e.toString());
+    }
+  }
+
+  // ===========================================================================
+  // MANAGEMENT ACTIONS
+  // ===========================================================================
+
+  @override
+  Future<void> finishCompetition(String competitionId) async {
+    try {
+      await _competitionsRef.doc(competitionId).update({
+        'status': 'completed',
+        'endDate': DateTime.now().toIso8601String(),
+      });
+    } on FirebaseException catch (e) {
+      throw ServerException(message: e.message ?? 'Failed to finish competition');
+    } catch (e) {
+      throw ServerException(message: e.toString());
+    }
+  }
+
+  @override
+  Future<void> updateParticipantPoints({
+    required String competitionId,
+    required String participantId,
+    required int addedPoints,
+  }) async {
+    try {
+      await _competitionsRef
+          .doc(competitionId)
+          .collection('participants')
+          .doc(participantId)
+          .update({
+        'points': FieldValue.increment(addedPoints),
+      });
+    } on FirebaseException catch (e) {
+      throw ServerException(
+          message: e.message ?? 'Failed to update participant points');
+    } catch (e) {
+      throw ServerException(message: e.toString());
+    }
+  }
+
+  @override
+  Future<void> removeParticipant({
+    required String competitionId,
+    required String participantId,
+  }) async {
+    try {
+      final batch = firestore.batch();
+      final compDocRef = _competitionsRef.doc(competitionId);
+      final participantDocRef =
+          compDocRef.collection('participants').doc(participantId);
+
+      batch.update(compDocRef, {
+        'participantIds': FieldValue.arrayRemove([participantId]),
+        'participantsCount': FieldValue.increment(-1),
+      });
+
+      batch.delete(participantDocRef);
+
+      await batch.commit();
+    } on FirebaseException catch (e) {
+      throw ServerException(message: e.message ?? 'Failed to remove participant');
     } catch (e) {
       throw ServerException(message: e.toString());
     }

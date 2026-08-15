@@ -26,6 +26,7 @@ import 'package:ptook/features/competitions/domain/usecases/get_public_competiti
 import 'package:ptook/features/competitions/domain/usecases/search_public_competitions_usecase.dart';
 import 'package:ptook/features/competitions/presintation/bloc/competition_cubit.dart';
 import 'package:ptook/features/competitions/presintation/bloc/create_competition_cubit.dart';
+import 'package:ptook/features/competitions/presintation/bloc/manage_competition_cubit.dart';
 import 'package:ptook/features/competitions/presintation/bloc/search_competition_cubit.dart';
 import 'package:ptook/features/participants/domain/usecases/assign_podium_stars_usecase.dart';
 import 'package:ptook/features/participants/domain/usecases/get_competition_participants_usecase.dart';
@@ -162,6 +163,12 @@ Future<void> init() async {
     searchPublicCompetitionsUseCase: sl(),
     getJoinedCompetitionsUseCase: sl(),
     getCreatedCompetitionsUseCase: sl(),
+  ),
+);
+
+sl.registerFactory(
+  () => ManageCompetitionCubit(
+    repository: sl<ICompetitionRepository>(), // or sl<CompetitionRepository>()
   ),
 );
 

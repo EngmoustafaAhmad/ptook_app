@@ -1,3 +1,5 @@
+import 'package:dartz/dartz.dart';
+import 'package:ptook/core/errors/failures.dart';
 import 'package:ptook/features/competitions/domain/entities/competition_entity.dart';
 import 'package:ptook/features/competitions/domain/repositories/competition_repository.dart';
 
@@ -7,7 +9,7 @@ class GetCompetitionDetailsUseCase {
   GetCompetitionDetailsUseCase(this.repository);
 
   /// تم استخدام `call` لتسهيل استدعاء الـ UseCase كدالة مباشرة
-  Future<CompetitionEntity> call(String competitionId) async {
+  Future<Either<Failure, CompetitionEntity>> call(String competitionId) async {
     return await repository.getCompetitionDetails(competitionId);
   }
 }

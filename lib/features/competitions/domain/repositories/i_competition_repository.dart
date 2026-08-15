@@ -3,6 +3,7 @@ import 'package:ptook/core/errors/failures.dart';
 import 'package:ptook/features/competitions/domain/entities/competition_entity.dart';
 import 'package:ptook/features/participants/domain/entities/participant_entity.dart';
 
+/// 🎯 Main Repository Interface
 abstract class ICompetitionRepository {
   Future<Either<Failure, List<CompetitionEntity>>> getCompetitions();
 
@@ -29,11 +30,13 @@ abstract class ICompetitionRepository {
     String? lastCompetitionId,
   });
 
-  Future<Either<Failure, CompetitionEntity>> getCompetitionById(String competitionId);
+  Future<Either<Failure, CompetitionEntity>> getCompetitionById(
+      String competitionId);
 
   Future<Either<Failure, CompetitionEntity?>> getCompetitionByCode(String code);
 
-  Future<Either<Failure, CompetitionEntity>> getCompetitionDetails(String competitionId);
+  Future<Either<Failure, CompetitionEntity>> getCompetitionDetails(
+      String competitionId);
 
   Future<Either<Failure, void>> createCompetition(CompetitionEntity competition);
 
@@ -46,6 +49,23 @@ abstract class ICompetitionRepository {
   Future<Either<Failure, void>> leaveCompetition(String competitionId);
 
   // ===========================================================================
+  // MANAGEMENT ACTIONS
+  // ===========================================================================
+
+  Future<Either<Failure, void>> finishCompetition(String competitionId);
+
+  Future<Either<Failure, void>> updateParticipantPoints({
+    required String competitionId,
+    required String participantId,
+    required int addedPoints,
+  });
+
+  Future<Either<Failure, void>> removeParticipant({
+    required String competitionId,
+    required String participantId,
+  });
+
+  // ===========================================================================
   // REALTIME STREAMS
   // ===========================================================================
 
@@ -53,3 +73,4 @@ abstract class ICompetitionRepository {
 
   Stream<List<ParticipantEntity>> streamParticipants(String competitionId);
 }
+

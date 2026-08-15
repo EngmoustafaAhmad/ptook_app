@@ -684,7 +684,7 @@ class _LeaderboardCard extends StatelessWidget {
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: topParticipants.length,
-              separatorBuilder: (_, __) =>
+              separatorBuilder: (_, _) =>
                   Divider(color: Colors.white.withValues(alpha: 0.05), height: 16),
               itemBuilder: (context, index) {
                 return _LeaderboardRowItem(
