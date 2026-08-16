@@ -414,8 +414,6 @@ class _CompetitionCardState extends State<CompetitionCard> {
       MaterialPageRoute(
         builder: (_) => CompetitionDetailsView(
           competition: widget.competition, 
-          currentUserId: currentUserId, // 👈 تم التمرير هنا
-          competitionId: widget.competition.id, // 👈 تم تمرير ID المسابقة
         ),
       ),
     );

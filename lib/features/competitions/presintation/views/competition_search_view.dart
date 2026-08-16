@@ -126,8 +126,6 @@ class _CompetitionSearchViewState extends State<CompetitionSearchView> {
       MaterialPageRoute(
         builder: (_) => CompetitionDetailsView(
           competition: competition,
-          currentUserId: currentUserId,
-          competitionId: competition.id,
         ),
       ),
     );

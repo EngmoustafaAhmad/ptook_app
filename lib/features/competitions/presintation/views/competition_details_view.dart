@@ -1,234 +1,457 @@
+import 'dart:ui';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ptook/core/di/injection_container.dart';
+import 'package:ptook/features/competitions/domain/entities/competition_entity.dart';
 import 'package:ptook/features/competitions/presintation/views/competition_home_view.dart';
+import 'package:ptook/features/competitions/presintation/views/manage_competition_view.dart';
 import 'package:ptook/features/participants/presintation/bloc/join_competition_state.dart';
 import 'package:ptook/features/participants/presintation/bloc/participants_cubit.dart';
 import 'package:ptook/features/participants/presintation/bloc/participants_state.dart'
-    hide JoinCompetitionSuccess, LeaveCompetitionSuccess;
+    hide LeaveCompetitionSuccess, JoinCompetitionSuccess;
 
-import '../../domain/entities/competition_entity.dart';
+// =============================================================================
+// DESIGN SYSTEM TOKENS
+// =============================================================================
 
-/// 🎨 App Color Constants matching the Dark Theme UI
 abstract class _ViewColors {
-  static const background = Color(0xFF101216);
-  static const cardBackground = Color(0xFF181A20);
+  static const background = Color(0xFF0C0E12);
+  static const cardBackground = Color(0xFF14171F);
+  static const cardBorder = Color(0x12FFFFFF);
   static const primaryGold = Color(0xFFFFC72C);
+  static const primaryGoldGlow = Color(0x33FFC72C);
   static const textPrimary = Colors.white;
   static const textSecondary = Color(0x99FFFFFF);
-  static const divider = Color(0x1AFFFFFF);
+  static const textMuted = Color(0x66FFFFFF);
+  static const divider = Color(0x12FFFFFF);
+  static const error = Color(0xFFFF5252);
+  static const success = Color(0xFF4CAF50);
 }
+
+// =============================================================================
+// MAIN ENTRY VIEW
+// =============================================================================
 
 class CompetitionDetailsView extends StatelessWidget {
   final CompetitionEntity competition;
 
   const CompetitionDetailsView({
     super.key,
-    required this.competition, 
-    required String currentUserId, 
-    required String competitionId,
+    required this.competition,
   });
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (context) => sl<ParticipantCubit>(),
-      child: _CompetitionDetailsContent(competition: competition),
+    return BlocProvider<ParticipantCubit>(
+      create: (_) => sl<ParticipantCubit>(),
+      child: _CompetitionDetailsContent(initialCompetition: competition),
     );
   }
 }
 
-class _CompetitionDetailsContent extends StatelessWidget {
-  final CompetitionEntity competition;
+// =============================================================================
+// CONTENT CONTROLLER
+// =============================================================================
 
-  const _CompetitionDetailsContent({required this.competition});
+class _CompetitionDetailsContent extends StatefulWidget {
+  final CompetitionEntity initialCompetition;
+
+  const _CompetitionDetailsContent({required this.initialCompetition});
+
+  @override
+  State<_CompetitionDetailsContent> createState() =>
+      _CompetitionDetailsContentState();
+}
+
+class _CompetitionDetailsContentState
+    extends State<_CompetitionDetailsContent> {
+  late CompetitionEntity _competition;
+
+  @override
+  void initState() {
+    super.initState();
+    _competition = widget.initialCompetition;
+  }
+
+  String get _currentUserId => FirebaseAuth.instance.currentUser?.uid ?? '';
+  bool get _isOwner => _competition.ownerId == _currentUserId;
+  bool get _isJoined => _competition.isJoinedBy(_currentUserId);
+  bool get _isFull =>
+      _competition.maxParticipants != null &&
+      _competition.participantsCount >= _competition.maxParticipants!;
+
+  // Checks if the competition has been finished by status or time expiration
+  bool get _isEnded {
+    final status = _competition.status.toLowerCase();
+    final statusEnded =
+        status == 'ended' || status == 'finished' || status == 'completed';
+    final dateEnded = DateTime.now().isAfter(_competition.endDate);
+
+    return statusEnded || dateEnded;
+  }
 
   @override
   Widget build(BuildContext context) {
-    final currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
-    final isOwner = competition.ownerId == currentUserId;
-    final isJoined = competition.isJoinedBy(currentUserId);
+    return BlocConsumer<ParticipantCubit, ParticipantState>(
+      listener: _handleStateListener,
+      builder: (context, state) {
+        final isLoading = state is ParticipantLoading;
 
-    return BlocListener<ParticipantCubit, dynamic>(
-      listener: (context, state) => _handleBlocState(context, state, currentUserId),
-      child: Scaffold(
-        backgroundColor: _ViewColors.background,
-        appBar: AppBar(
+        return Scaffold(
           backgroundColor: _ViewColors.background,
-          elevation: 0,
-          centerTitle: true,
-          title: Text(
-            competition.name.toUpperCase(),
-            style: const TextStyle(
-              color: _ViewColors.primaryGold,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 1.2,
+          appBar: AppBar(
+            backgroundColor: _ViewColors.background,
+            elevation: 0,
+            scrolledUnderElevation: 0,
+            centerTitle: true,
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back_ios_new_rounded,
+                  color: Colors.white, size: 20),
+              onPressed: () => Navigator.maybePop(context),
             ),
-          ),
-          actions: [
-            if (isOwner)
-              IconButton(
-                icon: const Icon(Icons.more_vert, color: _ViewColors.textSecondary),
-                onPressed: () {
-                  // Navigate to Settings / Management View
-                },
+            title: Text(
+              _competition.name.toUpperCase(),
+              style: const TextStyle(
+                color: _ViewColors.primaryGold,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.5,
+                fontSize: 14,
               ),
-          ],
-        ),
-        body: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: SingleChildScrollView(
-                    physics: const BouncingScrollPhysics(),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Optional Banner
-                        if (competition.imageUrl != null) ...[
-                          _CompetitionBanner(imageUrl: competition.imageUrl!),
-                          const SizedBox(height: 16),
-                        ],
-
-                        // Badges Row (Category, Type, Status)
-                        _BadgesRow(competition: competition),
-                        const SizedBox(height: 16),
-
-                        // Title & Description
-                        Text(
-                          competition.name,
-                          style: const TextStyle(
-                            color: _ViewColors.textPrimary,
-                            fontSize: 28,
-                            fontWeight: FontWeight.bold,
-                            height: 1.2,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          competition.description,
-                          style: const TextStyle(
-                            color: _ViewColors.textSecondary,
-                            fontSize: 14,
-                            height: 1.5,
-                          ),
-                        ),
-
+            ),
+            actions: [
+              if (_isOwner)
+                IconButton(
+                  icon: const Icon(Icons.more_vert_rounded,
+                      color: _ViewColors.textSecondary),
+                  onPressed: _onManagePressed,
+                ),
+            ],
+          ),
+          body: Stack(
+            children: [
+              Positioned.fill(
+                child: SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 140),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (_competition.imageUrl != null &&
+                          _competition.imageUrl!.isNotEmpty) ...[
+                        _CompetitionBanner(imageUrl: _competition.imageUrl!),
                         const SizedBox(height: 20),
-                        const Divider(color: _ViewColors.divider, thickness: 1),
-                        const SizedBox(height: 20),
-
-                        // Stats Grid (Cards with watermark icons)
-                        _StatCard(
-                          icon: Icons.stars_rounded,
-                          title: 'Total Points',
-                          value: '${competition.totalPoints} pts',
-                          watermarkIcon: Icons.star_border_rounded,
-                        ),
-                        const SizedBox(height: 12),
-
-                        _ParticipantsCard(competition: competition),
-                        const SizedBox(height: 12),
-
-                        _StatCard(
-                          icon: Icons.calendar_today_rounded,
-                          title: 'Ends On',
-                          value:
-                              '${competition.endDate.day}/${competition.endDate.month}/${competition.endDate.year}',
-                          watermarkIcon: Icons.calendar_month_rounded,
-                        ),
-                        const SizedBox(height: 16),
                       ],
-                    ),
+                      _BadgesRow(
+                        competition: _competition,
+                        isEnded: _isEnded,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        _competition.name,
+                        style: const TextStyle(
+                          color: _ViewColors.textPrimary,
+                          fontSize: 28,
+                          fontWeight: FontWeight.w800,
+                          height: 1.25,
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        _competition.description,
+                        style: const TextStyle(
+                          color: _ViewColors.textSecondary,
+                          fontSize: 15,
+                          height: 1.6,
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      const Divider(color: _ViewColors.divider, thickness: 1),
+                      const SizedBox(height: 24),
+
+                      // Metric Grid
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _CompactMetricCard(
+                              icon: Icons.stars_rounded,
+                              title: 'Total Points',
+                              value: '${_competition.totalPoints}',
+                              unit: 'pts',
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _CompactMetricCard(
+                              icon: Icons.group_rounded,
+                              title: 'Participants',
+                              value: '${_competition.participantsCount}',
+                              unit: _competition.maxParticipants != null
+                                  ? '/ ${_competition.maxParticipants}'
+                                  : '',
+                              progress: _competition.maxParticipants != null &&
+                                      _competition.maxParticipants! > 0
+                                  ? (_competition.participantsCount /
+                                          _competition.maxParticipants!)
+                                      .clamp(0.0, 1.0)
+                                  : null,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      _TimelineCard(
+                        endDate: _competition.endDate,
+                        isEnded: _isEnded,
+                      ),
+                    ],
                   ),
                 ),
+              ),
 
-                // Bottom Action Buttons
-                _ActionButtonSection(
-                  competition: competition,
-                  isOwner: isOwner,
-                  isJoined: isJoined,
-                  currentUserId: currentUserId,
+              // Floating Bottom Action Dock
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: _FloatingBottomDock(
+                  competition: _competition,
+                  isOwner: _isOwner,
+                  isJoined: _isJoined,
+                  isFull: _isFull,
+                  isEnded: _isEnded,
+                  isLoading: isLoading,
+                  onJoinPressed: _onJoinPressed,
+                  onLeavePressed: () => _showLeaveDialog(context),
+                  onOpenDashboardPressed: _navigateToCompetitionHome,
+                  onManagePressed: _onManagePressed,
+                  onFullPressed: () => _showFullCompetitionDialog(context),
                 ),
-              ],
-            ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // BUSINESS ACTIONS & LISTENERS
+  // ---------------------------------------------------------------------------
+
+  void _handleStateListener(BuildContext context, ParticipantState state) {
+    if (state is JoinCompetitionSuccess) {
+      setState(() {
+        _competition = _competition.copyWith(
+          participantIds: [..._competition.participantIds, _currentUserId],
+          participantsCount: _competition.participantsCount + 1,
+        );
+      });
+      _showSnackBar(context, 'Successfully joined the competition!', _ViewColors.success);
+      _navigateToCompetitionHome();
+    } else if (state is LeaveCompetitionSuccess) {
+      _showSnackBar(context, 'You have left the competition.', _ViewColors.textSecondary);
+      Navigator.pop(context);
+    } else if (state is ParticipantError) {
+      _showSnackBar(context, state.message, _ViewColors.error);
+    }
+  }
+
+  void _onJoinPressed() {
+    context.read<ParticipantCubit>().joinCompetition(
+          competitionId: _competition.id,
+          userId: _currentUserId,
+        );
+  }
+
+  void _onLeavePressed() {
+    context.read<ParticipantCubit>().leaveCompetition(
+          competitionId: _competition.id,
+          userId: _currentUserId,
+        );
+  }
+
+  void _navigateToCompetitionHome() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => BlocProvider<ParticipantCubit>(
+          create: (_) => sl<ParticipantCubit>(),
+          child: CompetitionHomeView(
+            competition: _competition,
+            currentUserId: _currentUserId,
+            competitionId: _competition.id,
           ),
         ),
       ),
     );
   }
 
-  /// BLoC state listener callback
-  void _handleBlocState(BuildContext context, dynamic state, String currentUserId) {
-    if (state is JoinCompetitionSuccess) {
-      final updatedCompetition = competition.copyWith(
-        participantIds: [...competition.participantIds, currentUserId],
-        participantsCount: competition.participantsCount + 1,
-      );
+  void _onManagePressed() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ManageCompetitionView(competition: _competition),
+      ),
+    );
+  }
 
-      _showSnackBar(context, 'Successfully joined the competition!', Colors.green);
-      Navigator.pop(context, updatedCompetition);
-    } else if (state is LeaveCompetitionSuccess) {
-      final updatedCompetition = competition.copyWith(
-        participantIds:
-            competition.participantIds.where((id) => id != currentUserId).toList(),
-        participantsCount:
-            competition.participantsCount > 0 ? competition.participantsCount - 1 : 0,
-      );
+  void _showFullCompetitionDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: _ViewColors.cardBackground,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: const BorderSide(color: _ViewColors.cardBorder),
+        ),
+        title: const Row(
+          children: [
+            Icon(Icons.group_off_rounded, color: _ViewColors.primaryGold, size: 24),
+            SizedBox(width: 10),
+            Text(
+              'Competition Full',
+              style: TextStyle(
+                color: _ViewColors.textPrimary,
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
+              ),
+            ),
+          ],
+        ),
+        content: const Text(
+          'Maximum capacity has been reached. You cannot join this competition at this moment.',
+          style: TextStyle(color: _ViewColors.textSecondary, height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text(
+              'OK',
+              style: TextStyle(color: _ViewColors.primaryGold, fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
-      _showSnackBar(context, 'You have left the competition.', _ViewColors.textSecondary);
-      Navigator.pop(context, updatedCompetition);
-    } else if (state is ParticipantError) {
-      _showSnackBar(context, state.message, Colors.redAccent);
-    }
+  void _showLeaveDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: _ViewColors.cardBackground,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: const BorderSide(color: _ViewColors.cardBorder),
+        ),
+        title: const Text(
+          'Leave Competition?',
+          style: TextStyle(
+            color: _ViewColors.textPrimary,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        content: const Text(
+          'Are you sure you want to leave this competition? Your rank and progress will be reset.',
+          style: TextStyle(color: _ViewColors.textSecondary, height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
+          ),
+          TextButton(
+            style: TextButton.styleFrom(foregroundColor: _ViewColors.error),
+            onPressed: () {
+              Navigator.pop(dialogContext);
+              _onLeavePressed();
+            },
+            child: const Text('Leave', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showSnackBar(BuildContext context, String message, Color color) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message, style: const TextStyle(color: Colors.white)),
+        content: Text(
+          message,
+          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+        ),
         backgroundColor: color,
         behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
     );
   }
 }
 
 // =============================================================================
-// SUB-WIDGETS
+// UI COMPONENTS & CARDS
 // =============================================================================
 
-/// Top Banner Image
 class _CompetitionBanner extends StatelessWidget {
   final String imageUrl;
   const _CompetitionBanner({required this.imageUrl});
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(16),
-      child: Image.network(
-        imageUrl,
-        height: 180,
-        width: double.infinity,
-        fit: BoxFit.cover,
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: const [
+          BoxShadow(
+            color: Colors.black45,
+            blurRadius: 16,
+            offset: Offset(0, 8),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: Image.network(
+          imageUrl,
+          height: 190,
+          width: double.infinity,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+        ),
       ),
     );
   }
 }
 
-/// Category, Type & Status Pill Row
 class _BadgesRow extends StatelessWidget {
   final CompetitionEntity competition;
-  const _BadgesRow({required this.competition});
+  final bool isEnded;
+
+  const _BadgesRow({
+    required this.competition,
+    required this.isEnded,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final isLive = competition.status.toLowerCase() == 'active';
+    final statusLower = competition.status.toLowerCase();
+    final isLive = statusLower == 'active' && !isEnded;
+
+    Color statusColor;
+    String statusText;
+
+    if (isEnded) {
+      statusColor = _ViewColors.error;
+      statusText = 'ENDED';
+    } else if (isLive) {
+      statusColor = const Color(0xFF00E676);
+      statusText = 'LIVE';
+    } else {
+      statusColor = Colors.amber;
+      statusText = competition.status.toUpperCase();
+    }
 
     return Wrap(
       spacing: 8,
@@ -236,21 +459,19 @@ class _BadgesRow extends StatelessWidget {
       children: [
         _BadgePill(
           label: competition.category.toUpperCase(),
-          borderColor: _ViewColors.primaryGold,
+          borderColor: _ViewColors.primaryGold.withValues(alpha: 0.6),
           textColor: _ViewColors.primaryGold,
         ),
         _BadgePill(
           label: competition.type.toUpperCase(),
-          borderColor: _ViewColors.primaryGold,
-          textColor: _ViewColors.primaryGold,
+          borderColor: _ViewColors.textSecondary.withValues(alpha: 0.3),
+          textColor: _ViewColors.textPrimary,
         ),
         _BadgePill(
-          label: isLive ? 'LIVE' : competition.status.toUpperCase(),
-          backgroundColor: isLive
-              ? Colors.blueAccent.withOpacity(0.2)
-              : Colors.amber.withOpacity(0.2),
-          borderColor: isLive ? Colors.blueAccent : Colors.amber,
-          textColor: isLive ? Colors.blueAccent : Colors.amber,
+          label: statusText,
+          backgroundColor: statusColor.withValues(alpha: 0.15),
+          borderColor: statusColor,
+          textColor: statusColor,
         ),
       ],
     );
@@ -273,9 +494,9 @@ class _BadgePill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: backgroundColor ?? Colors.transparent,
+        color: backgroundColor ?? Colors.white.withValues(alpha: 0.04),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: borderColor, width: 1),
       ),
@@ -283,72 +504,166 @@ class _BadgePill extends StatelessWidget {
         label,
         style: TextStyle(
           color: textColor,
-          fontSize: 11,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 0.5,
+          fontSize: 10,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 0.8,
         ),
       ),
     );
   }
 }
 
-/// Reusable dark stat card with background watermark icon
-class _StatCard extends StatelessWidget {
+class _CompactMetricCard extends StatelessWidget {
   final IconData icon;
   final String title;
   final String value;
-  final IconData watermarkIcon;
+  final String unit;
+  final double? progress;
 
-  const _StatCard({
+  const _CompactMetricCard({
     required this.icon,
     required this.title,
     required this.value,
-    required this.watermarkIcon,
+    this.unit = '',
+    this.progress,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: _ViewColors.cardBackground,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: _ViewColors.cardBorder, width: 1),
       ),
-      child: Stack(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Positioned(
-            right: -10,
-            bottom: -10,
-            child: Icon(
-              watermarkIcon,
-              size: 80,
-              color: Colors.white.withOpacity(0.04),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: _ViewColors.primaryGold.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, color: _ViewColors.primaryGold, size: 18),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: _ViewColors.textMuted,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          RichText(
+            text: TextSpan(
+              children: [
+                TextSpan(
+                  text: value,
+                  style: const TextStyle(
+                    color: _ViewColors.textPrimary,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                if (unit.isNotEmpty)
+                  TextSpan(
+                    text: ' $unit',
+                    style: const TextStyle(
+                      color: _ViewColors.textSecondary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+              ],
             ),
           ),
+          if (progress != null) ...[
+            const SizedBox(height: 10),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: progress,
+                minHeight: 4,
+                backgroundColor: Colors.white12,
+                valueColor: const AlwaysStoppedAnimation<Color>(
+                    _ViewColors.primaryGold),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _TimelineCard extends StatelessWidget {
+  final DateTime endDate;
+  final bool isEnded;
+
+  const _TimelineCard({
+    required this.endDate,
+    required this.isEnded,
+  });
+
+  static const _months = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final formattedDate =
+        '${endDate.day} ${_months[endDate.month - 1]}, ${endDate.year}';
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _ViewColors.cardBackground,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: _ViewColors.cardBorder, width: 1),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: _ViewColors.primaryGold.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(Icons.calendar_today_rounded,
+                color: _ViewColors.primaryGold, size: 20),
+          ),
+          const SizedBox(width: 14),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  Icon(icon, color: _ViewColors.primaryGold, size: 20),
-                  const SizedBox(width: 8),
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      color: _ViewColors.primaryGold,
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
               Text(
-                value,
+                isEnded ? 'Ended On' : 'Ends On',
+                style: const TextStyle(
+                  color: _ViewColors.textMuted,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                formattedDate,
                 style: const TextStyle(
                   color: _ViewColors.textPrimary,
-                  fontSize: 22,
+                  fontSize: 16,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -360,234 +675,119 @@ class _StatCard extends StatelessWidget {
   }
 }
 
-/// Specialized Participants Card with Progress Bar
-class _ParticipantsCard extends StatelessWidget {
-  final CompetitionEntity competition;
-  const _ParticipantsCard({required this.competition});
+// =============================================================================
+// FLOATING ACTION DOCK
+// =============================================================================
 
-  @override
-  Widget build(BuildContext context) {
-    final max = competition.maxParticipants;
-    final count = competition.participantsCount;
-    final progress = (max != null && max > 0) ? (count / max).clamp(0.0, 1.0) : 0.0;
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: _ViewColors.cardBackground,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Stack(
-        children: [
-          Positioned(
-            right: -10,
-            bottom: -10,
-            child: Icon(
-              Icons.people_alt_rounded,
-              size: 80,
-              color: Colors.white.withOpacity(0.04),
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Row(
-                children: [
-                  Icon(Icons.group_rounded, color: _ViewColors.primaryGold, size: 20),
-                  SizedBox(width: 8),
-                  Text(
-                    'Participants',
-                    style: TextStyle(
-                      color: _ViewColors.primaryGold,
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              RichText(
-                text: TextSpan(
-                  children: [
-                    TextSpan(
-                      text: '$count ',
-                      style: TextStyle(
-                        color: _ViewColors.textPrimary,
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    if (max != null)
-                      TextSpan(
-                        text: '/ $max',
-                        style: const TextStyle(
-                          color: _ViewColors.textSecondary,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-              if (max != null) ...[
-                const SizedBox(height: 12),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
-                  child: LinearProgressIndicator(
-                    value: progress,
-                    minHeight: 4,
-                    backgroundColor: Colors.white10,
-                    valueColor:
-                        const AlwaysStoppedAnimation<Color>(_ViewColors.primaryGold),
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Dynamic Bottom Action Buttons
-class _ActionButtonSection extends StatelessWidget {
+class _FloatingBottomDock extends StatelessWidget {
   final CompetitionEntity competition;
   final bool isOwner;
   final bool isJoined;
-  final String currentUserId;
+  final bool isFull;
+  final bool isEnded;
+  final bool isLoading;
+  final VoidCallback onJoinPressed;
+  final VoidCallback onLeavePressed;
+  final VoidCallback onOpenDashboardPressed;
+  final VoidCallback onManagePressed;
+  final VoidCallback onFullPressed;
 
-  const _ActionButtonSection({
+  const _FloatingBottomDock({
     required this.competition,
     required this.isOwner,
     required this.isJoined,
-    required this.currentUserId,
+    required this.isFull,
+    required this.isEnded,
+    required this.isLoading,
+    required this.onJoinPressed,
+    required this.onLeavePressed,
+    required this.onOpenDashboardPressed,
+    required this.onManagePressed,
+    required this.onFullPressed,
   });
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<ParticipantCubit, dynamic>(
-      builder: (context, state) {
-        if (state is ParticipantLoading) {
-          return const Center(
-            child: Padding(
-              padding: EdgeInsets.all(12.0),
-              child: CircularProgressIndicator(color: _ViewColors.primaryGold),
-            ),
-          );
-        }
-
-        // 1. Owner View
-        if (isOwner) {
-          return _PrimaryButton(
-            label: 'Manage Competition',
-            icon: Icons.grid_view_rounded,
-            onPressed: () {
-              // Navigate to Manager Dashboard
-            },
-          );
-        }
-
-        // 2. Joined View
-        if (isJoined) {
-          return Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _PrimaryButton(
-                label: 'Open Dashboard',
-                icon: Icons.play_arrow_rounded,
-                onPressed: () {
-                  // 1. Get the current logged-in user's ID
-                  final currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
-              
-                  // 2. Navigate and provide a fresh ParticipantCubit instance
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => BlocProvider(
-                        create: (context) => sl<ParticipantCubit>(), // 👈 Service locator injection
-                        child: CompetitionHomeView(
-                          competition: competition,
-                          currentUserId: currentUserId, 
-                          competitionId: competition.id,
-                        ),
-                      ),
+    return ClipRect(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
+          decoration: BoxDecoration(
+            color: _ViewColors.background.withValues(alpha: 0.85),
+            border: const Border(
+                top: BorderSide(color: _ViewColors.divider, width: 1)),
+          ),
+          child: isLoading
+              ? const SizedBox(
+                  height: 52,
+                  child: Center(
+                    child: CircularProgressIndicator(
+                      color: _ViewColors.primaryGold,
+                      strokeWidth: 2.5,
                     ),
-                  );
-                },
-              ),
-              const SizedBox(height: 8),
-              TextButton(
-                onPressed: () => _showLeaveDialog(context),
-                style: TextButton.styleFrom(
-                  foregroundColor: Colors.redAccent,
-                ),
-                child: const Text(
-                  'Leave Competition',
-                  style: TextStyle(fontWeight: FontWeight.w600),
-                ),
-              ),
-            ],
-          );
-        }
-
-        // 3. Not Joined View
-        final isFull = competition.maxParticipants != null &&
-            competition.participantsCount >= competition.maxParticipants!;
-
-        return _PrimaryButton(
-          label: isFull ? 'Competition Full' : 'Join Competition',
-          isDisabled: isFull,
-          onPressed: isFull
-              ? null
-              : () {
-                  context.read<ParticipantCubit>().joinCompetition(
-                        competitionId: competition.id,
-                        userId: currentUserId,
-                      );
-                },
-        );
-      },
+                  ),
+                )
+              : _buildActions(),
+        ),
+      ),
     );
   }
 
-  void _showLeaveDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: _ViewColors.cardBackground,
-        title: const Text(
-          'Leave Competition?',
-          style: TextStyle(color: _ViewColors.textPrimary),
-        ),
-        content: const Text(
-          'Are you sure you want to leave this competition? Your rank and progress will be lost.',
-          style: TextStyle(color: _ViewColors.textSecondary),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
+  Widget _buildActions() {
+    // Priority 1: Handle finished/ended competition
+    if (isEnded) {
+      return const _PrimaryButton(
+        label: 'Competition Ended',
+        icon: Icons.lock_clock_rounded,
+        isDisabled: true,
+      );
+    }
+
+    // Priority 2: Owner view
+    if (isOwner) {
+      return _PrimaryButton(
+        label: 'Manage Competition',
+        icon: Icons.tune_rounded,
+        onPressed: onManagePressed,
+      );
+    }
+
+    // Priority 3: Joined participant view
+    if (isJoined) {
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _PrimaryButton(
+            label: 'Open Dashboard',
+            icon: Icons.play_arrow_rounded,
+            onPressed: onOpenDashboardPressed,
           ),
+          const SizedBox(height: 6),
           TextButton(
-            style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
-            onPressed: () {
-              Navigator.pop(dialogContext);
-              context.read<ParticipantCubit>().leaveCompetition(
-                    competitionId: competition.id,
-                    userId: currentUserId,
-                  );
-            },
-            child: const Text('Leave'),
+            onPressed: onLeavePressed,
+            style: TextButton.styleFrom(
+              foregroundColor: _ViewColors.error,
+              visualDensity: VisualDensity.compact,
+            ),
+            child: const Text(
+              'Leave Competition',
+              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+            ),
           ),
         ],
-      ),
+      );
+    }
+
+    // Priority 4: Non-joined participant view (Full or Joinable)
+    return _PrimaryButton(
+      label: isFull ? 'Competition Full' : 'Join Competition',
+      isDisabled: isFull,
+      onPressed: isFull ? onFullPressed : onJoinPressed,
     );
   }
 }
 
-/// Custom Rounded Primary Button
 class _PrimaryButton extends StatelessWidget {
   final String label;
   final IconData? icon;
@@ -608,14 +808,16 @@ class _PrimaryButton extends StatelessWidget {
       height: 52,
       child: ElevatedButton(
         style: ElevatedButton.styleFrom(
-          backgroundColor: isDisabled ? Colors.grey.shade800 : _ViewColors.primaryGold,
+          backgroundColor:
+              isDisabled ? Colors.white12 : _ViewColors.primaryGold,
           foregroundColor: isDisabled ? Colors.white38 : Colors.black,
-          elevation: 0,
+          elevation: isDisabled ? 0 : 4,
+          shadowColor: _ViewColors.primaryGoldGlow,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(30),
+            borderRadius: BorderRadius.circular(26),
           ),
         ),
-        onPressed: onPressed,
+        onPressed: isDisabled ? null : onPressed,
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -627,7 +829,8 @@ class _PrimaryButton extends StatelessWidget {
               label,
               style: const TextStyle(
                 fontSize: 16,
-                fontWeight: FontWeight.bold,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.2,
               ),
             ),
           ],

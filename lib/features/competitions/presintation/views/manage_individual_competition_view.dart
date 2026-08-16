@@ -4,6 +4,7 @@ import 'package:ptook/features/competitions/domain/entities/competition_entity.d
 import 'package:ptook/features/competitions/presintation/bloc/manage_competition_cubit.dart';
 import 'package:ptook/features/competitions/presintation/bloc/manage_competition_state.dart';
 import 'package:ptook/features/competitions/presintation/views/individual_settings_view.dart';
+import 'package:ptook/features/participants/domain/entities/participant_entity.dart';
 
 class ManageIndividualCompetitionView extends StatefulWidget {
   final String competitionId;
@@ -140,7 +141,7 @@ class _ManageIndividualCompetitionViewState
 }
 
 // -----------------------------------------------------------------------------
-// 1. PREVIEW TAB VIEW (CUBIT DRIVEN WITH DEFENSIVE SAFEGUARDS)
+// 1. PREVIEW TAB VIEW
 // -----------------------------------------------------------------------------
 class _PreviewTabView extends StatelessWidget {
   const _PreviewTabView();
@@ -232,8 +233,11 @@ class _PreviewTabView extends StatelessWidget {
                       children: [
                         const Row(
                           children: [
-                            Icon(Icons.emoji_events,
-                                color: Color(0xFFFFC107), size: 20),
+                            Icon(
+                              Icons.emoji_events,
+                              color: Color(0xFFFFC107),
+                              size: 20,
+                            ),
                             SizedBox(width: 8),
                             Text(
                               'Leaderboard',
@@ -249,8 +253,10 @@ class _PreviewTabView extends StatelessWidget {
                           onPressed: () {},
                           child: const Text(
                             'View Full Ranking >',
-                            style:
-                                TextStyle(color: Colors.white70, fontSize: 13),
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: 13,
+                            ),
                           ),
                         ),
                       ],
@@ -287,9 +293,10 @@ class _PreviewTabView extends StatelessWidget {
               const Text(
                 'Participant Management',
                 style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold),
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(height: 12),
 
@@ -297,8 +304,10 @@ class _PreviewTabView extends StatelessWidget {
                 const Center(
                   child: Padding(
                     padding: EdgeInsets.all(24.0),
-                    child: Text('No participants joined yet.',
-                        style: TextStyle(color: Colors.white54)),
+                    child: Text(
+                      'No participants joined yet.',
+                      style: TextStyle(color: Colors.white54),
+                    ),
                   ),
                 )
               else
@@ -310,8 +319,7 @@ class _PreviewTabView extends StatelessWidget {
                     final participant = participants[index];
                     return _ParticipantCard(
                       rank: '#${index + 1}',
-                      name: participant.name,
-                      points: '${participant.points} pts',
+                      participant: participant,
                     );
                   },
                 ),
@@ -324,8 +332,11 @@ class _PreviewTabView extends StatelessWidget {
                   children: [
                     const Row(
                       children: [
-                        Icon(Icons.admin_panel_settings_outlined,
-                            color: Color(0xFFFFC107), size: 22),
+                        Icon(
+                          Icons.admin_panel_settings_outlined,
+                          color: Color(0xFFFFC107),
+                          size: 22,
+                        ),
                         SizedBox(width: 8),
                         Text(
                           'Administrative Actions',
@@ -352,16 +363,21 @@ class _PreviewTabView extends StatelessWidget {
                         backgroundColor: const Color(0xFFFFC107),
                         minimumSize: const Size(double.infinity, 48),
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(24)),
+                          borderRadius: BorderRadius.circular(24),
+                        ),
                       ),
-                      icon: const Icon(Icons.emoji_events,
-                          color: Colors.black, size: 20),
+                      icon: const Icon(
+                        Icons.emoji_events,
+                        color: Colors.black,
+                        size: 20,
+                      ),
                       label: const Text(
                         'FINISH COMPETITION',
                         style: TextStyle(
-                            color: Colors.black,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14),
+                          color: Colors.black,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -379,15 +395,20 @@ class _PreviewTabView extends StatelessWidget {
                         minimumSize: const Size(double.infinity, 48),
                         side: const BorderSide(color: Colors.redAccent),
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(24)),
+                          borderRadius: BorderRadius.circular(24),
+                        ),
                       ),
-                      icon: const Icon(Icons.delete_forever_outlined,
-                          color: Colors.redAccent, size: 18),
+                      icon: const Icon(
+                        Icons.delete_forever_outlined,
+                        color: Colors.redAccent,
+                        size: 18,
+                      ),
                       label: const Text(
                         'DELETE COMPETITION',
                         style: TextStyle(
-                            color: Colors.redAccent,
-                            fontWeight: FontWeight.bold),
+                          color: Colors.redAccent,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                   ],
@@ -415,17 +436,21 @@ class _PreviewTabView extends StatelessWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child:
-                const Text('Cancel', style: TextStyle(color: Colors.white54)),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: Colors.white54),
+            ),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFFFC107)),
+              backgroundColor: const Color(0xFFFFC107),
+            ),
             onPressed: () {
               Navigator.pop(dialogContext);
               onConfirm();
             },
-            child: const Text('Confirm', style: TextStyle(color: Colors.black)),
+            child:
+                const Text('Confirm', style: TextStyle(color: Colors.black)),
           ),
         ],
       ),
@@ -434,7 +459,136 @@ class _PreviewTabView extends StatelessWidget {
 }
 
 // -----------------------------------------------------------------------------
-// 2. EDIT TAB VIEW (CUBIT DRIVEN)
+// PARTICIPANT CARD WITH AVATAR INTEGRATION
+// -----------------------------------------------------------------------------
+class _ParticipantCard extends StatelessWidget {
+  final String rank;
+  final ParticipantEntity participant;
+
+  const _ParticipantCard({
+    required this.rank,
+    required this.participant,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8.0),
+      padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
+      decoration: BoxDecoration(
+        color: const Color(0xFF161925),
+        borderRadius: BorderRadius.circular(12.0),
+      ),
+      child: Row(
+        children: [
+          // Rank Indicator
+          Text(
+            rank,
+            style: const TextStyle(
+              color: Colors.white54,
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+            ),
+          ),
+          const SizedBox(width: 12),
+
+          // Participant Avatar Component
+          _ParticipantAvatarItem(participant: participant),
+          const SizedBox(width: 12),
+
+          // Full Name
+          Expanded(
+            child: Text(
+              participant.name,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+                fontSize: 15,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+
+          // Points Display
+          Text(
+            '${participant.points} pts',
+            style: const TextStyle(
+              color: Color(0xFFFFC107),
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// -----------------------------------------------------------------------------
+// PARTICIPANT AVATAR ITEM
+// -----------------------------------------------------------------------------
+class _ParticipantAvatarItem extends StatelessWidget {
+  final ParticipantEntity participant;
+
+  const _ParticipantAvatarItem({required this.participant});
+
+  @override
+  Widget build(BuildContext context) {
+    final avatarUrl = participant.avatarUrl?.trim();
+    final hasAvatar = avatarUrl != null && avatarUrl.isNotEmpty;
+
+    return Stack(
+      children: [
+        CircleAvatar(
+          radius: 22,
+          backgroundColor: Colors.white10,
+          child: hasAvatar
+              ? ClipOval(
+                  child: Image.network(
+                    avatarUrl,
+                    width: 44,
+                    height: 44,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) =>
+                        _buildInitials(participant.initials),
+                  ),
+                )
+              : _buildInitials(participant.initials),
+        ),
+        Positioned(
+          right: 0,
+          bottom: 0,
+          child: Container(
+            width: 10,
+            height: 10,
+            decoration: BoxDecoration(
+              color: Colors.blueAccent,
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: const Color(0xFF161925),
+                width: 2,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildInitials(String initials) {
+    return Text(
+      initials,
+      style: const TextStyle(
+        color: Colors.white,
+        fontSize: 12,
+        fontWeight: FontWeight.w600,
+      ),
+    );
+  }
+}
+
+// -----------------------------------------------------------------------------
+// 2. EDIT TAB VIEW
 // -----------------------------------------------------------------------------
 class _EditTabView extends StatelessWidget {
   const _EditTabView();
@@ -464,17 +618,20 @@ class _EditTabView extends StatelessWidget {
               const Text(
                 'Participant Management',
                 style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold),
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(height: 16),
               if (participants.isEmpty)
                 const Center(
                   child: Padding(
                     padding: EdgeInsets.all(24.0),
-                    child: Text('No participants to edit.',
-                        style: TextStyle(color: Colors.white54)),
+                    child: Text(
+                      'No participants to edit.',
+                      style: TextStyle(color: Colors.white54),
+                    ),
                   ),
                 )
               else
@@ -486,10 +643,8 @@ class _EditTabView extends StatelessWidget {
                     final participant = participants[index];
 
                     return _EditableParticipantCard(
-                      participantId: participant.id,
+                      participant: participant,
                       rank: '#${index + 1}',
-                      name: participant.name,
-                      points: participant.points,
                     );
                   },
                 ),
@@ -502,19 +657,16 @@ class _EditTabView extends StatelessWidget {
 }
 
 // -----------------------------------------------------------------------------
-// EDITABLE PARTICIPANT CARD WITH CUBIT DISPATCH
+// EDITABLE PARTICIPANT CARD WITH PLUS, MINUS, DIRECT INPUT & SUBMIT CHECK
 // -----------------------------------------------------------------------------
 class _EditableParticipantCard extends StatefulWidget {
-  final String participantId;
+  final ParticipantEntity participant;
   final String rank;
-  final String name;
-  final int points;
 
   const _EditableParticipantCard({
-    required this.participantId,
+    super.key,
+    required this.participant,
     required this.rank,
-    required this.name,
-    required this.points,
   });
 
   @override
@@ -528,7 +680,8 @@ class _EditableParticipantCardState extends State<_EditableParticipantCard> {
   @override
   void initState() {
     super.initState();
-    _pointsController = TextEditingController();
+    // Default initial value set to '1' for fast quick-add
+    _pointsController = TextEditingController(text: '1');
   }
 
   @override
@@ -537,22 +690,33 @@ class _EditableParticipantCardState extends State<_EditableParticipantCard> {
     super.dispose();
   }
 
-  void _addPoints() {
+  void _increment() {
+    final currentValue = int.tryParse(_pointsController.text) ?? 0;
+    _pointsController.text = (currentValue + 1).toString();
+  }
+
+  void _decrement() {
+    final currentValue = int.tryParse(_pointsController.text) ?? 0;
+    _pointsController.text = (currentValue - 1).toString();
+  }
+
+  void _submitPoints() {
     final int? addedPoints = int.tryParse(_pointsController.text);
     if (addedPoints == null || addedPoints == 0) return;
 
     context.read<ManageCompetitionCubit>().updateParticipantPoints(
-          participantId: widget.participantId,
+          participantId: widget.participant.id,
           addedPoints: addedPoints,
         );
 
-    _pointsController.clear();
+    // Reset default back to '1' after submission
+    _pointsController.text = '1';
   }
 
   void _deleteParticipant() {
     context
         .read<ManageCompetitionCubit>()
-        .removeParticipant(widget.participantId);
+        .removeParticipant(widget.participant.id);
   }
 
   @override
@@ -565,43 +729,93 @@ class _EditableParticipantCardState extends State<_EditableParticipantCard> {
         padding: const EdgeInsets.all(12.0),
         child: Row(
           children: [
-            Text(widget.rank,
+            // Rank
+            Text(
+              widget.rank,
+              style: const TextStyle(
+                color: Color(0xFFFFC107),
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(width: 10),
+
+            // Avatar placeholder / Initials
+            CircleAvatar(
+              radius: 18,
+              backgroundColor: Colors.white24,
+              child: Text(
+                widget.participant.initials,
                 style: const TextStyle(
-                    color: Color(0xFFFFC107), fontWeight: FontWeight.bold)),
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
             const SizedBox(width: 10),
-            const CircleAvatar(radius: 18, backgroundColor: Colors.white24),
-            const SizedBox(width: 10),
+
+            // Name & Current Points
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(widget.name,
-                      style: const TextStyle(
-                          color: Colors.white, fontWeight: FontWeight.bold)),
-                  Text('${widget.points} pts',
-                      style: const TextStyle(
-                          color: Color(0xFFFFC107), fontSize: 12)),
+                  Text(
+                    widget.participant.name,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    '${widget.participant.points} pts',
+                    style: const TextStyle(
+                      color: Color(0xFFFFC107),
+                      fontSize: 12,
+                    ),
+                  ),
                 ],
               ),
             ),
+
+            // Controls Box: [ - ] [ Value Field ] [ + ] [ ✓ ]
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
               decoration: BoxDecoration(
                 color: Colors.black26,
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: Colors.white12),
               ),
               child: Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text('+ ', style: TextStyle(color: Colors.white54)),
+                  // Minus Button
+                  IconButton(
+                    padding: EdgeInsets.zero,
+                    constraints:
+                        const BoxConstraints(minWidth: 28, minHeight: 28),
+                    icon: const Icon(
+                      Icons.remove,
+                      color: Colors.white54,
+                      size: 16,
+                    ),
+                    onPressed: _decrement,
+                  ),
+
+                  // Direct Input TextField
                   SizedBox(
-                    width: 32,
+                    width: 36,
                     child: TextField(
                       controller: _pointsController,
-                      keyboardType: TextInputType.number,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        signed: true,
+                      ),
                       textAlign: TextAlign.center,
-                      style:
-                          const TextStyle(color: Colors.white, fontSize: 14),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                      ),
                       decoration: const InputDecoration(
                         isDense: true,
                         contentPadding: EdgeInsets.zero,
@@ -609,20 +823,47 @@ class _EditableParticipantCardState extends State<_EditableParticipantCard> {
                       ),
                     ),
                   ),
+
+                  // Plus Button
                   IconButton(
                     padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                    icon:
-                        const Icon(Icons.check, color: Colors.green, size: 18),
-                    onPressed: _addPoints,
+                    constraints:
+                        const BoxConstraints(minWidth: 28, minHeight: 28),
+                    icon: const Icon(
+                      Icons.add,
+                      color: Colors.white54,
+                      size: 16,
+                    ),
+                    onPressed: _increment,
+                  ),
+
+                  const SizedBox(width: 2),
+
+                  // Check / Confirm Button (Pushes Points)
+                  IconButton(
+                    padding: EdgeInsets.zero,
+                    constraints:
+                        const BoxConstraints(minWidth: 30, minHeight: 28),
+                    icon: const Icon(
+                      Icons.check_circle,
+                      color: Colors.green,
+                      size: 20,
+                    ),
+                    onPressed: _submitPoints,
                   ),
                 ],
               ),
             ),
-            const SizedBox(width: 8),
+
+            const SizedBox(width: 6),
+
+            // Delete Participant
             IconButton(
-              icon: const Icon(Icons.delete_outline,
-                  color: Colors.white54, size: 20),
+              icon: const Icon(
+                Icons.delete_outline,
+                color: Colors.white54,
+                size: 20,
+              ),
               onPressed: _deleteParticipant,
             ),
           ],
@@ -659,23 +900,32 @@ class _OverviewItem extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title,
-            style: const TextStyle(
-                color: Colors.white54,
-                fontSize: 10,
-                fontWeight: FontWeight.bold)),
+        Text(
+          title,
+          style: const TextStyle(
+            color: Colors.white54,
+            fontSize: 10,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         const SizedBox(height: 4),
         RichText(
           text: TextSpan(
             text: value,
             style: const TextStyle(
-                color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
             children: [
               if (total != null)
                 TextSpan(
-                    text: total,
-                    style:
-                        const TextStyle(color: Colors.white54, fontSize: 14)),
+                  text: total,
+                  style: const TextStyle(
+                    color: Colors.white54,
+                    fontSize: 14,
+                  ),
+                ),
             ],
           ),
         ),
@@ -695,11 +945,14 @@ class _StatusItem extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title,
-            style: const TextStyle(
-                color: Colors.white54,
-                fontSize: 10,
-                fontWeight: FontWeight.bold)),
+        Text(
+          title,
+          style: const TextStyle(
+            color: Colors.white54,
+            fontSize: 10,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         const SizedBox(height: 6),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -712,11 +965,14 @@ class _StatusItem extends StatelessWidget {
             children: [
               const CircleAvatar(radius: 3, backgroundColor: Colors.green),
               const SizedBox(width: 6),
-              Text(status,
-                  style: const TextStyle(
-                      color: Colors.green,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold)),
+              Text(
+                status,
+                style: const TextStyle(
+                  color: Colors.green,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ],
           ),
         ),
@@ -730,8 +986,11 @@ class _LeaderboardRow extends StatelessWidget {
   final String name;
   final String points;
 
-  const _LeaderboardRow(
-      {required this.rank, required this.name, required this.points});
+  const _LeaderboardRow({
+    required this.rank,
+    required this.name,
+    required this.points,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -739,54 +998,30 @@ class _LeaderboardRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Row(
         children: [
-          Text(rank,
-              style: const TextStyle(
-                  color: Color(0xFFFFC107), fontWeight: FontWeight.bold)),
+          Text(
+            rank,
+            style: const TextStyle(
+              color: Color(0xFFFFC107),
+              fontWeight: FontWeight.bold,
+            ),
+          ),
           const SizedBox(width: 12),
           const CircleAvatar(radius: 16, backgroundColor: Colors.white24),
           const SizedBox(width: 12),
           Expanded(
-              child: Text(name,
-                  style: const TextStyle(color: Colors.white, fontSize: 14))),
-          Text(points,
-              style: const TextStyle(
-                  color: Color(0xFFFFC107), fontWeight: FontWeight.bold)),
-        ],
-      ),
-    );
-  }
-}
-
-class _ParticipantCard extends StatelessWidget {
-  final String rank;
-  final String name;
-  final String points;
-
-  const _ParticipantCard(
-      {required this.rank, required this.name, required this.points});
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      color: const Color(0xFF161925),
-      margin: const EdgeInsets.only(bottom: 10),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: ListTile(
-        leading: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(rank,
-                style: const TextStyle(
-                    color: Color(0xFFFFC107), fontWeight: FontWeight.bold)),
-            const SizedBox(width: 12),
-            const CircleAvatar(radius: 18, backgroundColor: Colors.white24),
-          ],
-        ),
-        title: Text(name,
+            child: Text(
+              name,
+              style: const TextStyle(color: Colors.white, fontSize: 14),
+            ),
+          ),
+          Text(
+            points,
             style: const TextStyle(
-                color: Colors.white, fontWeight: FontWeight.bold)),
-        subtitle: Text(points,
-            style: const TextStyle(color: Color(0xFFFFC107), fontSize: 13)),
+              color: Color(0xFFFFC107),
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
       ),
     );
   }
