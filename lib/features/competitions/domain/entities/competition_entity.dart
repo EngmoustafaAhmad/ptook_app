@@ -22,8 +22,16 @@ class CompetitionEntity extends Equatable {
   final List<dynamic>? teams;
   final DateTime createdAt;
   final Object? winnerId;
-  final List<dynamic> searchKeywords;
+  final List<String> searchKeywords;
   final List<String> participantIds;
+
+  // Added Settings & Scoring Logic Attributes
+  final double basePoints;
+  final double penaltyPoints;
+  final bool leaderboardVisibility;
+  final bool rankChangeAlerts;
+  final bool milestoneAlerts;
+  final List<String> multipliers;
 
   const CompetitionEntity({
     required this.id,
@@ -49,14 +57,26 @@ class CompetitionEntity extends Equatable {
     this.winnerId,
     required this.searchKeywords,
     required this.participantIds,
+    this.basePoints = 100.0,
+    this.penaltyPoints = -15.0,
+    this.leaderboardVisibility = true,
+    this.rankChangeAlerts = true,
+    this.milestoneAlerts = true,
+    this.multipliers = const ['Streak x1.5', 'Underdog x2.0'],
   });
 
-  /// 🎯 Senior Check: Fast, O(1) checking using `participantIds`,
+  /// Checks whether the competition has finished based on status or end date.
+  bool get isFinished =>
+      status.toLowerCase() == 'finished' ||
+      status.toLowerCase() == 'completed' ||
+      DateTime.now().isAfter(endDate);
+
+  /// Fast, O(1) checking using `participantIds`,
   /// falling back safely to nested `participants` or `teams` if needed.
   bool isJoinedBy(String? userId) {
     if (userId == null || userId.isEmpty) return false;
 
-    // 1. Direct O(1) look-up in flat participantIds list (Fastest)
+    // 1. Direct O(1) look-up in flat participantIds list
     if (participantIds.contains(userId)) return true;
 
     // 2. Fallback check: Individual participants list
@@ -116,8 +136,14 @@ class CompetitionEntity extends Equatable {
     List<dynamic>? teams,
     DateTime? createdAt,
     Object? winnerId,
-    List<dynamic>? searchKeywords,
+    List<String>? searchKeywords,
     List<String>? participantIds,
+    double? basePoints,
+    double? penaltyPoints,
+    bool? leaderboardVisibility,
+    bool? rankChangeAlerts,
+    bool? milestoneAlerts,
+    List<String>? multipliers,
   }) {
     return CompetitionEntity(
       id: id ?? this.id,
@@ -143,6 +169,12 @@ class CompetitionEntity extends Equatable {
       winnerId: winnerId ?? this.winnerId,
       searchKeywords: searchKeywords ?? this.searchKeywords,
       participantIds: participantIds ?? this.participantIds,
+      basePoints: basePoints ?? this.basePoints,
+      penaltyPoints: penaltyPoints ?? this.penaltyPoints,
+      leaderboardVisibility: leaderboardVisibility ?? this.leaderboardVisibility,
+      rankChangeAlerts: rankChangeAlerts ?? this.rankChangeAlerts,
+      milestoneAlerts: milestoneAlerts ?? this.milestoneAlerts,
+      multipliers: multipliers ?? this.multipliers,
     );
   }
 
@@ -171,33 +203,11 @@ class CompetitionEntity extends Equatable {
         winnerId,
         searchKeywords,
         participantIds,
+        basePoints,
+        penaltyPoints,
+        leaderboardVisibility,
+        rankChangeAlerts,
+        milestoneAlerts,
+        multipliers,
       ];
-
-  CompetitionEntity toEntity() {
-    return CompetitionEntity(
-      id: id,
-      name: name,
-      description: description,
-      ownerId: ownerId,
-      category: category,
-      status: status,
-      type: type,
-      imageUrl: imageUrl,
-      startDate: startDate,
-      endDate: endDate,
-      totalPoints: totalPoints,
-      maxParticipants: maxParticipants,
-      participantsCount: participantsCount,
-      isPublic: isPublic,
-      inviteCode: inviteCode,
-      maxTeams: maxTeams,
-      membersPerTeam: membersPerTeam,
-      participants: participants,
-      teams: teams,
-      createdAt: createdAt,
-      winnerId: winnerId,
-      searchKeywords: searchKeywords,
-      participantIds: participantIds,
-    );
-  }
 }

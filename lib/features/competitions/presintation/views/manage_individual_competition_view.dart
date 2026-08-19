@@ -103,17 +103,27 @@ class _ManageIndividualCompetitionViewState
             ),
             actions: [
               IconButton(
-                icon: const Icon(Icons.settings_outlined,
-                    color: Color(0xFFFFC107)),
+                icon: const Icon(
+                  Icons.settings_outlined,
+                  color: Color(0xFFFFC107),
+                ),
                 onPressed: () {
+                  final cubit = context.read<ManageCompetitionCubit>();
+                  final competition = cubit.state.competition;
+              
+                  if (competition == null) return;
+              
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => const IndividualSettingsView(),
+                      builder: (_) => BlocProvider.value(
+                        value: cubit,
+                        child: IndividualSettingsView(competition: competition),
+                      ),
                     ),
                   );
                 },
-              ),
+              )
             ],
             bottom: const TabBar(
               indicatorColor: Color(0xFFFFC107),
@@ -271,19 +281,7 @@ class _PreviewTabView extends StatelessWidget {
                         ),
                       )
                     else
-                      Column(
-                        children: List.generate(
-                          participants.length > 3 ? 3 : participants.length,
-                          (index) {
-                            final participant = participants[index];
-                            return _LeaderboardRow(
-                              rank: '#${index + 1}',
-                              name: participant.name,
-                              points: '${participant.points} pts',
-                            );
-                          },
-                        ),
-                      ),
+                      _LeaderboardTabView(),
                   ],
                 ),
               ),
@@ -664,7 +662,6 @@ class _EditableParticipantCard extends StatefulWidget {
   final String rank;
 
   const _EditableParticipantCard({
-    super.key,
     required this.participant,
     required this.rank,
   });
@@ -980,16 +977,79 @@ class _StatusItem extends StatelessWidget {
     );
   }
 }
+class _LeaderboardTabView extends StatelessWidget {
+  const _LeaderboardTabView();
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<ManageCompetitionCubit, ManageCompetitionState>(
+      builder: (context, state) {
+        if (state.status == ManageCompetitionStatus.loading) {
+          return const Center(
+            child: CircularProgressIndicator(color: Color(0xFFFFC107)),
+          );
+        }
+
+        if (state.status == ManageCompetitionStatus.deleted ||
+            state.competition == null) {
+          return const SizedBox.shrink();
+        }
+
+        final participants = state.participants;
+
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Leaderboard',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 16),
+              if (participants.isEmpty)
+                const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(24.0),
+                    child: Text(
+                      'No participants available.',
+                      style: TextStyle(color: Colors.white54),
+                    ),
+                  ),
+                )
+              else
+                ListView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: participants.length,
+                  itemBuilder: (context, index) {
+                    final participant = participants[index];
+
+                    return _LeaderboardRow(
+                      participant: participant,
+                      rank: '#${index + 1}',
+                    );
+                  },
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
 
 class _LeaderboardRow extends StatelessWidget {
+  final dynamic participant; // Replace `dynamic` with your actual Participant model class
   final String rank;
-  final String name;
-  final String points;
 
   const _LeaderboardRow({
+    required this.participant,
     required this.rank,
-    required this.name,
-    required this.points,
   });
 
   @override
@@ -1006,16 +1066,16 @@ class _LeaderboardRow extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 12),
-          const CircleAvatar(radius: 16, backgroundColor: Colors.white24),
+          _ParticipantAvatarItem(participant: participant),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
-              name,
+              participant.name ?? '',
               style: const TextStyle(color: Colors.white, fontSize: 14),
             ),
           ),
           Text(
-            points,
+            '${participant.points ?? 0}',
             style: const TextStyle(
               color: Color(0xFFFFC107),
               fontWeight: FontWeight.bold,

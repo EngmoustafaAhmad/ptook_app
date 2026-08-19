@@ -15,7 +15,8 @@ import 'package:ptook/features/auth/presintation/cubit/auth_cubit.dart';
 // =========================
 // COMPETITIONS FEATURE IMPORTS
 // =========================
-import 'package:ptook/features/competitions/data/datasources/competition_remote_data_source.dart';
+import 'package:ptook/features/competitions/data/datasources/competition_remote_data_source_impl.dart';
+import 'package:ptook/features/competitions/data/datasources/i_competition_remote_data_source.dart';
 import 'package:ptook/features/competitions/data/repositories/competition_repository_impl.dart';
 import 'package:ptook/features/competitions/domain/repositories/i_competition_repository.dart';
 import 'package:ptook/features/competitions/domain/usecases/create_competition_usecase.dart';
@@ -24,17 +25,12 @@ import 'package:ptook/features/competitions/domain/usecases/get_created_competit
 import 'package:ptook/features/competitions/domain/usecases/get_joined_competitions_usecase.dart';
 import 'package:ptook/features/competitions/domain/usecases/get_public_competitions_usecase.dart';
 import 'package:ptook/features/competitions/domain/usecases/search_public_competitions_usecase.dart';
+import 'package:ptook/features/competitions/domain/usecases/switch_team_use_case.dart';
 import 'package:ptook/features/competitions/presintation/bloc/competition_cubit.dart';
 import 'package:ptook/features/competitions/presintation/bloc/create_competition_cubit.dart';
 import 'package:ptook/features/competitions/presintation/bloc/manage_competition_cubit.dart';
 import 'package:ptook/features/competitions/presintation/bloc/search_competition_cubit.dart';
-import 'package:ptook/features/participants/domain/usecases/assign_podium_stars_usecase.dart';
-import 'package:ptook/features/participants/domain/usecases/get_competition_participants_usecase.dart';
-import 'package:ptook/features/participants/domain/usecases/leave_competition_usecase.dart';
-
-// =========================
-// TEAMS FEATURE IMPORTS
-// =========================
+import 'package:ptook/features/competitions/presintation/bloc/team_cubit.dart';
 
 // =========================
 // PARTICIPANTS FEATURE IMPORTS
@@ -43,10 +39,17 @@ import 'package:ptook/features/participants/data/datasources/participant_remote_
 import 'package:ptook/features/participants/data/datasources/participant_remote_data_source_impl.dart';
 import 'package:ptook/features/participants/data/repositories/participant_repository_impl.dart';
 import 'package:ptook/features/participants/domain/repositories/i_participant_repository.dart';
+import 'package:ptook/features/participants/domain/usecases/assign_podium_stars_usecase.dart';
+import 'package:ptook/features/participants/domain/usecases/get_competition_participants_usecase.dart';
 import 'package:ptook/features/participants/domain/usecases/join_competition_usecase.dart';
+import 'package:ptook/features/participants/domain/usecases/leave_competition_usecase.dart';
 import 'package:ptook/features/participants/domain/usecases/update_participant_points_usecase.dart';
 import 'package:ptook/features/participants/presintation/bloc/join_competition_cubit.dart';
 import 'package:ptook/features/participants/presintation/bloc/participants_cubit.dart';
+
+// =========================
+// SERVICES IMPORTS
+// =========================
 import 'package:ptook/services/deep_link_handler.dart';
 
 final sl = GetIt.instance;
@@ -62,6 +65,14 @@ Future<void> init() async {
 
   sl.registerLazySingleton<FirebaseFirestore>(
     () => FirebaseFirestore.instance,
+  );
+
+  //! =========================
+  //! Services
+  //! =========================
+
+  sl.registerLazySingleton<DeepLinkHandler>(
+    () => DeepLinkHandler(),
   );
 
   //! =========================
@@ -104,7 +115,6 @@ Future<void> init() async {
   //! COMPETITIONS FEATURE
   //! =========================
 
-
   // 1. Data Sources
   sl.registerLazySingleton<ICompetitionRemoteDataSource>(
     () => CompetitionRemoteDataSourceImpl(
@@ -115,10 +125,10 @@ Future<void> init() async {
 
   // 2. Repositories
   sl.registerLazySingleton<ICompetitionRepository>(
-  () => CompetitionRepositoryImpl(
-    sl<ICompetitionRemoteDataSource>(),
-  ),
-);
+    () => CompetitionRepositoryImpl(
+      sl<ICompetitionRemoteDataSource>(),
+    ),
+  );
 
   // 3. Use Cases
   sl.registerLazySingleton(
@@ -158,21 +168,29 @@ Future<void> init() async {
   );
 
   sl.registerFactory(
-  () => SearchCompetitionCubit(
-    getPublicCompetitionsUseCase: sl(),
-    searchPublicCompetitionsUseCase: sl(),
-    getJoinedCompetitionsUseCase: sl(),
-    getCreatedCompetitionsUseCase: sl(),
-  ),
-);
+    () => SearchCompetitionCubit(
+      getPublicCompetitionsUseCase: sl(),
+      searchPublicCompetitionsUseCase: sl(),
+      getJoinedCompetitionsUseCase: sl(),
+      getCreatedCompetitionsUseCase: sl(),
+    ),
+  );
 
-sl.registerFactory(
-  () => ManageCompetitionCubit(
-    repository: sl<ICompetitionRepository>(), // or sl<CompetitionRepository>()
-  ),
-);
+  sl.registerFactory(
+    () => ManageCompetitionCubit(
+      repository: sl<ICompetitionRepository>(),
+    ),
+  );
 
-//! =========================
+  // Use Case
+  sl.registerLazySingleton(() => SwitchTeamUseCase(sl()));
+  // Cubit
+  sl.registerFactory(() => TeamCubit(
+      repository: sl(),
+      switchTeamUseCase: sl(),
+    ));
+
+  //! =========================
   //! PARTICIPANTS FEATURE
   //! =========================
 
@@ -223,7 +241,6 @@ sl.registerFactory(
     ),
   );
 
-  // 👈 ADD THIS BACK: Required by competition list cards / buttons
   sl.registerFactory<JoinCompetitionCubit>(
     () => JoinCompetitionCubit(
       joinCompetitionUseCase: sl<JoinCompetitionUseCase>(),
@@ -231,7 +248,4 @@ sl.registerFactory(
       leaveCompetitionUseCase: sl<LeaveCompetitionUseCase>(),
     ),
   );
-
-// 0. Services
-sl.registerLazySingleton<DeepLinkHandler>(() => DeepLinkHandler());
 }

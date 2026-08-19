@@ -32,6 +32,27 @@ class ParticipantEntity extends Equatable {
   });
 
   // ===========================================================================
+  // 💡 SERIALIZATION
+  // ===========================================================================
+
+  /// Converts the entity instance into a JSON/Firestore-compatible map.
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'userId': userId,
+      'competitionId': competitionId,
+      'name': name,
+      'avatarUrl': avatarUrl,
+      'role': role,
+      'teamId': teamId,
+      'points': points,
+      'joinedAt': joinedAt.toIso8601String(),
+      'podiumTier': podiumTier.name,
+      'totalStarsEarned': totalStarsEarned,
+    };
+  }
+
+  // ===========================================================================
   // 💡 DOMAIN CONVENIENCE GETTERS
   // ===========================================================================
 

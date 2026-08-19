@@ -26,9 +26,15 @@ class CompetitionModel extends CompetitionEntity {
     required super.participantIds,
     super.participants,
     super.teams,
+    super.basePoints,
+    super.penaltyPoints,
+    super.leaderboardVisibility,
+    super.rankChangeAlerts,
+    super.milestoneAlerts,
+    super.multipliers,
   });
 
-  /// 🎯 Converts Domain Entity to Data Model
+  /// Converts Domain Entity to Data Model
   factory CompetitionModel.fromEntity(CompetitionEntity entity) {
     return CompetitionModel(
       id: entity.id,
@@ -54,10 +60,16 @@ class CompetitionModel extends CompetitionEntity {
       participantIds: entity.participantIds,
       participants: entity.participants,
       teams: entity.teams,
+      basePoints: entity.basePoints,
+      penaltyPoints: entity.penaltyPoints,
+      leaderboardVisibility: entity.leaderboardVisibility,
+      rankChangeAlerts: entity.rankChangeAlerts,
+      milestoneAlerts: entity.milestoneAlerts,
+      multipliers: entity.multipliers,
     );
   }
 
-  /// 🎯 Deserializes Firestore JSON Map into Data Model
+  /// Deserializes Firestore JSON Map into Data Model
   factory CompetitionModel.fromJson(Map<String, dynamic> json) {
     return CompetitionModel(
       id: json['id'] ?? '',
@@ -72,7 +84,7 @@ class CompetitionModel extends CompetitionEntity {
       ownerId: json['ownerId'] ?? '',
       inviteCode: json['inviteCode'],
       category: json['category'] ?? '',
-      searchKeywords: List<dynamic>.from(json['searchKeywords'] ?? []),
+      searchKeywords: List<String>.from(json['searchKeywords'] ?? []),
       maxTeams: json['maxTeams'],
       membersPerTeam: json['membersPerTeam'],
       participantsCount: json['participantsCount'] ?? 0,
@@ -83,10 +95,18 @@ class CompetitionModel extends CompetitionEntity {
       participantIds: List<String>.from(json['participantIds'] ?? []),
       participants: json['participants'],
       teams: json['teams'],
+      basePoints: (json['basePoints'] as num?)?.toDouble() ?? 100.0,
+      penaltyPoints: (json['penaltyPoints'] as num?)?.toDouble() ?? -15.0,
+      leaderboardVisibility: json['leaderboardVisibility'] ?? true,
+      rankChangeAlerts: json['rankChangeAlerts'] ?? true,
+      milestoneAlerts: json['milestoneAlerts'] ?? true,
+      multipliers: json['multipliers'] != null
+          ? List<String>.from(json['multipliers'])
+          : const ['Streak x1.5', 'Underdog x2.0'],
     );
   }
 
-  /// 🎯 Serializes Data Model into Firestore Map
+  /// Serializes Data Model into Firestore Map
   Map<String, dynamic> toJson() {
     return {
       'id': id,
@@ -102,7 +122,7 @@ class CompetitionModel extends CompetitionEntity {
       'inviteCode': inviteCode,
       'category': category,
 
-      // 🎯 Auto-generate keywords if empty to prevent search misses in Firestore
+      // Auto-generate keywords if empty to prevent search misses in Firestore
       'searchKeywords': searchKeywords.isNotEmpty
           ? searchKeywords
           : SearchKeywordsGenerator.generate(
@@ -120,7 +140,48 @@ class CompetitionModel extends CompetitionEntity {
       'participantIds': participantIds,
       'participants': participants,
       'teams': teams,
+      'basePoints': basePoints,
+      'penaltyPoints': penaltyPoints,
+      'leaderboardVisibility': leaderboardVisibility,
+      'rankChangeAlerts': rankChangeAlerts,
+      'milestoneAlerts': milestoneAlerts,
+      'multipliers': multipliers,
     };
+  }
+
+  /// Converts Data Model back to pure Domain Entity
+  CompetitionEntity toEntity() {
+    return CompetitionEntity(
+      id: id,
+      name: name,
+      description: description,
+      ownerId: ownerId,
+      category: category,
+      status: status,
+      type: type,
+      imageUrl: imageUrl,
+      startDate: startDate,
+      endDate: endDate,
+      totalPoints: totalPoints,
+      maxParticipants: maxParticipants,
+      participantsCount: participantsCount,
+      isPublic: isPublic,
+      inviteCode: inviteCode,
+      maxTeams: maxTeams,
+      membersPerTeam: membersPerTeam,
+      participants: participants,
+      teams: teams,
+      createdAt: createdAt,
+      winnerId: winnerId,
+      searchKeywords: searchKeywords,
+      participantIds: participantIds,
+      basePoints: basePoints,
+      penaltyPoints: penaltyPoints,
+      leaderboardVisibility: leaderboardVisibility,
+      rankChangeAlerts: rankChangeAlerts,
+      milestoneAlerts: milestoneAlerts,
+      multipliers: multipliers,
+    );
   }
 
   /// Safely converts String, ISO8601, or Firestore Timestamp to DateTime
