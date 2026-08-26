@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:ptook/features/shared/data/models/competition_model.dart';
+import 'package:ptook/features/shared/domain/entities/team_entity.dart';
 import '../../../../core/errors/exceptions.dart';
 import '../../../shared/data/models/participant_model.dart';
 import '../../../shared/data/models/team_model.dart';
@@ -194,13 +195,30 @@ class ManageCompetitionRemoteDataSourceImpl
   // ===========================================================================
 
   @override
-  Future<void> createTeam(TeamModel team) async {
+  Future<void> createTeam(TeamEntity team) async {
     try {
-      await _competitionsRef
+      if (team.competitionId.trim().isEmpty) {
+        throw ServerException('Competition ID cannot be empty');
+      }
+
+      final teamsCollection = _competitionsRef
           .doc(team.competitionId)
-          .collection('teams')
-          .doc(team.id)
-          .set(team.toJson());
+          .collection('teams');
+
+      // Generate reference or use existing ID
+      final docRef = team.id.trim().isNotEmpty
+          ? teamsCollection.doc(team.id)
+          : teamsCollection.doc();
+
+      // 1. Ensure the entity has the resolved ID
+      final updatedEntity = team.id.trim().isEmpty 
+          ? team.copyWith(id: docRef.id) 
+          : team;
+
+      // 2. Convert domain Entity to Data Model to access toJson()
+      final model = TeamModel.fromEntity(updatedEntity);
+
+      await docRef.set(model.toJson());
     } on FirebaseException catch (e) {
       throw ServerException(e.message ?? 'Failed to create team');
     } catch (e) {

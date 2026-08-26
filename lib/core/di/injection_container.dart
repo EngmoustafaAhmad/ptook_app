@@ -322,6 +322,9 @@ void _initViewCompetitionFeature() {
   _registerLazySingleton<LeaveTeamUseCase>(
     () => LeaveTeamUseCase(sl<IViewCompetitionRepository>()),
   );
+  _registerLazySingleton<SwitchTeamUseCase>(
+    () => SwitchTeamUseCase(sl<IViewCompetitionRepository>()),
+  );
 
   // Cubits
   _registerFactory<ViewParticipantsCubit>(
@@ -330,7 +333,8 @@ void _initViewCompetitionFeature() {
       joinCompetitionUseCase: sl<JoinCompetitionUseCase>(),
       leaveCompetitionUseCase: sl<LeaveCompetitionUseCase>(),
       joinTeamUseCase: sl<JoinTeamUseCase>(),
-      leaveTeamUseCase: sl<LeaveTeamUseCase>(),
+      leaveTeamUseCase: sl<LeaveTeamUseCase>(), 
+      switchTeamUseCase: sl<SwitchTeamUseCase>(),
     ),
   );
 

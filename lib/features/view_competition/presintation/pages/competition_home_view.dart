@@ -27,7 +27,6 @@ class CompetitionHomeView extends StatelessWidget {
     return CompetitionIndividualHomeView(
       competition: competition,
       currentUserId: currentUserId,
-      competitionId: competition.id,
     );
   }
 

@@ -32,13 +32,6 @@ abstract class IViewCompetitionRemoteDataSource {
   Future<void> joinCompetition(String competitionId);
   Future<void> leaveCompetition(String competitionId);
 
-  // Team Interaction Actions
-  Future<TeamModel> createTeam({
-    required String competitionId,
-    required String name,
-    required bool isPrivate,
-    String? joinCode,
-  });
 
   Future<void> joinTeam({
     required String competitionId,

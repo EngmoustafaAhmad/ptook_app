@@ -47,6 +47,7 @@ class TeamModel extends TeamEntity {
   /// 🎯 Convert TeamModel to Map for Firestore persistence
   Map<String, dynamic> toJson() {
     return {
+      'id': id,
       'name': name,
       'competitionId': competitionId,
       'ownerId': ownerId,

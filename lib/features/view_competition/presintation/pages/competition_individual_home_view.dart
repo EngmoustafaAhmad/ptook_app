@@ -21,7 +21,7 @@ class CompetitionIndividualHomeView extends StatefulWidget {
   const CompetitionIndividualHomeView({
     super.key,
     required this.competition,
-    required this.currentUserId, required String competitionId,
+    required this.currentUserId,
   });
 
   @override
@@ -41,11 +41,14 @@ class _CompetitionIndividualHomeViewState
   }
 
   void _fetchParticipants() {
-  context.read<ViewParticipantsCubit>().listenToParticipants(widget.competition.id);
-}
+    context
+        .read<ViewParticipantsCubit>()
+        .listenToParticipants(widget.competition.id);
+  }
 
   void _shareCompetition() {
-    final shareUrl = 'https://yourapp.com/competitions/${widget.competition.id}';
+    final shareUrl =
+        'https://yourapp.com/competitions/${widget.competition.id}';
     Clipboard.setData(ClipboardData(text: shareUrl));
     _showSnackBar(context, 'Link copied to clipboard!', Colors.green);
   }
@@ -78,8 +81,8 @@ class _CompetitionIndividualHomeViewState
             widget.competition.description.isNotEmpty
                 ? widget.competition.description
                 : '1. Play fairly and respect other participants.\n'
-                  '2. Submissions after the deadline will not be counted.\n'
-                  '3. Points are granted based on verified activity.',
+                    '2. Submissions after the deadline will not be counted.\n'
+                    '3. Points are granted based on verified activity.',
             style: const TextStyle(
               color: Colors.white70,
               height: 1.5,
@@ -145,7 +148,8 @@ class _CompetitionIndividualHomeViewState
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: _AppColors.primaryAccent),
+                  borderSide:
+                      const BorderSide(color: _AppColors.primaryAccent),
                 ),
               ),
             ),
@@ -163,7 +167,8 @@ class _CompetitionIndividualHomeViewState
             onPressed: () {
               if (reasonController.text.trim().isEmpty) return;
               Navigator.pop(context);
-              _showSnackBar(context, 'Report submitted successfully.', Colors.green);
+              _showSnackBar(
+                  context, 'Report submitted successfully.', Colors.green);
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.redAccent,
@@ -188,7 +193,12 @@ class _CompetitionIndividualHomeViewState
       appBar: _buildAppBar(context),
       body: BlocConsumer<ViewParticipantsCubit, ViewParticipantsState>(
         listener: (context, state) {
-          if (state is JoinCompetitionSuccess) {
+          // 👈 FIX: Move state caching inside the listener
+          if (state is ViewParticipantsLoaded) {
+            setState(() {
+              _participants = state.participants;
+            });
+          } else if (state is JoinCompetitionSuccess) {
             _showSnackBar(context, state.message, Colors.green);
           } else if (state is LeaveCompetitionSuccess) {
             _showSnackBar(context, state.message, Colors.orangeAccent);
@@ -197,10 +207,6 @@ class _CompetitionIndividualHomeViewState
           }
         },
         builder: (context, state) {
-          if (state is ViewParticipantsLoaded) {
-            _participants = state.participants;
-          }
-
           if (state is ViewParticipantsLoading && _participants.isEmpty) {
             return const Center(
               child: CircularProgressIndicator(color: _AppColors.primaryAccent),
@@ -214,7 +220,8 @@ class _CompetitionIndividualHomeViewState
               .indexWhere((p) => p.userId == widget.currentUserId);
           final isJoined = userIndex != -1;
           final userRank = isJoined ? '#${userIndex + 1}' : 'N/A';
-          final userPoints = isJoined ? sortedParticipants[userIndex].points : 0;
+          final userPoints =
+              isJoined ? sortedParticipants[userIndex].points : 0;
 
           return RefreshIndicator(
             onRefresh: () async => _fetchParticipants(),

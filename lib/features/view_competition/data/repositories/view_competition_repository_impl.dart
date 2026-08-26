@@ -160,64 +160,32 @@ class ViewCompetitionRepositoryImpl implements IViewCompetitionRepository {
   // TEAM INTERACTION ACTIONS
   // ===========================================================================
 
-  @override
-  Future<Result<TeamEntity>> createTeam({
-    required String competitionId,
-    required String name,
-    bool isPrivate = false,
-    String? joinCode,
-  }) async {
-    try {
-      final teamModel = await remoteDataSource.createTeam(
-        competitionId: competitionId,
-        name: name,
-        isPrivate: isPrivate,
-        joinCode: joinCode,
-      );
-      return Success(teamModel);
-    } on ServerException catch (e) {
-      return Failure(e.message);
-    } catch (e) {
-      return Failure(e.toString());
-    }
-  }
-
-  @override
+@override
   Future<Result<void>> joinTeam({
     required String competitionId,
     required String teamId,
     String? joinCode,
-  }) async {
-    try {
-      await remoteDataSource.joinTeam(
+  }) {
+    return _guard(
+      () => remoteDataSource.joinTeam(
         competitionId: competitionId,
         teamId: teamId,
         joinCode: joinCode,
-      );
-      return const Success(null);
-    } on ServerException catch (e) {
-      return Failure(e.message);
-    } catch (e) {
-      return Failure(e.toString());
-    }
+      ),
+    );
   }
 
   @override
   Future<Result<void>> leaveTeam({
     required String competitionId,
     required String teamId,
-  }) async {
-    try {
-      await remoteDataSource.leaveTeam(
+  }) {
+    return _guard(
+      () => remoteDataSource.leaveTeam(
         competitionId: competitionId,
         teamId: teamId,
-      );
-      return const Success(null);
-    } on ServerException catch (e) {
-      return Failure(e.message);
-    } catch (e) {
-      return Failure(e.toString());
-    }
+      ),
+    );
   }
 
   @override
@@ -226,21 +194,17 @@ class ViewCompetitionRepositoryImpl implements IViewCompetitionRepository {
     required String fromTeamId,
     required String toTeamId,
     String? joinCode,
-  }) async {
-    try {
-      await remoteDataSource.switchTeam(
+  }) {
+    return _guard(
+      () => remoteDataSource.switchTeam(
         competitionId: competitionId,
         fromTeamId: fromTeamId,
         toTeamId: toTeamId,
         joinCode: joinCode,
-      );
-      return const Success(null);
-    } on ServerException catch (e) {
-      return Failure(e.message);
-    } catch (e) {
-      return Failure(e.toString());
-    }
+      ),
+    );
   }
+
   @override
   Future<Result<List<ParticipantEntity>>> getParticipants(
     String competitionId,
@@ -276,5 +240,14 @@ class ViewCompetitionRepositoryImpl implements IViewCompetitionRepository {
     return remoteDataSource.streamTeams(competitionId);
   }
 
-
+Future<Result<T>> _guard<T>(Future<T> Function() action) async {
+    try {
+      final data = await action();
+      return Success(data);
+    } on ServerException catch (e) {
+      return Failure(e.message);
+    } catch (e) {
+      return Failure(e.toString());
+    }
+  }
 }

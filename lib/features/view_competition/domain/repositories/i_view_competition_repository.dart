@@ -46,14 +46,6 @@ abstract class IViewCompetitionRepository {
 
   Future<Result<void>> leaveCompetition(String competitionId);
 
-  // Team Interaction Actions
-  Future<Result<TeamEntity>> createTeam({
-    required String competitionId,
-    required String name,
-    required bool isPrivate,
-    String? joinCode,
-  });
-
   Future<Result<void>> joinTeam({
     required String competitionId,
     required String teamId,
@@ -71,6 +63,7 @@ abstract class IViewCompetitionRepository {
     required String toTeamId,
     String? joinCode,
   });
+
 
   // Realtime Streams
   Stream<CompetitionEntity> streamCompetition(String competitionId);
