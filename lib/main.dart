@@ -23,7 +23,7 @@ void main() async {
   );
   
   // 2️⃣ استدعاء دالة الـ GetIt لتهيئة وحقن جميع الـ UseCases والـ Cubit تلقائياً
-  await di.init(); 
+  await di.initDependencies(); 
   
   runApp(const MyApp());
 }

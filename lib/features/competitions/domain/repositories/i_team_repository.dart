@@ -1,25 +1,25 @@
-import '../entities/team_entity.dart';
+// import '../entities/team_entity.dart';
 
 
 
-abstract class ITeamRepository {
+// abstract class ITeamRepository {
 
 
 
-  Future<List<TeamEntity>> getTeams(
+//   Future<List<TeamEntity>> getTeams(
 
-      String competitionId
+//       String competitionId
 
-      );
-
-
-
-  Future<void> createTeam(
-
-      TeamEntity team
-
-      );
+//       );
 
 
 
-}
+//   Future<void> createTeam(
+
+//       TeamEntity team
+
+//       );
+
+
+
+// }

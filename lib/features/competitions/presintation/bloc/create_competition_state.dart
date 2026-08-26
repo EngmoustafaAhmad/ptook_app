@@ -1,21 +1,21 @@
-abstract class CreateCompetitionState {}
+// abstract class CreateCompetitionState {}
 
 
-// Initial state
-class CreateCompetitionInitial extends CreateCompetitionState {}
+// // Initial state
+// class CreateCompetitionInitial extends CreateCompetitionState {}
 
 
-// While saving to Firestore
-class CreateCompetitionLoading extends CreateCompetitionState {}
+// // While saving to Firestore
+// class CreateCompetitionLoading extends CreateCompetitionState {}
 
 
-// Successfully created
-class CreateCompetitionSuccess extends CreateCompetitionState {}
+// // Successfully created
+// class CreateCompetitionSuccess extends CreateCompetitionState {}
 
 
-// Error state
-class CreateCompetitionError extends CreateCompetitionState {
+// // Error state
+// class CreateCompetitionError extends CreateCompetitionState {
 
-  final String message;
-  CreateCompetitionError(this.message);
-}
+//   final String message;
+//   CreateCompetitionError(this.message);
+// }

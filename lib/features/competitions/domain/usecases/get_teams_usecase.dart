@@ -1,44 +1,44 @@
-import '../entities/team_entity.dart';
+// import '../entities/team_entity.dart';
 
-import '../repositories/i_team_repository.dart';
-
-
-
-class GetTeamsUseCase {
+// import '../repositories/i_team_repository.dart';
 
 
 
-final ITeamRepository repository;
+// class GetTeamsUseCase {
 
 
 
-
-GetTeamsUseCase({
-
-required this.repository,
-
-});
+// final ITeamRepository repository;
 
 
 
 
+// GetTeamsUseCase({
 
-Future<List<TeamEntity>> call(
+// required this.repository,
 
-String competitionId
-
-){
-
-
-return repository.getTeams(
-
-competitionId
-
-);
-
-
-}
+// });
 
 
 
-}
+
+
+// Future<List<TeamEntity>> call(
+
+// String competitionId
+
+// ){
+
+
+// return repository.getTeams(
+
+// competitionId
+
+// );
+
+
+// }
+
+
+
+// }

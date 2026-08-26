@@ -1,31 +1,31 @@
-import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:ptook/features/competitions/presintation/bloc/get_teams_cubit.dart';
+// import 'package:flutter_bloc/flutter_bloc.dart';
+// import 'package:ptook/features/competitions/presintation/bloc/get_teams_cubit.dart';
 
-import '../../domain/entities/team_entity.dart';
-import '../../domain/usecases/get_teams_usecase.dart';
+// import '../../domain/entities/team_entity.dart';
+// import '../../domain/usecases/get_teams_usecase.dart';
 
 
 
 
 
-class GetTeamsCubit 
-    extends Cubit<GetTeamsState> {
+// class GetTeamsCubit 
+//     extends Cubit<GetTeamsState> {
 
 
 
-  final GetTeamsUseCase getTeamsUseCase;
+//   final GetTeamsUseCase getTeamsUseCase;
 
 
 
 
-  GetTeamsCubit({
+//   GetTeamsCubit({
 
-    required this.getTeamsUseCase, required Object auth,
+//     required this.getTeamsUseCase, required Object auth,
 
-  }) 
-  : super(
-      GetTeamsInitial()
-    );
+//   }) 
+//   : super(
+//       GetTeamsInitial()
+//     );
 
 
 
@@ -34,73 +34,73 @@ class GetTeamsCubit
 
 
 
-  Future<void> loadTeams(
+//   Future<void> loadTeams(
 
-      String competitionId
+//       String competitionId
 
-      ) async {
+//       ) async {
 
 
 
-    emit(
-      GetTeamsLoading()
-    );
+//     emit(
+//       GetTeamsLoading()
+//     );
 
 
 
 
-    try {
+//     try {
 
 
 
-      final List<TeamEntity> teams =
+//       final List<TeamEntity> teams =
 
-      await getTeamsUseCase(
+//       await getTeamsUseCase(
 
-        competitionId,
+//         competitionId,
 
-      );
+//       );
 
 
 
 
 
-      emit(
+//       emit(
 
-        GetTeamsSuccess(
+//         GetTeamsSuccess(
 
-          teams,
+//           teams,
 
-        ),
+//         ),
 
-      );
+//       );
 
 
 
 
 
-    } catch(e) {
+//     } catch(e) {
 
 
 
-      emit(
+//       emit(
 
-        GetTeamsError(
+//         GetTeamsError(
 
-          e.toString(),
+//           e.toString(),
 
-        ),
+//         ),
 
-      );
+//       );
 
 
 
-    }
+//     }
 
 
 
-  }
+//   }
 
 
 
-}
+// }

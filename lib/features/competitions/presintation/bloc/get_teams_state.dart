@@ -1,64 +1,64 @@
-part of 'get_teams_cubit.dart';
+// part of 'get_teams_cubit.dart';
 
 
 
 
-abstract class GetTeamsState {}
-
-
-
-
-
-class GetTeamsInitial 
-    extends GetTeamsState {}
+// abstract class GetTeamsState {}
 
 
 
 
 
-class GetTeamsLoading 
-    extends GetTeamsState {}
+// class GetTeamsInitial 
+//     extends GetTeamsState {}
 
 
 
 
 
-class GetTeamsSuccess 
-    extends GetTeamsState {
-
-
-
-  final List<TeamEntity> teams;
-
-
-
-  GetTeamsSuccess(
-    this.teams,
-  );
-
-
-
-}
+// class GetTeamsLoading 
+//     extends GetTeamsState {}
 
 
 
 
 
-
-
-class GetTeamsError 
-    extends GetTeamsState {
-
-
-
-  final String message;
+// class GetTeamsSuccess 
+//     extends GetTeamsState {
 
 
 
-  GetTeamsError(
-    this.message,
-  );
+//   final List<TeamEntity> teams;
 
 
 
-}
+//   GetTeamsSuccess(
+//     this.teams,
+//   );
+
+
+
+// }
+
+
+
+
+
+
+
+// class GetTeamsError 
+//     extends GetTeamsState {
+
+
+
+//   final String message;
+
+
+
+//   GetTeamsError(
+//     this.message,
+//   );
+
+
+
+// }

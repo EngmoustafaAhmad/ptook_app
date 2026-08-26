@@ -25,7 +25,7 @@ class AuthRemoteDataSourceImpl implements IAuthRemoteDataSource {
 
   AuthRemoteDataSourceImpl({
     required this.auth,
-    required this.firestore,
+    required this.firestore, required Object firebaseAuth,
   });
 
 

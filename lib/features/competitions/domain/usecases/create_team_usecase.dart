@@ -1,35 +1,35 @@
-import '../entities/team_entity.dart';
-import '../repositories/i_team_repository.dart';
+// import '../entities/team_entity.dart';
+// import '../repositories/i_team_repository.dart';
 
 
 
-class CreateTeamUseCase {
+// class CreateTeamUseCase {
 
 
-  final ITeamRepository repository;
-
-
-
-  CreateTeamUseCase({
-
-    required this.repository,
-
-  });
+//   final ITeamRepository repository;
 
 
 
+//   CreateTeamUseCase({
 
-  Future<void> call(
-      TeamEntity team
-  ) async {
+//     required this.repository,
 
-
-    await repository.createTeam(
-      team,
-    );
+//   });
 
 
-  }
 
 
-}
+//   Future<void> call(
+//       TeamEntity team
+//   ) async {
+
+
+//     await repository.createTeam(
+//       team,
+//     );
+
+
+//   }
+
+
+// }

@@ -1,25 +1,25 @@
-part of 'get_competitions_cubit.dart';
+// part of 'get_competitions_cubit.dart';
 
-abstract class GetCompetitionsState {
-  const GetCompetitionsState();
-}
+// abstract class GetCompetitionsState {
+//   const GetCompetitionsState();
+// }
 
-class GetCompetitionsInitial extends GetCompetitionsState {
-  const GetCompetitionsInitial();
-}
+// class GetCompetitionsInitial extends GetCompetitionsState {
+//   const GetCompetitionsInitial();
+// }
 
-class GetCompetitionsLoading extends GetCompetitionsState {
-  const GetCompetitionsLoading();
-}
+// class GetCompetitionsLoading extends GetCompetitionsState {
+//   const GetCompetitionsLoading();
+// }
 
-class GetCompetitionsSuccess extends GetCompetitionsState {
-  final List<CompetitionEntity> competitions;
+// class GetCompetitionsSuccess extends GetCompetitionsState {
+//   final List<CompetitionEntity> competitions;
 
-  const GetCompetitionsSuccess(this.competitions);
-}
+//   const GetCompetitionsSuccess(this.competitions);
+// }
 
-class GetCompetitionsError extends GetCompetitionsState {
-  final String message;
+// class GetCompetitionsError extends GetCompetitionsState {
+//   final String message;
 
-  const GetCompetitionsError(this.message);
-}
+//   const GetCompetitionsError(this.message);
+// }

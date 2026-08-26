@@ -1,8 +1,15 @@
 class ServerException implements Exception {
   final String message;
-
-  const ServerException(String s, {this.message = 'A server error occurred.'});
+  const ServerException([this.message = 'Server exception occurred.']);
 
   @override
-  String toString() => 'ServerException(message: $message)';
+  String toString() => message;
+}
+
+class CacheException implements Exception {
+  final String message;
+  const CacheException([this.message = 'Cache exception occurred.']);
+
+  @override
+  String toString() => message;
 }

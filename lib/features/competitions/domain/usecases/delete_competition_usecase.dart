@@ -1,15 +1,15 @@
-import 'package:dartz/dartz.dart';
+// import 'package:dartz/dartz.dart';
 
-import 'package:ptook/core/errors/failures.dart';
+// import 'package:ptook/core/errors/failures.dart';
 
-import '../repositories/i_competition_repository.dart'; // Adjust path if needed
+// import '../repositories/i_competition_repository.dart'; // Adjust path if needed
 
-class DeleteCompetitionUseCase {
-  final ICompetitionRepository repository;
+// class DeleteCompetitionUseCase {
+//   final ICompetitionRepository repository;
 
-  DeleteCompetitionUseCase(this.repository);
+//   DeleteCompetitionUseCase(this.repository);
 
-  Future<Either<Failure, void>> call(String competitionId) async {
-    return await repository.deleteCompetition(competitionId);
-  }
-}
+//   Future<Either<Failure, void>> call(String competitionId) async {
+//     return await repository.deleteCompetition(competitionId);
+//   }
+// }

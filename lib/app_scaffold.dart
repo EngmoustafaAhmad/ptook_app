@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-
 import 'package:ptook/core/Theme/app_colors.dart';
 import 'package:ptook/core/di/injection_container.dart';
-import 'package:ptook/features/competitions/presintation/bloc/create_competition_cubit.dart';
-import 'package:ptook/features/competitions/presintation/bloc/search_competition_cubit.dart'; // 👈 1. Import SearchCompetitionCubit
-import 'package:ptook/features/competitions/presintation/views/competition_search_view.dart';
-import 'package:ptook/features/competitions/presintation/views/create_competition_view.dart';
+import 'package:ptook/features/create_competition/presintation/cubits/create_competition_cubit.dart';
+import 'package:ptook/features/create_competition/presintation/pages/create_competition_view.dart';
 import 'package:ptook/features/home/presintation/views/home_view.dart';
+import 'package:ptook/features/search_competitions/presentation/cubits/search_competition_cubit.dart';
+import 'package:ptook/features/search_competitions/presentation/pages/search_competition_page.dart';
 
 class AppScaffold extends StatefulWidget {
   const AppScaffold({super.key});

@@ -1,49 +1,49 @@
-import 'package:ptook/features/competitions/domain/entities/team_entity.dart';
+// import 'package:ptook/features/competitions/domain/entities/team_entity.dart';
 
 
-abstract class GetTeamsState {}
-
-
-
-class GetTeamsInitial 
-    extends GetTeamsState {}
+// abstract class GetTeamsState {}
 
 
 
-class GetTeamsLoading 
-    extends GetTeamsState {}
+// class GetTeamsInitial 
+//     extends GetTeamsState {}
 
 
 
-class GetTeamsSuccess 
-    extends GetTeamsState {
-
-
-  final List<TeamEntity> teams;
+// class GetTeamsLoading 
+//     extends GetTeamsState {}
 
 
 
-  GetTeamsSuccess(
-      this.teams,
-  );
+// class GetTeamsSuccess 
+//     extends GetTeamsState {
 
 
-}
-
-
-
-
-class GetTeamsError 
-    extends GetTeamsState {
-
-
-  final String message;
+//   final List<TeamEntity> teams;
 
 
 
-  GetTeamsError(
-      this.message,
-  );
+//   GetTeamsSuccess(
+//       this.teams,
+//   );
 
 
-}
+// }
+
+
+
+
+// class GetTeamsError 
+//     extends GetTeamsState {
+
+
+//   final String message;
+
+
+
+//   GetTeamsError(
+//       this.message,
+//   );
+
+
+// }

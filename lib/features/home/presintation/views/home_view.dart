@@ -5,6 +5,8 @@ import 'package:ptook/core/di/injection_container.dart';
 import 'package:ptook/core/extentions/spacing_extentions.dart';
 import 'package:ptook/features/competitions/presintation/bloc/search_competition_cubit.dart';
 import 'package:ptook/features/competitions/presintation/views/competition_search_view.dart';
+import 'package:ptook/features/search_competitions/presentation/cubits/search_competition_cubit.dart';
+import 'package:ptook/features/search_competitions/presentation/pages/search_competition_page.dart';
 
 class HomeView extends StatelessWidget {
   const HomeView({super.key});
