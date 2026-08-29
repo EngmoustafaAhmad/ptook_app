@@ -1,8 +1,11 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ptook/features/Manage%20Competitions/presentation/cubits/manage_competition/manage_competition_cubit.dart';
+import 'package:ptook/features/Manage%20Competitions/presentation/cubits/participant_management/participant_management_cubit.dart';
 import 'package:ptook/features/Manage%20Competitions/presentation/cubits/team_management/team_management_cubit.dart';
 import 'package:ptook/features/Manage%20Competitions/presentation/cubits/team_management/team_management_state.dart';
+import 'package:ptook/features/Manage%20Competitions/presentation/pages/team_members_screen.dart';
 import 'package:ptook/features/Manage%20Competitions/presentation/widgets/team_card.dart';
 import 'package:ptook/features/shared/domain/entities/competition_entity.dart';
 import 'package:ptook/features/shared/domain/entities/team_entity.dart';
@@ -26,6 +29,8 @@ class TeamManageTabView extends StatelessWidget {
   });
 
   void _showCreateTeamDialog(BuildContext context, List<TeamEntity> existingTeams) {
+    final currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
+
     showDialog(
       context: context,
       builder: (dialogContext) => _CreateTeamDialog(
@@ -36,19 +41,11 @@ class TeamManageTabView extends StatelessWidget {
                 teamName: teamName,
                 isPrivate: isPrivate,
                 joinCode: joinCode,
-                ownerId: '', // Pass actual user ID here
+                ownerId: currentUserId,
               );
         },
       ),
     );
-  }
-
-  String _formatPoints(num points) {
-    if (points >= 1000) {
-      final double k = points / 1000;
-      return '${k.toStringAsFixed(k.truncateToDouble() == k ? 0 : 1)}k';
-    }
-    return points.toString();
   }
 
   @override
@@ -56,12 +53,6 @@ class TeamManageTabView extends StatelessWidget {
     return BlocBuilder<TeamManagementCubit, TeamManagementState>(
       builder: (context, state) {
         final rankedTeams = state.rankedTeams;
-        final topThree = rankedTeams.take(3).toList();
-
-        final displayedTeams = state.showAllTeams
-            ? rankedTeams
-            : rankedTeams.take(3).toList();
-
         final isFinished = competition.isFinished;
 
         return SingleChildScrollView(
@@ -69,7 +60,6 @@ class TeamManageTabView extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header & Action Bar
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -106,13 +96,6 @@ class TeamManageTabView extends StatelessWidget {
               ),
               const SizedBox(height: 16),
 
-              // Leaderboard Top 3 Card List
-              if (rankedTeams.isNotEmpty) ...[
-                _buildLeaderboardPodium(topThree),
-                const SizedBox(height: 20),
-              ],
-
-              // Empty State
               if (rankedTeams.isEmpty)
                 Container(
                   width: double.infinity,
@@ -129,21 +112,36 @@ class TeamManageTabView extends StatelessWidget {
                     ),
                   ),
                 )
-              else ...[
-                // Team Accordion List
-                ...displayedTeams.map((team) {
-                  final isExpanded = state.expandedTeamId == team.id;
-                  final teamRank = rankedTeams.indexOf(team) + 1;
+              else
+                ...rankedTeams.asMap().entries.map((entry) {
+                  final index = entry.key;
+                  final team = entry.value;
 
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 12),
                     child: TeamCard(
                       team: team,
-                      rank: teamRank,
-                      isExpanded: isExpanded,
+                      rank: index + 1,
                       isFinished: isFinished,
-                      onToggleExpand: () {
-                        context.read<TeamManagementCubit>().toggleExpandTeam(team.id);
+                      competitionId: competition.id,
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => MultiBlocProvider(
+                              providers: [
+                                BlocProvider.value(value: context.read<TeamManagementCubit>()),
+                                BlocProvider.value(value: context.read<ParticipantManagementCubit>()),
+                              ],
+                              child: TeamMembersScreen(
+                                team: team,
+                                competitionId: competition.id,
+                                isFinished: isFinished,
+                                onShowConfirmDialog: onShowConfirmDialog,
+                              ),
+                            ),
+                          ),
+                        );
                       },
                       onDeleteTeam: () {
                         onShowConfirmDialog(
@@ -160,46 +158,9 @@ class TeamManageTabView extends StatelessWidget {
                           },
                         );
                       },
-                      onDeleteMember: (member) {
-                        onShowConfirmDialog(
-                          context: context,
-                          title: 'Remove Member',
-                          content: 'Are you sure you want to remove "${member.name}"?',
-                          confirmText: 'Remove',
-                          confirmColor: Colors.redAccent,
-                          onConfirm: () {
-                            context.read<TeamManagementCubit>().removeTeamMember(
-                                  competitionId: competition.id,
-                                  teamId: team.id,
-                                  memberId: member.id,
-                                );
-                          },
-                        );
-                      }, competitionId: competition.id,
                     ),
                   );
                 }),
-
-                if (rankedTeams.length > 3)
-                  Center(
-                    child: TextButton.icon(
-                      onPressed: () {
-                        context.read<TeamManagementCubit>().toggleShowAllTeams();
-                      },
-                      icon: Icon(
-                        state.showAllTeams ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
-                        color: const Color(0xFFFFC107),
-                      ),
-                      label: Text(
-                        state.showAllTeams ? 'Show Less' : 'Show All Teams (${rankedTeams.length})',
-                        style: const TextStyle(
-                          color: Color(0xFFFFC107),
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
 
               const SizedBox(height: 24),
               _buildDangerZone(context, isFinished),
@@ -207,156 +168,6 @@ class TeamManageTabView extends StatelessWidget {
           ),
         );
       },
-    );
-  }
-
-  Widget _buildLeaderboardPodium(List<TeamEntity> topTeams) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFF161925),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.08)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: const [
-              Icon(Icons.workspace_premium, color: Color(0xFFFFC107), size: 24),
-              SizedBox(width: 8),
-              Text(
-                'Top Teams',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          ...topTeams.asMap().entries.map((entry) {
-            final index = entry.key;
-            final team = entry.value;
-            final rank = index + 1;
-
-            return Padding(
-              padding: EdgeInsets.only(bottom: index == topTeams.length - 1 ? 0 : 10),
-              child: _buildTopTeamCard(team, rank),
-            );
-          }),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTopTeamCard(TeamEntity team, int rank) {
-    final bool isFirst = rank == 1;
-
-    Color badgeColor;
-    switch (rank) {
-      case 1:
-        badgeColor = const Color(0xFFFCE195);
-        break;
-      case 2:
-        badgeColor = const Color(0xFFD1D5DB);
-        break;
-      case 3:
-      default:
-        badgeColor = const Color(0xFFC88242);
-        break;
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: const Color(0xFF10121D),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: isFirst ? const Color(0xFFFFC107).withOpacity(0.8) : Colors.white.withOpacity(0.06),
-          width: isFirst ? 1.5 : 1.0,
-        ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              color: badgeColor,
-              shape: BoxShape.circle,
-            ),
-            child: Center(
-              child: Text(
-                '$rank',
-                style: const TextStyle(
-                  color: Colors.black,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: Colors.black,
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: isFirst
-                    ? const Color(0xFFFFC107).withOpacity(0.5)
-                    : Colors.white12,
-              ),
-            ),
-            child: const Icon(
-              Icons.shield_outlined,
-              color: Color(0xFFFFC107),
-              size: 22,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              team.name,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 15,
-                height: 1.2,
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                _formatPoints(team.totalPoints),
-                style: const TextStyle(
-                  color: Color(0xFFFFC107),
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
-              ),
-              const Text(
-                'PTS',
-                style: TextStyle(
-                  color: Colors.white38,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.5,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
     );
   }
 
@@ -407,7 +218,9 @@ class TeamManageTabView extends StatelessWidget {
                       confirmText: 'END COMPETITION',
                       confirmColor: Colors.orange,
                       onConfirm: () {
-                        context.read<ManageCompetitionCubit>().finishCompetition(competition.id);
+                        context
+                            .read<ManageCompetitionCubit>()
+                            .finishCompetition(competition.id);
                       },
                     );
                   },
@@ -443,7 +256,9 @@ class TeamManageTabView extends StatelessWidget {
                 confirmText: 'DELETE PERMANENTLY',
                 confirmColor: Colors.redAccent,
                 onConfirm: () {
-                  context.read<ManageCompetitionCubit>().deleteCompetition(competition.id);
+                  context
+                      .read<ManageCompetitionCubit>()
+                      .deleteCompetition(competition.id);
                 },
               );
             },
@@ -541,7 +356,7 @@ class _CreateTeamDialogState extends State<_CreateTeamDialog> {
                     (team) => team.name.trim().toLowerCase() == trimmedName.toLowerCase(),
                   );
                   if (exists) {
-                    return 'this $trimmedName is used';
+                    return 'Team name "$trimmedName" is already taken';
                   }
                   return null;
                 },
@@ -560,9 +375,7 @@ class _CreateTeamDialogState extends State<_CreateTeamDialog> {
                     style: TextStyle(color: Colors.white, fontSize: 14),
                   ),
                   subtitle: Text(
-                    _isPrivate
-                        ? 'Requires Join Code to join'
-                        : 'Open for everyone',
+                    _isPrivate ? 'Requires Join Code to join' : 'Open for everyone',
                     style: const TextStyle(color: Colors.white54, fontSize: 11),
                   ),
                   value: _isPrivate,

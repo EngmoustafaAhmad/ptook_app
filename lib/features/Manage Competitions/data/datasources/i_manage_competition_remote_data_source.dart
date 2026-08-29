@@ -1,15 +1,14 @@
 import 'package:ptook/features/shared/data/models/competition_model.dart';
 import 'package:ptook/features/shared/data/models/team_model.dart';
-
 import '../../../shared/data/models/participant_model.dart';
 
-  abstract class IManageCompetitionRemoteDataSource {
-    // Organizer Dashboard Fetching
-    Future<List<CompetitionModel>> getCreatedCompetitions({
-      String? query = '',
-      int limit = 10,
-      String? lastCompetitionId,
-    });
+abstract class IManageCompetitionRemoteDataSource {
+  // Organizer Dashboard Fetching
+  Future<List<CompetitionModel>> getCreatedCompetitions({
+    String? query = '',
+    int limit = 10,
+    String? lastCompetitionId,
+  });
 
   // Competition Administration
   Future<void> createCompetition(CompetitionModel competition);
@@ -18,11 +17,12 @@ import '../../../shared/data/models/participant_model.dart';
   Future<void> finishCompetition(String competitionId);
 
   // Participant Management
-  Future<void> updateParticipantPoints({
+  Future<void> updateCompetitoinParticipantPoints({
     required String competitionId,
     required String participantId,
     required int addedPoints,
   });
+
 
   Future<void> removeParticipant({
     required String competitionId,
@@ -37,17 +37,19 @@ import '../../../shared/data/models/participant_model.dart';
     required String teamId,
   });
 
-  Future<void> removeMember({
+
+
+  Future<void> updateTeamParticipantPoints({
     required String competitionId,
     required String teamId,
-    required String memberId,
+    required String participantId,
+    required int addedPoints,
   });
 
-  Future<void> updateMemberPoints({
+  Future<void> removeTeamParticipant({
     required String competitionId,
     required String teamId,
-    required String memberId,
-    required int points,
+    required String participantId,
   });
 
   // Realtime Streams

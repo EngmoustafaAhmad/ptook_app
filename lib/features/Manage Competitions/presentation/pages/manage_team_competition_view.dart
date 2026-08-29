@@ -179,48 +179,6 @@ class _ManageTeamCompetitionContentState extends State<_ManageTeamCompetitionCon
     );
   }
 
-  void _showUpdatePointsDialog({
-    required BuildContext context,
-    required String targetName,
-    required Function(int points) onUpdate,
-  }) {
-    final pointsController = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: AppColors.cardBackground,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text('Adjust Points: $targetName', style: const TextStyle(color: Colors.white, fontSize: 16)),
-        content: TextField(
-          controller: pointsController,
-          keyboardType: TextInputType.number,
-          style: const TextStyle(color: Colors.white),
-          decoration: const InputDecoration(
-            labelText: 'Points Delta (e.g., 10 or -5)',
-            labelStyle: TextStyle(color: AppColors.textSecondary),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryGold),
-            onPressed: () {
-              final pts = int.tryParse(pointsController.text.trim()) ?? 0;
-              if (pts != 0) {
-                onUpdate(pts);
-              }
-              Navigator.pop(dialogContext);
-            },
-            child: const Text('Update', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
-          ),
-        ],
-      ),
-    );
-  }
-
   void _showSettingsMenu(BuildContext context) {
     showModalBottomSheet(
       context: context,

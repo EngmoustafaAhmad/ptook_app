@@ -4,22 +4,22 @@ import 'package:ptook/core/utils/result.dart';
 
 import '../../../domain/usecases/participant/remove_participant_usecase.dart';
 import '../../../domain/usecases/participant/stream_participants_manage_usecase.dart';
-import '../../../domain/usecases/participant/update_participant_points_usecase.dart';
+import '../../../domain/usecases/participant/update_competition_participant_points_usecase.dart';
 import 'participant_management_state.dart';
 
 class ParticipantManagementCubit extends Cubit<ParticipantManagementState> {
   final StreamParticipantsManageUseCase _streamParticipantsUseCase;
-  final UpdateParticipantPointsUseCase _updateParticipantPointsUseCase;
+  final UpdateCompetitoinParticipantPointsUseCase _updateCompetitoinParticipantPointsUseCase;
   final RemoveParticipantUseCase _removeParticipantUseCase;
 
   StreamSubscription? _participantsSubscription;
 
   ParticipantManagementCubit({
     required StreamParticipantsManageUseCase streamParticipantsUseCase,
-    required UpdateParticipantPointsUseCase updateParticipantPointsUseCase,
+    required UpdateCompetitoinParticipantPointsUseCase updateCompetitoinParticipantPointsUseCase,
     required RemoveParticipantUseCase removeParticipantUseCase,
   })  : _streamParticipantsUseCase = streamParticipantsUseCase,
-        _updateParticipantPointsUseCase = updateParticipantPointsUseCase,
+        _updateCompetitoinParticipantPointsUseCase = updateCompetitoinParticipantPointsUseCase,
         _removeParticipantUseCase = removeParticipantUseCase,
         super(const ParticipantManagementInitial());
 
@@ -34,19 +34,8 @@ class ParticipantManagementCubit extends Cubit<ParticipantManagementState> {
     );
   }
 
-  /// Alias method required by UI calls
-  Future<void> removeParticipant({
-    required String competitionId,
-    required String participantId,
-  }) async {
-    await removeCompetitionMember(
-      competitionId: competitionId,
-      participantId: participantId,
-    );
-  }
-
   /// Removes a participant directly from the overall competition
-  Future<void> removeCompetitionMember({
+  Future<void> removeParticipant({
     required String competitionId,
     required String participantId,
   }) async {
@@ -68,33 +57,32 @@ class ParticipantManagementCubit extends Cubit<ParticipantManagementState> {
   }
 
   Future<void> updateParticipantPoints({
-  required String competitionId,
-  required String participantId,
-  required int addedPoints,
-}) async {
-  // Guard against empty document paths
-  if (competitionId.trim().isEmpty || participantId.trim().isEmpty) {
-    _safeEmit(ParticipantManagementFailure(
-      'Invalid ID: competitionId or participantId cannot be empty.',
-      participants: state.participants,
-    ));
-    return;
-  }
+    required String competitionId,
+    required String participantId,
+    required int addedPoints,
+  }) async {
+    // Guard against empty document paths
+    if (competitionId.trim().isEmpty || participantId.trim().isEmpty) {
+      _safeEmit(ParticipantManagementFailure(
+        'Invalid ID: competitionId or participantId cannot be empty.',
+        participants: state.participants,
+      ));
+      return;
+    }
 
-  _safeEmit(ParticipantManagementLoading(participants: state.participants));
-  final result = await _updateParticipantPointsUseCase(
-    competitionId: competitionId,
-    participantId: participantId,
-    addedPoints: addedPoints,
-  );
+    final result = await _updateCompetitoinParticipantPointsUseCase(
+      competitionId: competitionId,
+      participantId: participantId,
+      addedPoints: addedPoints,
+    );
 
-  switch (result) {
-    case Success():
-      _safeEmit(ParticipantActionSuccess('Points updated', participants: state.participants));
-    case Failure(:final message):
-      _safeEmit(ParticipantManagementFailure(message, participants: state.participants));
+    switch (result) {
+      case Success():
+        _safeEmit(ParticipantActionSuccess('Points updated', participants: state.participants));
+      case Failure(:final message):
+        _safeEmit(ParticipantManagementFailure(message, participants: state.participants));
+    }
   }
-}
 
   void _safeEmit(ParticipantManagementState newState) {
     if (!isClosed) emit(newState);

@@ -1,5 +1,3 @@
-
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ptook/features/shared/domain/entities/podium_tier.dart';
 import '../../domain/entities/participant_entity.dart';
@@ -19,20 +17,24 @@ class ParticipantModel extends ParticipantEntity {
     super.totalStarsEarned,
   });
 
-  factory ParticipantModel.fromJson(Map<String, dynamic> json, String docId) {
+    factory ParticipantModel.fromJson(Map<String, dynamic> json, String docId) {
     return ParticipantModel(
       id: docId,
-      userId: json['userId'] ?? '',
+      // Fallback to docId if userId isn't stored as a field in older Firestore documents
+      userId: (json['userId'] as String?)?.isNotEmpty == true
+          ? json['userId']!
+          : docId,
       competitionId: json['competitionId'] ?? '',
       name: json['name'] ?? '',
       avatarUrl: json['avatarUrl'],
       role: json['role'] ?? 'member',
       teamId: json['teamId'],
-      points: (json['points'] as num?)?.toInt() ?? 0,
+      points: (json['totalPoints'] as num?)?.toInt() ??
+              (json['points'] as num?)?.toInt() ?? 0,
       joinedAt: (json['joinedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       podiumTier: PodiumTier.values.firstWhere(
         (t) => t.name == json['podiumTier'],
-        orElse: () => PodiumTier.none,
+        orElse: () => PodiumTier.none,  
       ),
       totalStarsEarned: (json['totalStarsEarned'] as num?)?.toInt() ?? 0,
     );
@@ -40,13 +42,16 @@ class ParticipantModel extends ParticipantEntity {
 
   Map<String, dynamic> toJson() {
     return {
+      'id': id,
       'userId': userId,
       'competitionId': competitionId,
       'name': name,
       'avatarUrl': avatarUrl,
       'role': role,
       'teamId': teamId,
+      // Persist both keys so both team and participant streams stay aligned
       'points': points,
+      'totalPoints': points,
       'joinedAt': Timestamp.fromDate(joinedAt),
       'podiumTier': podiumTier.name,
       'totalStarsEarned': totalStarsEarned,

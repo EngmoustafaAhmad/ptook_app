@@ -11,7 +11,7 @@ class TeamModel extends TeamEntity {
     required super.ownerId,
     super.joinCode,
     super.isPrivate = false,
-    super.points = 0,
+    super.totalPoints = 0,
     super.members = const [],
     super.membersCount = 0,
     super.maxMembers,
@@ -27,7 +27,8 @@ class TeamModel extends TeamEntity {
       ownerId: json['ownerId'] ?? '',
       joinCode: json['joinCode'] as String?,
       isPrivate: json['isPrivate'] ?? false,
-      points: (json['points'] as num?)?.toInt() ?? 0,
+      totalPoints: (json['totalPoints'] as num?)?.toInt() ?? 
+                   (json['points'] as num?)?.toInt() ?? 0, // Fallback for backward compatibility
       members: json['members'] != null
           ? (json['members'] as List<dynamic>)
               .map((item) {
@@ -53,7 +54,7 @@ class TeamModel extends TeamEntity {
       'ownerId': ownerId,
       'joinCode': joinCode,
       'isPrivate': isPrivate,
-      'points': points,
+      'totalPoints': totalPoints,
       'members': members
           .map((member) => ParticipantModel.fromEntity(member).toJson())
           .toList(),
@@ -72,7 +73,7 @@ class TeamModel extends TeamEntity {
       ownerId: entity.ownerId,
       joinCode: entity.joinCode,
       isPrivate: entity.isPrivate,
-      points: entity.points,
+      totalPoints: entity.totalPoints,
       members: entity.members,
       membersCount: entity.membersCount,
       maxMembers: entity.maxMembers,

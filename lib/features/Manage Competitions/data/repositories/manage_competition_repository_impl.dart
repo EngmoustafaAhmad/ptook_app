@@ -57,6 +57,7 @@ class ManageCompetitionRepositoryImpl implements IManageCompetitionRepository {
     }
   }
 
+
   @override
   Future<Result<void>> updateCompetition(
     CompetitionEntity competition,
@@ -101,13 +102,13 @@ class ManageCompetitionRepositoryImpl implements IManageCompetitionRepository {
   // ===========================================================================
 
   @override
-  Future<Result<void>> updateParticipantPoints({
+  Future<Result<void>> updateCompetitoinParticipantPoints({
     required String competitionId,
     required String participantId,
     required int addedPoints,
   }) async {
     try {
-      await remoteDataSource.updateParticipantPoints(
+      await remoteDataSource.updateCompetitoinParticipantPoints(
         competitionId: competitionId,
         participantId: participantId,
         addedPoints: addedPoints,
@@ -173,17 +174,21 @@ class ManageCompetitionRepositoryImpl implements IManageCompetitionRepository {
     }
   }
 
+
+
   @override
-  Future<Result<void>> removeMember({
+  Future<Result<void>> updateTeamParticipantPoints({
     required String competitionId,
     required String teamId,
-    required String memberId,
+    required String participantId,
+    required int addedPoints,
   }) async {
     try {
-      await remoteDataSource.removeMember(
+      await remoteDataSource.updateTeamParticipantPoints(
         competitionId: competitionId,
         teamId: teamId,
-        memberId: memberId,
+        participantId: participantId,
+        addedPoints: addedPoints,
       );
       return const Success(null);
     } on ServerException catch (e) {
@@ -194,18 +199,16 @@ class ManageCompetitionRepositoryImpl implements IManageCompetitionRepository {
   }
 
   @override
-  Future<Result<void>> updateMemberPoints({
+  Future<Result<void>> removeTeamParticipant({
     required String competitionId,
     required String teamId,
-    required String memberId,
-    required int points,
+    required String participantId,
   }) async {
     try {
-      await remoteDataSource.updateMemberPoints(
+      await remoteDataSource.removeTeamParticipant(
         competitionId: competitionId,
         teamId: teamId,
-        memberId: memberId,
-        points: points,
+        participantId: participantId,
       );
       return const Success(null);
     } on ServerException catch (e) {
@@ -219,22 +222,47 @@ class ManageCompetitionRepositoryImpl implements IManageCompetitionRepository {
   // REALTIME STREAMS
   // ===========================================================================
 
-  @override
-  Stream<CompetitionEntity> streamCompetition(String competitionId) {
-    return remoteDataSource.streamCompetition(competitionId);
-  }
+  // ===========================================================================
+// REALTIME STREAMS
+// ===========================================================================
 
-  @override
-  Stream<List<ParticipantEntity>> streamParticipants(String competitionId) {
-    return remoteDataSource
-        .streamParticipants(competitionId)
-        .map((models) => List<ParticipantEntity>.from(models));
-  }
+@override
+Stream<CompetitionEntity> streamCompetition(String competitionId) {
+  return remoteDataSource
+      .streamCompetition(competitionId)
+      .handleError((error) {
+    if (error is ServerException) {
+      throw error.message;
+    }
+    throw error.toString();
+  });
+}
 
-  @override
-  Stream<List<TeamEntity>> streamTeams(String competitionId) {
-    return remoteDataSource
-        .streamTeams(competitionId)
-        .map((models) => List<TeamEntity>.from(models));
-  }
+@override
+Stream<List<ParticipantEntity>> streamParticipants(String competitionId) {
+  return remoteDataSource
+      .streamParticipants(competitionId)
+      .map((models) => List<ParticipantEntity>.from(models))
+      .handleError((error) {
+    if (error is ServerException) {
+      throw error.message;
+    }
+    throw error.toString();
+  });
+}
+
+@override
+Stream<List<TeamEntity>> streamTeams(String competitionId) {
+  return remoteDataSource
+      .streamTeams(competitionId)
+      .map((models) => List<TeamEntity>.from(models))
+      .handleError((error) {
+    if (error is ServerException) {
+      throw error.message;
+    }
+    throw error.toString();
+  });
+}
+
+
 }

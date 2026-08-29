@@ -16,6 +16,7 @@ abstract class IManageCompetitionRepository {
     CompetitionEntity competition,
   );
 
+
   Future<Result<void>> updateCompetition(
     CompetitionEntity competition,
   );
@@ -25,7 +26,7 @@ abstract class IManageCompetitionRepository {
   Future<Result<void>> finishCompetition(String competitionId);
 
   // Participant Management
-  Future<Result<void>> updateParticipantPoints({
+  Future<Result<void>> updateCompetitoinParticipantPoints({
     required String competitionId,
     required String participantId,
     required int addedPoints,
@@ -44,17 +45,17 @@ abstract class IManageCompetitionRepository {
     required String teamId,
   });
 
-  Future<Result<void>> removeMember({
+  Future<Result<void>> updateTeamParticipantPoints({
     required String competitionId,
     required String teamId,
-    required String memberId,
+    required String participantId,
+    required int addedPoints,
   });
 
-  Future<Result<void>> updateMemberPoints({
+  Future<Result<void>> removeTeamParticipant({
     required String competitionId,
     required String teamId,
-    required String memberId,
-    required int points,
+    required String participantId,
   });
 
   // Realtime Streams

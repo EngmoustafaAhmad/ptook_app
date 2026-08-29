@@ -141,28 +141,54 @@ class ManageCompetitionRemoteDataSourceImpl
   // PARTICIPANT MANAGEMENT
   // ===========================================================================
 
-  @override
-  Future<void> updateParticipantPoints({
-    required String competitionId,
-    required String participantId,
-    required int addedPoints,
-  }) async {
-    try {
-      await _competitionsRef
-          .doc(competitionId)
-          .collection('participants')
-          .doc(participantId)
-          .update({
+@override
+Future<void> updateCompetitoinParticipantPoints({
+  required String competitionId,
+  required String participantId,
+  required int addedPoints,
+}) async {
+  try {
+    final participantsColl = _competitionsRef
+        .doc(competitionId)
+        .collection('participants');
+
+    // 1. Check if participantId matches document ID directly
+    final directDocRef = participantsColl.doc(participantId);
+    final directSnap = await directDocRef.get();
+
+    if (directSnap.exists) {
+      await directDocRef.update({
         'points': FieldValue.increment(addedPoints),
+        'totalPoints': FieldValue.increment(addedPoints),
       });
-    } on FirebaseException catch (e) {
-      throw ServerException(
-        e.message ?? 'Failed to update participant points',
-      );
-    } catch (e) {
-      throw ServerException(e.toString());
+      return;
     }
+
+    // 2. Fallback: Query by 'userId' field for legacy docs where docId != userId
+    final querySnap = await participantsColl
+        .where('userId', isEqualTo: participantId)
+        .limit(1)
+        .get();
+
+    if (querySnap.docs.isNotEmpty) {
+      await querySnap.docs.first.reference.update({
+        'points': FieldValue.increment(addedPoints),
+        'totalPoints': FieldValue.increment(addedPoints),
+      });
+      return;
+    }
+
+    throw ServerException('Participant document not found for ID: $participantId');
+  } on FirebaseException catch (e) {
+    throw ServerException(
+      e.message ?? 'Failed to update participant points',
+    );
+  } catch (e) {
+    throw ServerException(e.toString());
   }
+}
+
+
 
   @override
   Future<void> removeParticipant({
@@ -205,17 +231,14 @@ class ManageCompetitionRemoteDataSourceImpl
           .doc(team.competitionId)
           .collection('teams');
 
-      // Generate reference or use existing ID
       final docRef = team.id.trim().isNotEmpty
           ? teamsCollection.doc(team.id)
           : teamsCollection.doc();
 
-      // 1. Ensure the entity has the resolved ID
-      final updatedEntity = team.id.trim().isEmpty 
-          ? team.copyWith(id: docRef.id) 
+      final updatedEntity = team.id.trim().isEmpty
+          ? team.copyWith(id: docRef.id)
           : team;
 
-      // 2. Convert domain Entity to Data Model to access toJson()
       final model = TeamModel.fromEntity(updatedEntity);
 
       await docRef.set(model.toJson());
@@ -253,76 +276,146 @@ class ManageCompetitionRemoteDataSourceImpl
     }
   }
 
+
+  // lib/features/Manage Competitions/data/datasources/team_remote_data_source_impl.dart
+
+
   @override
-  Future<void> removeMember({
+  Future<void> updateTeamParticipantPoints({
     required String competitionId,
     required String teamId,
-    required String memberId,
+    required String participantId,
+    required int addedPoints,
   }) async {
-    final teamRef = _competitionsRef
+    final teamRef = firestore
+        .collection('competitions')
         .doc(competitionId)
         .collection('teams')
         .doc(teamId);
 
-    final participantRef = _competitionsRef
+    final participantRef = firestore
+        .collection('competitions')
         .doc(competitionId)
         .collection('participants')
-        .doc(memberId);
+        .doc(participantId);
 
-    return firestore.runTransaction((transaction) async {
+    await firestore.runTransaction((transaction) async {
+      // 1. Read both documents inside transaction
       final teamSnap = await transaction.get(teamRef);
+      final participantSnap = await transaction.get(participantRef);
+
       if (!teamSnap.exists) return;
 
+      // 2. Update standalone participant document (if present)
+      if (participantSnap.exists) {
+        final currentPts = (participantSnap.data()?['points'] as num?)?.toInt() ?? 
+                           (participantSnap.data()?['totalPoints'] as num?)?.toInt() ?? 0;
+        final newPts = currentPts + addedPoints;
+
+        transaction.update(participantRef, {
+          'points': newPts,
+          'totalPoints': newPts,
+        });
+      }
+
+      // 3. Update nested member entry in Team doc & recalculate total
       final teamData = teamSnap.data()!;
-      final List<dynamic> rawMembers = teamData['members'] ?? [];
-      final List<Map<String, dynamic>> members = rawMembers
-          .map((m) => Map<String, dynamic>.from(m as Map))
-          .toList();
+      final List<dynamic> membersRaw = teamData['members'] ?? [];
+      int newTeamTotal = 0;
 
-      members.removeWhere((m) => m['id'] == memberId);
+      final updatedMembers = membersRaw.map((m) {
+        final map = Map<String, dynamic>.from(m as Map);
+        int memberPts = (map['points'] as num?)?.toInt() ?? 
+                        (map['totalPoints'] as num?)?.toInt() ?? 0;
 
-      transaction.update(teamRef, {'members': members});
-      transaction.delete(teamRef.collection('members').doc(memberId));
+        if (map['id'] == participantId) {
+          memberPts += addedPoints;
+        }
 
+        map['points'] = memberPts;
+        map['totalPoints'] = memberPts;
+        newTeamTotal += memberPts;
+
+        return map;
+      }).toList();
+
+      transaction.update(teamRef, {
+        'members': updatedMembers,
+        'totalPoints': newTeamTotal,
+        'points': newTeamTotal,
+      });
+    });
+  }
+
+
+@override
+Future<void> removeTeamParticipant({
+  required String competitionId,
+  required String teamId,
+  required String participantId,
+}) async {
+  try {
+    final teamRef = firestore
+        .collection('competitions')
+        .doc(competitionId)
+        .collection('teams')
+        .doc(teamId);
+
+    final participantRef = firestore
+        .collection('competitions')
+        .doc(competitionId)
+        .collection('participants')
+        .doc(participantId);
+
+    await firestore.runTransaction((transaction) async {
+      // 1. ALL READS FIRST
+      final teamSnap = await transaction.get(teamRef);
       final participantSnap = await transaction.get(participantRef);
+
+      if (!teamSnap.exists) {
+        throw Exception('Team document not found.');
+      }
+
+      final teamData = teamSnap.data() ?? {};
+      final List<dynamic> currentMembers = List.from(teamData['members'] ?? []);
+
+      int removedPoints = 0;
+
+      // Filter out target participant and extract points
+      final updatedMembers = currentMembers.where((m) {
+        if (m is! Map) return false;
+        final map = Map<String, dynamic>.from(m);
+        final isMatch = map['id'] == participantId || map['userId'] == participantId;
+
+        if (isMatch) {
+          removedPoints = (map['points'] as num?)?.toInt() ??
+                          (map['totalPoints'] as num?)?.toInt() ?? 0;
+        }
+        return !isMatch;
+      }).toList();
+
+      // Recalculate team total points safely
+      final int currentTeamTotal = (teamData['totalPoints'] as num?)?.toInt() ??
+                                   (teamData['points'] as num?)?.toInt() ?? 0;
+      final int newTeamTotal = (currentTeamTotal - removedPoints).clamp(0, 999999);
+
+      // 2. ALL WRITES AFTER ALL READS
+      transaction.update(teamRef, {
+        'members': updatedMembers,
+        'totalPoints': newTeamTotal,
+        'points': newTeamTotal,
+      });
+
       if (participantSnap.exists) {
         transaction.update(participantRef, {
           'teamId': FieldValue.delete(),
         });
       }
     });
+  } catch (e) {
+    throw ServerException(e.toString());
   }
-
-  @override
-  Future<void> updateMemberPoints({
-    required String competitionId,
-    required String teamId,
-    required String memberId,
-    required int points,
-  }) async {
-    try {
-      final teamRef = _competitionsRef
-          .doc(competitionId)
-          .collection('teams')
-          .doc(teamId);
-
-      final batch = firestore.batch();
-
-      batch.update(teamRef.collection('members').doc(memberId), {
-        'points': FieldValue.increment(points),
-      });
-
-      batch.update(teamRef, {
-        'points': FieldValue.increment(points),
-      });
-
-      await batch.commit();
-    } on FirebaseException catch (e) {
-      throw ServerException(e.message ?? 'Failed to update member points');
-    } catch (e) {
-      throw ServerException(e.toString());
-    }
-  }
+}
 
   // ===========================================================================
   // REAL-TIME STREAMS
@@ -404,4 +497,6 @@ class ManageCompetitionRemoteDataSourceImpl
       doc.id,
     );
   }
+
+
 }

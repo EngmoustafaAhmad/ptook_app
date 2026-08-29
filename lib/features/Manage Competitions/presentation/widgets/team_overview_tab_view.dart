@@ -1,181 +1,165 @@
-// ignore_for_file: public_member_api_docs, sort_constructors_first
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ptook/features/Manage%20Competitions/presentation/cubits/manage_competition/manage_competition_cubit.dart';
-import 'package:ptook/features/Manage%20Competitions/presentation/cubits/manage_competition/manage_competition_state.dart';
+import 'package:ptook/features/Manage%20Competitions/presentation/cubits/team_management/team_management_cubit.dart';
 import 'package:ptook/features/shared/domain/entities/participant_entity.dart';
 import 'package:ptook/features/shared/domain/entities/team_entity.dart';
 
-class TeamOverviewTabView extends StatelessWidget {
+class TeamOverviewTabView extends StatefulWidget {
   const TeamOverviewTabView({super.key});
 
   @override
+  State<TeamOverviewTabView> createState() => _TeamOverviewTabViewState();
+}
+
+class _TeamOverviewTabViewState extends State<TeamOverviewTabView> {
+  bool _showAllRunnersUp = false;
+
+  @override
   Widget build(BuildContext context) {
-    return BlocBuilder<ManageCompetitionCubit, ManageCompetitionState>(
-      builder: (context, state) {
-        final competition = state.competition;
+    final competition = context.select(
+      (ManageCompetitionCubit cubit) => cubit.state.competition,
+    );
+    final teams = context.select(
+      (TeamManagementCubit cubit) => cubit.state.teams,
+    );
 
-        // Safely sort teams descending by total points
-        final rawTeams = List<TeamEntity>.from(competition?.teams ?? [])
-          ..sort((a, b) => b.totalPoints.compareTo(a.totalPoints));
+    // Calculate metrics
+    final durationInDays = competition != null
+        ? competition.endDate.difference(competition.startDate).inDays
+        : 0;
+    final displayDuration = durationInDays >= 0 ? durationInDays : 0;
 
-        final totalTeams = rawTeams.length;
+    final sortedTeams = List<TeamEntity>.from(teams)
+      ..sort((a, b) => b.totalPoints.compareTo(a.totalPoints));
 
-        // Calculate total participants dynamic count
-        final totalParticipants = rawTeams.fold<int>(
-          0,
-          (sum, team) => sum + team.members.length,
-        );
+    final totalTeams = sortedTeams.length;
+    final totalParticipants = sortedTeams.fold<int>(
+      0,
+      (sum, team) => sum + team.members.length,
+    );
 
-        // Lifecycle Status Evaluation
-        final now = DateTime.now();
-        final isEndedByDate =
-            competition != null && now.isAfter(competition.endDate);
-        final isEndedByStatus = competition?.status.toLowerCase() == 'ended';
-        final isEnded = state.isFinished || isEndedByDate || isEndedByStatus;
+    final topThree = sortedTeams.take(3).toList();
+    final runnersUp = sortedTeams.length > 3 ? sortedTeams.sublist(3) : <TeamEntity>[];
+    final displayedRunnersUp =
+        _showAllRunnersUp ? runnersUp : runnersUp.take(3).toList();
 
-        // Dynamic duration in days calculation
-        final durationInDays = competition != null
-            ? competition.endDate.difference(competition.startDate).inDays
-            : 0;
-        final displayDuration = durationInDays >= 0 ? durationInDays : 0;
-
-        return SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
-              // Real-Time Stats Header Row
+              _StatCard(
+                value: '$totalTeams',
+                label: 'Teams',
+                icon: Icons.groups_outlined,
+              ),
+              const SizedBox(width: 8),
+              _StatCard(
+                value: '$totalParticipants',
+                label: 'Members',
+                icon: Icons.person_outline,
+              ),
+              const SizedBox(width: 8),
+              _StatCard(
+                value: '$displayDuration',
+                label: 'Days\nDuration',
+                icon: Icons.access_time,
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+
+          if (sortedTeams.isEmpty)
+            const _EmptyTeamsState()
+          else ...[
+            const Text(
+              'Top Teams',
+              style: TextStyle(
+                color: Color(0xFFFFC107),
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            _PodiumView(topThree: topThree),
+
+            if (runnersUp.isNotEmpty) ...[
+              const SizedBox(height: 24),
               Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  _StatCard(
-                    value: '$totalTeams',
-                    label: 'Teams',
-                    icon: Icons.groups_outlined,
+                  const Text(
+                    'Runner-up Teams',
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                  const SizedBox(width: 8),
-                  _StatCard(
-                    value: '$totalParticipants',
-                    label: 'Participants',
-                    icon: Icons.person_outline,
-                  ),
-                  const SizedBox(width: 8),
-                  _StatCard(
-                    value: '$displayDuration',
-                    label: 'Days\nDuration',
-                    icon: Icons.access_time,
+                  Text(
+                    '${runnersUp.length} Teams',
+                    style: const TextStyle(
+                      color: Colors.white38,
+                      fontSize: 12,
+                    ),
                   ),
                 ],
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 12),
+              ListView.separated(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: displayedRunnersUp.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 10),
+                itemBuilder: (context, index) {
+                  final team = displayedRunnersUp[index];
+                  return _RunnerUpCard(
+                    key: ValueKey(team.id),
+                    team: team,
+                    rank: index + 4,
+                  );
+                },
+              ),
 
-              // Conditional Section: Ended vs Active Real-Time Phase
-              if (isEnded) ...[
-                const Text(
-                  'Final Leaderboard',
-                  style: TextStyle(
-                    color: Color(0xFFFFC107),
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                if (rawTeams.isEmpty)
-                  const _EmptyTeamsState()
-                else ...[
-                  _PodiumView(topThree: rawTeams.take(3).toList()),
-                  const SizedBox(height: 24),
-                  if (rawTeams.length > 3) ...[
-                    const Text(
-                      'Runner-up Teams',
-                      style: TextStyle(
-                        color: Colors.white70,
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    ListView.separated(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: rawTeams.length - 3,
-                      separatorBuilder: (_, __) => const SizedBox(height: 10),
-                      itemBuilder: (context, index) {
-                        final team = rawTeams[index + 3];
-                        return _RunnerUpCard(team: team, rank: index + 4);
-                      },
-                    ),
-                  ],
-                ],
-              ] else ...[
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'Participating Teams',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    if (totalTeams > 0)
-                      Text(
-                        '$totalTeams Registered',
-                        style: const TextStyle(
-                          color: Colors.white54,
-                          fontSize: 12,
-                        ),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                if (rawTeams.isEmpty)
-                  const _EmptyTeamsState()
-                else
-                  ListView.separated(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: rawTeams.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 12),
-                    itemBuilder: (context, index) {
-                      final team = rawTeams[index];
-                      final targetPoints = competition?.totalPoints ?? 1;
-                      final progress = targetPoints > 0
-                          ? (team.totalPoints / targetPoints).clamp(0.0, 1.0)
-                          : 0.0;
-
-                      return _TeamRankCard(
-                        rank: '${index + 1}',
-                        badgeColor: _getBadgeColor(index),
-                        team: team,
-                        progress: progress,
-                      );
+              if (runnersUp.length > 3) ...[
+                const SizedBox(height: 12),
+                Center(
+                  child: TextButton.icon(
+                    onPressed: () {
+                      setState(() {
+                        _showAllRunnersUp = !_showAllRunnersUp;
+                      });
                     },
+                    icon: Icon(
+                      _showAllRunnersUp
+                          ? Icons.keyboard_arrow_up
+                          : Icons.keyboard_arrow_down,
+                      color: const Color(0xFFFFC107),
+                    ),
+                    label: Text(
+                      _showAllRunnersUp
+                          ? 'Show Less'
+                          : 'Show More (${runnersUp.length - 3} more)',
+                      style: const TextStyle(
+                        color: Color(0xFFFFC107),
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
+                ),
               ],
             ],
-          ),
-        );
-      },
+          ],
+        ],
+      ),
     );
-  }
-
-  Color _getBadgeColor(int index) {
-    switch (index) {
-      case 0:
-        return const Color(0xFFFFC107);
-      case 1:
-        return const Color(0xFFC0C0C0);
-      case 2:
-        return const Color(0xFFCD7F32);
-      default:
-        return Colors.white24;
-    }
   }
 }
 
-// Stats Metric Item
 class _StatCard extends StatelessWidget {
   final String value;
   final String label;
@@ -221,7 +205,6 @@ class _StatCard extends StatelessWidget {
   }
 }
 
-// Empty Roster Indicator
 class _EmptyTeamsState extends StatelessWidget {
   const _EmptyTeamsState();
 
@@ -249,7 +232,7 @@ class _EmptyTeamsState extends StatelessWidget {
           ),
           SizedBox(height: 4),
           Text(
-            'Teams will appear here once created or joined.',
+            'Teams will appear here once participating.',
             textAlign: TextAlign.center,
             style: TextStyle(color: Colors.white54, fontSize: 12),
           ),
@@ -259,7 +242,6 @@ class _EmptyTeamsState extends StatelessWidget {
   }
 }
 
-// Podium Top 3 View Component
 class _PodiumView extends StatelessWidget {
   final List<TeamEntity> topThree;
 
@@ -290,7 +272,7 @@ class _PodiumView extends StatelessWidget {
                     color: const Color(0xFFC0C0C0),
                     avatarRadius: 26,
                   )
-                : const SizedBox(),
+                : const SizedBox.shrink(),
           ),
           Expanded(
             child: first != null
@@ -300,7 +282,7 @@ class _PodiumView extends StatelessWidget {
                     color: const Color(0xFFFFC107),
                     avatarRadius: 34,
                   )
-                : const SizedBox(),
+                : const SizedBox.shrink(),
           ),
           Expanded(
             child: third != null
@@ -310,7 +292,7 @@ class _PodiumView extends StatelessWidget {
                     color: const Color(0xFFCD7F32),
                     avatarRadius: 24,
                   )
-                : const SizedBox(),
+                : const SizedBox.shrink(),
           ),
         ],
       ),
@@ -318,7 +300,6 @@ class _PodiumView extends StatelessWidget {
   }
 }
 
-// Podium Column Unit
 class _PodiumColumn extends StatelessWidget {
   final TeamEntity team;
   final int rank;
@@ -334,6 +315,8 @@ class _PodiumColumn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final initial = team.name.isNotEmpty ? team.name[0].toUpperCase() : 'T';
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -351,7 +334,7 @@ class _PodiumColumn extends StatelessWidget {
                 radius: avatarRadius,
                 backgroundColor: Colors.white12,
                 child: Text(
-                  team.name.isNotEmpty ? team.name[0].toUpperCase() : 'T',
+                  initial,
                   style: TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
@@ -363,14 +346,13 @@ class _PodiumColumn extends StatelessWidget {
             Positioned(
               top: -12,
               child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
                   color: color,
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
-                  '#$rank',
+                  '$rank',
                   style: const TextStyle(
                     color: Colors.black,
                     fontWeight: FontWeight.bold,
@@ -410,12 +392,12 @@ class _PodiumColumn extends StatelessWidget {
   }
 }
 
-// Runner-Up List Item Card
 class _RunnerUpCard extends StatelessWidget {
   final TeamEntity team;
   final int rank;
 
   const _RunnerUpCard({
+    super.key,
     required this.team,
     required this.rank,
   });
@@ -456,8 +438,7 @@ class _RunnerUpCard extends StatelessWidget {
                     ),
                     Text(
                       '${team.members.length} Members',
-                      style:
-                          const TextStyle(color: Colors.white38, fontSize: 11),
+                      style: const TextStyle(color: Colors.white38, fontSize: 11),
                     ),
                   ],
                 ),
@@ -482,202 +463,10 @@ class _RunnerUpCard extends StatelessWidget {
   }
 }
 
-// Active Team Rank Item Card
-class _TeamRankCard extends StatefulWidget {
-  final String rank;
-  final Color badgeColor;
-  final TeamEntity team;
-  final double progress;
-
-  const _TeamRankCard({
-    required this.rank,
-    required this.badgeColor,
-    required this.team,
-    required this.progress,
-  });
-
-  @override
-  State<_TeamRankCard> createState() => _TeamRankCardState();
-}
-
-class _TeamRankCardState extends State<_TeamRankCard> {
-  bool _isExpanded = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      alignment: Alignment.topCenter,
-      children: [
-        Container(
-          margin: const EdgeInsets.only(top: 12),
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: const Color(0xFF161925),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: _isExpanded ? const Color(0xFFFFC107) : Colors.white12,
-            ),
-          ),
-          child: Column(
-            children: [
-              const SizedBox(height: 12),
-              CircleAvatar(
-                radius: 24,
-                backgroundColor: Colors.white12,
-                child: Text(
-                  widget.team.name.isNotEmpty
-                      ? widget.team.name[0].toUpperCase()
-                      : 'T',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 18,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                widget.team.name,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                '${widget.team.members.length} Members',
-                style: const TextStyle(color: Color(0xFFFFC107), fontSize: 12),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                '${widget.team.totalPoints} pts',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 12),
-
-              // Progress Bar
-              ClipRRect(
-                borderRadius: BorderRadius.circular(4),
-                child: LinearProgressIndicator(
-                  value: widget.progress,
-                  color: const Color(0xFFFFC107),
-                  backgroundColor: Colors.white10,
-                  minHeight: 6,
-                ),
-              ),
-
-              // Real-Time Participants Avatar Stack
-              if (widget.team.members.isNotEmpty) ...[
-                const SizedBox(height: 12),
-                _ParticipantAvatarStack(members: widget.team.members),
-              ],
-
-              // Toggle Participant Details Button
-              if (widget.team.members.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                InkWell(
-                  onTap: () {
-                    setState(() {
-                      _isExpanded = !_isExpanded;
-                    });
-                  },
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        _isExpanded ? 'Hide Participants' : 'View Participants',
-                        style: const TextStyle(
-                          color: Colors.white54,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      Icon(
-                        _isExpanded
-                            ? Icons.keyboard_arrow_up
-                            : Icons.keyboard_arrow_down,
-                        color: Colors.white54,
-                        size: 16,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-
-              // Expanded Participant List View
-              if (_isExpanded && widget.team.members.isNotEmpty) ...[
-                const Divider(color: Colors.white12, height: 16),
-                Column(
-                  children: widget.team.members.map((member) {
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4),
-                      child: Row(
-                        children: [
-                          CircleAvatar(
-                            radius: 12,
-                            backgroundColor:
-                                const Color(0xFFFFC107).withOpacity(0.2),
-                            child: Text(
-                              member.name.isNotEmpty
-                                  ? member.name[0].toUpperCase()
-                                  : 'P',
-                              style: const TextStyle(
-                                color: Color(0xFFFFC107),
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              member.name,
-                              style: const TextStyle(
-                                color: Colors.white70,
-                                fontSize: 13,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ],
-            ],
-          ),
-        ),
-
-        // Rank Badge
-        CircleAvatar(
-          radius: 12,
-          backgroundColor: widget.badgeColor,
-          child: Text(
-            widget.rank,
-            style: const TextStyle(
-              color: Colors.black,
-              fontWeight: FontWeight.bold,
-              fontSize: 12,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-// Avatar Stack Widget
 class _ParticipantAvatarStack extends StatelessWidget {
   final List<ParticipantEntity> members;
 
-  const _ParticipantAvatarStack({
-    required this.members,
-  });
+  const _ParticipantAvatarStack({required this.members});
 
   @override
   Widget build(BuildContext context) {

@@ -1,4 +1,3 @@
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -240,247 +239,210 @@ class ViewCompetitionRemoteDataSourceImpl
   // TEAM INTERACTION ACTIONS
   // ===========================================================================
 
-
-@override
-Future<void> joinTeam({
-  required String competitionId,
-  required String teamId,
-  String? joinCode,
-}) async {
-  final user = auth.currentUser;
-  if (user == null) {
-    throw const ServerException('User must be logged in to join a team');
-  }
-
-  final teamRef = _competitionsRef
-      .doc(competitionId)
-      .collection('teams')
-      .doc(teamId);
-
-  final participantRef = _competitionsRef
-      .doc(competitionId)
-      .collection('participants')
-      .doc(user.uid);
-
-  return firestore.runTransaction((transaction) async {
-    // 1. ALL READS
-    final teamSnap = await transaction.get(teamRef);
-    final participantSnap = await transaction.get(participantRef);
-
-    if (!teamSnap.exists) {
-      throw const ServerException('Team not found');
+  @override
+  Future<void> joinTeam({
+    required String competitionId,
+    required String teamId,
+    String? joinCode,
+  }) async {
+    final user = auth.currentUser;
+    if (user == null) {
+      throw const ServerException('User must be logged in to join a team');
     }
 
-    final teamData = teamSnap.data()!;
-    final isPrivate = teamData['isPrivate'] ?? false;
-    final requiredCode = teamData['joinCode'] ?? '';
+    final competitionRef = _competitionsRef.doc(competitionId);
+    final teamRef = competitionRef.collection('teams').doc(teamId);
+    final participantRef =
+        competitionRef.collection('participants').doc(user.uid);
 
-    // Guard: Private team code check
-    if (isPrivate && (joinCode == null || joinCode.trim() != requiredCode)) {
-      throw const ServerException('Invalid team join code');
-    }
+    return firestore.runTransaction((transaction) async {
+      // 1. ALL READS
+      final compSnap = await transaction.get(competitionRef);
+      final teamSnap = await transaction.get(teamRef);
+      final participantSnap = await transaction.get(participantRef);
 
-    final rawMembers = List<dynamic>.from(teamData['members'] ?? []);
-    final int? maxMembers = (teamData['maxMembers'] as num?)?.toInt();
-    final bool alreadyInTeam = rawMembers.any((m) => (m as Map)['id'] == user.uid);
+      if (!compSnap.exists) throw const ServerException('Competition not found');
+      if (!teamSnap.exists) throw const ServerException('Team not found');
 
-    // Guard: Team capacity
-    if (!alreadyInTeam && maxMembers != null && maxMembers > 0 && rawMembers.length >= maxMembers) {
-      throw const ServerException('This team has reached its maximum capacity');
-    }
+      final teamData = teamSnap.data()!;
+      final isPrivate = teamData['isPrivate'] ?? false;
+      final requiredCode = teamData['joinCode'] ?? '';
 
-    final memberMap = _buildMemberMap(user, participantSnap);
-    final List<Map<String, dynamic>> members = rawMembers
-        .map((m) => Map<String, dynamic>.from(m as Map))
-        .toList();
+      if (isPrivate && (joinCode == null || joinCode.trim() != requiredCode)) {
+        throw const ServerException('Invalid team join code');
+      }
 
-    members.removeWhere((m) => m['id'] == user.uid);
-    members.add(memberMap);
+      final rawMembers = List<dynamic>.from(teamData['members'] ?? []);
+      final int? maxMembers = (teamData['maxMembers'] as num?)?.toInt();
+      final bool alreadyInTeam =
+          rawMembers.any((m) => (m as Map)['id'] == user.uid);
 
-    // 2. ALL WRITES
-    transaction.update(teamRef, {
-      'members': members,
-      'membersCount': members.length,
-    });
-    
-    transaction.set(teamRef.collection('members').doc(user.uid), memberMap);
+      if (!alreadyInTeam &&
+          maxMembers != null &&
+          maxMembers > 0 &&
+          rawMembers.length >= maxMembers) {
+        throw const ServerException('This team has reached its maximum capacity');
+      }
 
-    if (participantSnap.exists) {
-      transaction.update(participantRef, {'teamId': teamId});
-    }
-  });
-}
+      final memberMap = _buildMemberMap(user, participantSnap);
+      final List<Map<String, dynamic>> members = rawMembers
+          .map((m) => Map<String, dynamic>.from(m as Map))
+          .toList();
 
-@override
-Future<void> leaveTeam({
-  required String competitionId,
-  required String teamId,
-}) async {
-  final user = auth.currentUser;
-  if (user == null) {
-    throw const ServerException('User must be logged in to leave a team');
-  }
+      members.removeWhere((m) => m['id'] == user.uid);
+      members.add(memberMap);
 
-  final teamRef = _competitionsRef
-      .doc(competitionId)
-      .collection('teams')
-      .doc(teamId);
-
-  final participantRef = _competitionsRef
-      .doc(competitionId)
-      .collection('participants')
-      .doc(user.uid);
-
-  return firestore.runTransaction((transaction) async {
-    // 1. ALL READS FIRST (Fixes Firestore transaction crash)
-    final teamSnap = await transaction.get(teamRef);
-    final participantSnap = await transaction.get(participantRef);
-
-    if (!teamSnap.exists) {
-      throw const ServerException('Team not found');
-    }
-
-    final teamData = teamSnap.data()!;
-    final List<dynamic> rawMembers = teamData['members'] ?? [];
-    final List<Map<String, dynamic>> members = rawMembers
-        .map((m) => Map<String, dynamic>.from(m as Map))
-        .toList();
-
-    members.removeWhere((m) => m['id'] == user.uid);
-
-    // 2. ALL WRITES AFTER
-    transaction.update(teamRef, {
-      'members': members,
-      'membersCount': members.length,
-    });
-    
-    transaction.delete(teamRef.collection('members').doc(user.uid));
-
-    if (participantSnap.exists) {
-      transaction.update(participantRef, {
-        'teamId': FieldValue.delete(),
+      // 2. ALL WRITES
+      transaction.update(competitionRef, {
+        'participantsCount': FieldValue.increment(1),
       });
-    }
-  });
-}
 
-@override
-Future<void> switchTeam({
-  required String competitionId,
-  required String fromTeamId,
-  required String toTeamId,
-  String? joinCode,
-}) async {
-  if (fromTeamId == toTeamId) return; // Guard against self-switching
+      transaction.update(teamRef, {
+        'members': members,
+        'membersCount': members.length,
+      });
 
-  final user = auth.currentUser;
-  if (user == null) {
-    throw const ServerException('User not authenticated');
+      transaction.set(teamRef.collection('members').doc(user.uid), memberMap);
+
+      if (participantSnap.exists) {
+        transaction.update(participantRef, {'teamId': teamId});
+      }
+    });
   }
 
-  final fromRef = _competitionsRef
-      .doc(competitionId)
-      .collection('teams')
-      .doc(fromTeamId);
-
-  final toRef = _competitionsRef
-      .doc(competitionId)
-      .collection('teams')
-      .doc(toTeamId);
-
-  final participantRef = _competitionsRef
-      .doc(competitionId)
-      .collection('participants')
-      .doc(user.uid);
-
-  return firestore.runTransaction((transaction) async {
-    // 1. ALL READS
-    final fromSnap = await transaction.get(fromRef);
-    final toSnap = await transaction.get(toRef);
-    final participantSnap = await transaction.get(participantRef);
-
-    if (!fromSnap.exists || !toSnap.exists) {
-      throw const ServerException('One or both teams do not exist');
+  @override
+  Future<void> leaveTeam({
+    required String competitionId,
+    required String teamId,
+  }) async {
+    final user = auth.currentUser;
+    if (user == null) {
+      throw const ServerException('User must be logged in to leave a team');
     }
 
-    final toData = toSnap.data()!;
-    final isPrivate = toData['isPrivate'] ?? false;
-    final requiredCode = toData['joinCode'] ?? '';
+    final competitionRef = _competitionsRef.doc(competitionId);
+    final teamRef = competitionRef.collection('teams').doc(teamId);
+    final participantRef =
+        competitionRef.collection('participants').doc(user.uid);
 
-    // Guard: Target Join Code Validation
-    if (isPrivate && (joinCode == null || joinCode.trim() != requiredCode)) {
-      throw const ServerException('Invalid join code for target team');
-    }
+    return firestore.runTransaction((transaction) async {
+      // 1. ALL READS FIRST
+      final compSnap = await transaction.get(competitionRef);
+      final teamSnap = await transaction.get(teamRef);
+      final participantSnap = await transaction.get(participantRef);
 
-    // Guard: Capacity Check for target team
-    final rawToMembers = List<dynamic>.from(toData['members'] ?? []);
-    final int? maxMembers = (toData['maxMembers'] as num?)?.toInt();
-    if (maxMembers != null && maxMembers > 0 && rawToMembers.length >= maxMembers) {
-      throw const ServerException('Target team is full');
-    }
+      if (!compSnap.exists) throw const ServerException('Competition not found');
+      if (!teamSnap.exists) throw const ServerException('Team not found');
 
-    final memberMap = _buildMemberMap(user, participantSnap);
+      final teamData = teamSnap.data()!;
+      final List<dynamic> rawMembers = teamData['members'] ?? [];
+      final List<Map<String, dynamic>> members = rawMembers
+          .map((m) => Map<String, dynamic>.from(m as Map))
+          .toList();
 
-    // Process source team removals
-    final fromData = fromSnap.data()!;
-    final List<dynamic> rawFromMembers = fromData['members'] ?? [];
-    final List<Map<String, dynamic>> fromMembers = rawFromMembers
-        .map((m) => Map<String, dynamic>.from(m as Map))
-        .toList();
-        
-    fromMembers.removeWhere((m) => m['id'] == user.uid);
+      members.removeWhere((m) => m['id'] == user.uid);
 
-    // Process destination team additions
-    final List<Map<String, dynamic>> toMembers = rawToMembers
-        .map((m) => Map<String, dynamic>.from(m as Map))
-        .toList();
-        
-    toMembers.removeWhere((m) => m['id'] == user.uid);
-    toMembers.add(memberMap);
+      // 2. ALL WRITES
+      transaction.update(competitionRef, {
+        'participantsCount': FieldValue.increment(-1),
+      });
 
-    // 2. ALL WRITES
-    transaction.update(fromRef, {
-      'members': fromMembers,
-      'membersCount': fromMembers.length,
+      transaction.update(teamRef, {
+        'members': members,
+        'membersCount': members.length,
+      });
+
+      transaction.delete(teamRef.collection('members').doc(user.uid));
+
+      if (participantSnap.exists) {
+        transaction.update(participantRef, {
+          'teamId': FieldValue.delete(),
+        });
+      }
     });
-    transaction.delete(fromRef.collection('members').doc(user.uid));
-
-    transaction.update(toRef, {
-      'members': toMembers,
-      'membersCount': toMembers.length,
-    });
-    transaction.set(toRef.collection('members').doc(user.uid), memberMap);
-
-    if (participantSnap.exists) {
-      transaction.update(participantRef, {'teamId': toTeamId});
-    }
-  });
-}
-
-// Private helper to prevent duplication
-Map<String, dynamic> _buildMemberMap(
-  User user, 
-  DocumentSnapshot<Map<String, dynamic>> participantSnap,
-) {
-  if (participantSnap.exists && participantSnap.data() != null) {
-    final pData = participantSnap.data()!;
-    return {
-      'id': user.uid,
-      'name': pData['name'] ?? user.displayName ?? 'Anonymous User',
-      'avatarUrl': pData['avatarUrl'] ?? user.photoURL ?? '',
-      'points': pData['points'] ?? 0,
-      'joinedAt': pData['joinedAt'] ?? DateTime.now().toIso8601String(),
-    };
   }
 
-  return {
-    'id': user.uid,
-    'name': user.displayName ?? 'Anonymous User',
-    'avatarUrl': user.photoURL ?? '',
-    'points': 0,
-    'joinedAt': DateTime.now().toIso8601String(),
-  };
-}
+  @override
+  Future<void> switchTeam({
+    required String competitionId,
+    required String fromTeamId,
+    required String toTeamId,
+    String? joinCode,
+  }) async {
+    if (fromTeamId == toTeamId) return;
+
+    final user = auth.currentUser;
+    if (user == null) {
+      throw const ServerException('User not authenticated');
+    }
+
+    final competitionRef = _competitionsRef.doc(competitionId);
+    final fromRef = competitionRef.collection('teams').doc(fromTeamId);
+    final toRef = competitionRef.collection('teams').doc(toTeamId);
+    final participantRef =
+        competitionRef.collection('participants').doc(user.uid);
+
+    return firestore.runTransaction((transaction) async {
+      // 1. ALL READS
+      final fromSnap = await transaction.get(fromRef);
+      final toSnap = await transaction.get(toRef);
+      final participantSnap = await transaction.get(participantRef);
+
+      if (!fromSnap.exists || !toSnap.exists) {
+        throw const ServerException('One or both teams do not exist');
+      }
+
+      final toData = toSnap.data()!;
+      final isPrivate = toData['isPrivate'] ?? false;
+      final requiredCode = toData['joinCode'] ?? '';
+
+      if (isPrivate && (joinCode == null || joinCode.trim() != requiredCode)) {
+        throw const ServerException('Invalid join code for target team');
+      }
+
+      final rawToMembers = List<dynamic>.from(toData['members'] ?? []);
+      final int? maxMembers = (toData['maxMembers'] as num?)?.toInt();
+      if (maxMembers != null &&
+          maxMembers > 0 &&
+          rawToMembers.length >= maxMembers) {
+        throw const ServerException('Target team is full');
+      }
+
+      final memberMap = _buildMemberMap(user, participantSnap);
+
+      final fromData = fromSnap.data()!;
+      final List<dynamic> rawFromMembers = fromData['members'] ?? [];
+      final List<Map<String, dynamic>> fromMembers = rawFromMembers
+          .map((m) => Map<String, dynamic>.from(m as Map))
+          .toList();
+
+      fromMembers.removeWhere((m) => m['id'] == user.uid);
+
+      final List<Map<String, dynamic>> toMembers = rawToMembers
+          .map((m) => Map<String, dynamic>.from(m as Map))
+          .toList();
+
+      toMembers.removeWhere((m) => m['id'] == user.uid);
+      toMembers.add(memberMap);
+
+      // 2. ALL WRITES
+      transaction.update(fromRef, {
+        'members': fromMembers,
+        'membersCount': fromMembers.length,
+      });
+      transaction.delete(fromRef.collection('members').doc(user.uid));
+
+      transaction.update(toRef, {
+        'members': toMembers,
+        'membersCount': toMembers.length,
+      });
+      transaction.set(toRef.collection('members').doc(user.uid), memberMap);
+
+      if (participantSnap.exists) {
+        transaction.update(participantRef, {'teamId': toTeamId});
+      }
+    });
+  }
 
   // ===========================================================================
   // REAL-TIME STREAMS
@@ -507,16 +469,22 @@ Map<String, dynamic> _buildMemberMap(
     return _competitionsRef
         .doc(competitionId)
         .collection('participants')
-        .orderBy('points', descending: true)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => ParticipantModel.fromJson(
-                  doc.data(),
-                  doc.id,
-                ))
-            .toList());
-  }
+        .map((snapshot) {
+      final participants = snapshot.docs
+          .map((doc) => ParticipantModel.fromJson(
+                doc.data(),
+                doc.id,
+              ))
+          .toList();
 
+      // Sort locally by points descending to safely handle both legacy & new models
+      participants.sort((a, b) => b.points.compareTo(a.points));
+
+      return participants;
+    });
+  }
+  
   @override
   Stream<List<TeamModel>> streamTeams(String competitionId) {
     return _competitionsRef
@@ -535,6 +503,30 @@ Map<String, dynamic> _buildMemberMap(
   // ===========================================================================
   // PRIVATE HELPERS
   // ===========================================================================
+
+  Map<String, dynamic> _buildMemberMap(
+    User user,
+    DocumentSnapshot<Map<String, dynamic>> participantSnap,
+  ) {
+    if (participantSnap.exists && participantSnap.data() != null) {
+      final pData = participantSnap.data()!;
+      return {
+        'id': user.uid,
+        'name': pData['name'] ?? user.displayName ?? 'Anonymous User',
+        'avatarUrl': pData['avatarUrl'] ?? user.photoURL ?? '',
+        'points': pData['points'] ?? 0,
+        'joinedAt': pData['joinedAt'] ?? DateTime.now().toIso8601String(),
+      };
+    }
+
+    return {
+      'id': user.uid,
+      'name': user.displayName ?? 'Anonymous User',
+      'avatarUrl': user.photoURL ?? '',
+      'points': 0,
+      'joinedAt': DateTime.now().toIso8601String(),
+    };
+  }
 
   Future<Query<Map<String, dynamic>>> _applyPagination(
     Query<Map<String, dynamic>> query,
@@ -558,8 +550,8 @@ Map<String, dynamic> _buildMemberMap(
       throw const ServerException('Competition document contains no data');
     }
     return CompetitionModel.fromJson(
-        data,
-        doc.id,
+      data,
+      doc.id,
     );
   }
 

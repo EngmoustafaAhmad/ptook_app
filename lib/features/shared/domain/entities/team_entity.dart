@@ -8,11 +8,11 @@ class TeamEntity extends Equatable {
   final String ownerId;
   final String? joinCode;
   final bool isPrivate;
-  final int points;
+  final int totalPoints;
   final List<ParticipantEntity> members;
   final int membersCount;
-  final int? maxMembers; // Made nullable to support unlimited team sizes
-  final DateTime? createdAt; // Made nullable to safely handle null server timestamps
+  final int? maxMembers; // Nullable to support unlimited team sizes
+  final DateTime? createdAt; // Nullable to safely handle null server timestamps
 
   const TeamEntity({
     required this.id,
@@ -21,7 +21,7 @@ class TeamEntity extends Equatable {
     required this.ownerId,
     this.joinCode,
     this.isPrivate = false,
-    this.points = 0,
+    this.totalPoints = 0,
     this.members = const [],
     this.membersCount = 0,
     this.maxMembers,
@@ -31,9 +31,9 @@ class TeamEntity extends Equatable {
   /// Alias getter mapping joinCode as the password for UI consistency
   String? get password => joinCode;
 
-  /// Calculates accumulated score across all team participants or defaults to base team points.
-  int get totalPoints =>
-      members.isNotEmpty ? members.fold(0, (sum, member) => sum + (member.points ?? 0)) : points;
+  /// Calculates accumulated score across all team participants or defaults to totalPoints.
+  int get calculatedTotalPoints =>
+      members.isNotEmpty ? members.fold(0, (sum, member) => sum + (member.points ?? 0)) : totalPoints;
 
   /// Returns actual member count based on loaded list or server count.
   int get currentMemberCount => members.isNotEmpty ? members.length : membersCount;
@@ -55,7 +55,7 @@ class TeamEntity extends Equatable {
     String? ownerId,
     String? joinCode,
     bool? isPrivate,
-    int? points,
+    int? totalPoints,
     List<ParticipantEntity>? members,
     int? membersCount,
     int? maxMembers,
@@ -68,7 +68,7 @@ class TeamEntity extends Equatable {
       ownerId: ownerId ?? this.ownerId,
       joinCode: joinCode ?? this.joinCode,
       isPrivate: isPrivate ?? this.isPrivate,
-      points: points ?? this.points,
+      totalPoints: totalPoints ?? this.totalPoints,
       members: members ?? this.members,
       membersCount: membersCount ?? this.membersCount,
       maxMembers: maxMembers ?? this.maxMembers,
@@ -84,7 +84,7 @@ class TeamEntity extends Equatable {
         ownerId,
         joinCode,
         isPrivate,
-        points,
+        totalPoints,
         members,
         membersCount,
         maxMembers,

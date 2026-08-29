@@ -11,12 +11,12 @@ import 'package:ptook/features/Manage%20Competitions/domain/usecases/competition
 import 'package:ptook/features/Manage%20Competitions/domain/usecases/competition/update_competition_usecase.dart';
 import 'package:ptook/features/Manage%20Competitions/domain/usecases/participant/remove_participant_usecase.dart';
 import 'package:ptook/features/Manage%20Competitions/domain/usecases/participant/stream_participants_manage_usecase.dart';
-import 'package:ptook/features/Manage%20Competitions/domain/usecases/participant/update_participant_points_usecase.dart';
+import 'package:ptook/features/Manage%20Competitions/domain/usecases/participant/update_competition_participant_points_usecase.dart';
 import 'package:ptook/features/Manage%20Competitions/domain/usecases/team/create_team_usecase.dart';
 import 'package:ptook/features/Manage%20Competitions/domain/usecases/team/delete_team_usecase.dart';
-import 'package:ptook/features/Manage%20Competitions/domain/usecases/team/remove_member_usecase.dart';
+import 'package:ptook/features/Manage%20Competitions/domain/usecases/team/remove_team_participant_usecase.dart';
 import 'package:ptook/features/Manage%20Competitions/domain/usecases/team/stream_teams_manage_usecase.dart';
-import 'package:ptook/features/Manage%20Competitions/domain/usecases/team/update_member_points_usecase.dart';
+import 'package:ptook/features/Manage%20Competitions/domain/usecases/team/update_team_participant_points_usecase.dart';
 import 'package:ptook/features/Manage%20Competitions/presentation/cubits/manage_competition/manage_competition_cubit.dart';
 import 'package:ptook/features/Manage%20Competitions/presentation/cubits/participant_management/participant_management_cubit.dart';
 import 'package:ptook/features/Manage%20Competitions/presentation/cubits/team_management/team_management_cubit.dart';
@@ -227,9 +227,7 @@ void _initManageCompetitionFeature() {
   _registerLazySingleton<StreamParticipantsManageUseCase>(
     () => StreamParticipantsManageUseCase(sl<IManageCompetitionRepository>()),
   );
-  _registerLazySingleton<UpdateParticipantPointsUseCase>(
-    () => UpdateParticipantPointsUseCase(sl<IManageCompetitionRepository>()),
-  );
+
   _registerLazySingleton<RemoveParticipantUseCase>(
     () => RemoveParticipantUseCase(sl<IManageCompetitionRepository>()),
   );
@@ -244,11 +242,14 @@ void _initManageCompetitionFeature() {
   _registerLazySingleton<DeleteTeamUseCase>(
     () => DeleteTeamUseCase(sl<IManageCompetitionRepository>()),
   );
-  _registerLazySingleton<RemoveMemberUseCase>(
-    () => RemoveMemberUseCase(sl<IManageCompetitionRepository>()),
+  _registerLazySingleton<UpdateCompetitoinParticipantPointsUseCase>(
+    () => UpdateCompetitoinParticipantPointsUseCase(sl<IManageCompetitionRepository>()),
   );
-  _registerLazySingleton<UpdateMemberPointsUseCase>(
-    () => UpdateMemberPointsUseCase(sl<IManageCompetitionRepository>()),
+  _registerLazySingleton<UpdateTeamParticipantPointsUseCase>(
+    () => UpdateTeamParticipantPointsUseCase(sl<IManageCompetitionRepository>()),
+  );
+  _registerLazySingleton<RemoveTeamParticipantUseCase>(
+    () => RemoveTeamParticipantUseCase(sl<IManageCompetitionRepository>()),
   );
 
   // Cubits
@@ -264,8 +265,8 @@ void _initManageCompetitionFeature() {
   _registerFactory<ParticipantManagementCubit>(
     () => ParticipantManagementCubit(
       streamParticipantsUseCase: sl<StreamParticipantsManageUseCase>(),
-      updateParticipantPointsUseCase: sl<UpdateParticipantPointsUseCase>(),
-      removeParticipantUseCase: sl<RemoveParticipantUseCase>(),
+      removeParticipantUseCase: sl<RemoveParticipantUseCase>(), 
+      updateCompetitoinParticipantPointsUseCase: sl<UpdateCompetitoinParticipantPointsUseCase>(),
     ),
   );
 
@@ -273,9 +274,9 @@ void _initManageCompetitionFeature() {
     () => TeamManagementCubit(
       streamTeamsUseCase: sl<StreamTeamsManageUseCase>(),
       createTeamUseCase: sl<CreateTeamUseCase>(),
-      deleteTeamUseCase: sl<DeleteTeamUseCase>(),
-      removeMemberUseCase: sl<RemoveMemberUseCase>(),
-      updateMemberPointsUseCase: sl<UpdateMemberPointsUseCase>(),
+      deleteTeamUseCase: sl<DeleteTeamUseCase>(), 
+      updateTeamParticipantPointsUseCase: sl<UpdateTeamParticipantPointsUseCase>(), 
+      removeTeamParticipantUseCase: sl<RemoveTeamParticipantUseCase>(),
     ),
   );
 }
