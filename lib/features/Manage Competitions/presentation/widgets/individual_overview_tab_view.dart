@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:ptook/core/di/injection_container.dart';
 import 'package:ptook/features/Manage%20Competitions/presentation/cubits/manage_competition/manage_competition_cubit.dart';
 import 'package:ptook/features/Manage%20Competitions/presentation/cubits/manage_competition/manage_competition_state.dart';
 import 'package:ptook/features/Manage%20Competitions/presentation/cubits/participant_management/participant_management_cubit.dart';
 import 'package:ptook/features/Manage%20Competitions/presentation/cubits/participant_management/participant_management_state.dart';
 import 'package:ptook/features/shared/domain/entities/participant_entity.dart';
+import 'package:ptook/features/view_competition/presintation/cubits/view_participants/view_participants_cubit.dart';
+import 'package:ptook/features/view_competition/presintation/pages/competition_participants_view_all.dart';
 
 class IndividualOverviewTabView extends StatelessWidget {
   const IndividualOverviewTabView({super.key});
@@ -32,7 +35,7 @@ class IndividualOverviewTabView extends StatelessWidget {
           );
         }
 
-        final currentComp = compState.competition;
+        final currentComp = compState.competition!;
 
         return BlocBuilder<ParticipantManagementCubit, ParticipantManagementState>(
           builder: (context, partState) {
@@ -41,8 +44,8 @@ class IndividualOverviewTabView extends StatelessWidget {
               0,
               (sum, item) => sum + item.points,
             );
-            final maxParticipants = currentComp?.maxParticipants ?? 0;
-            final fillPercentage = maxParticipants > 0
+            final maxParticipants = currentComp.maxParticipants;
+            final fillPercentage = maxParticipants! > 0
                 ? (participants.length / maxParticipants).clamp(0.0, 1.0)
                 : 0.0;
 
@@ -54,7 +57,7 @@ class IndividualOverviewTabView extends StatelessWidget {
                   sliver: SliverList(
                     delegate: SliverChildListDelegate([
                       // Header Section
-                      _buildHeader(currentComp?.status ?? 'Active'),
+                      _buildHeader(currentComp.status),
                       const SizedBox(height: 16),
 
                       // Metrics Cards Grid
@@ -89,19 +92,23 @@ class IndividualOverviewTabView extends StatelessWidget {
                       ),
                       const SizedBox(height: 24),
 
-                      // Top Performers Card (Replaces Leaderboard Roster)
+                      // Top Performers Card
                       _TopPerformersCard(
-                        participants: participants,
-                        onViewAllTap: () {
-                          // TODO: Navigate to All Participants Screen
-                          // Navigator.push(
-                          //   context,
-                          //   MaterialPageRoute(
-                          //     builder: (_) => const AllParticipantsScreen(),
-                          //   ),
-                          // );
-                        },
-                      ),
+                          participants: participants,
+                          onViewAllTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => BlocProvider(
+                                  create: (context) => sl<ViewParticipantsCubit>(),
+                                  child: CompetitionParticipantsViewAll(
+                                    competitionId: currentComp.id,
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
                       const SizedBox(height: 24),
 
                       // Admin Controls

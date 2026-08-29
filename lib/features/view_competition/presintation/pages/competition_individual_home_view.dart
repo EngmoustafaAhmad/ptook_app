@@ -5,7 +5,7 @@ import 'package:ptook/features/shared/domain/entities/competition_entity.dart';
 import 'package:ptook/features/shared/domain/entities/participant_entity.dart';
 import 'package:ptook/features/view_competition/presintation/cubits/view_participants/view_participants_cubit.dart';
 import 'package:ptook/features/view_competition/presintation/cubits/view_participants/view_participants_state.dart';
-import 'package:ptook/features/view_competition/presintation/pages/competition_participants_view.dart';
+import 'package:ptook/features/view_competition/presintation/pages/competition_participants_view_all.dart';
 
 abstract class _AppColors {
   static const background = Color(0xFF0F111A);
@@ -248,11 +248,6 @@ class _CompetitionIndividualHomeViewState
                     topParticipants: sortedParticipants.take(3).toList(),
                     onViewFullRanking: () => _navigateToParticipants(context),
                   ),
-                  const SizedBox(height: 16),
-                  _ParticipantsPreviewCard(
-                    participants: sortedParticipants,
-                    onViewAll: () => _navigateToParticipants(context),
-                  ),
                   const SizedBox(height: 24),
                   _ActionButtonsGroup(
                     isFavorite: _isFavorite,
@@ -368,7 +363,7 @@ class _CompetitionIndividualHomeViewState
       MaterialPageRoute(
         builder: (_) => BlocProvider.value(
           value: context.read<ViewParticipantsCubit>(),
-          child: CompetitionParticipantsView(
+          child: CompetitionParticipantsViewAll(
             competitionId: widget.competition.id,
             currentUserId: widget.currentUserId,
           ),
@@ -664,54 +659,6 @@ class _LeaderboardCard extends StatelessWidget {
   }
 }
 
-class _ParticipantsPreviewCard extends StatelessWidget {
-  final List<ParticipantEntity> participants;
-  final VoidCallback onViewAll;
-
-  const _ParticipantsPreviewCard({
-    required this.participants,
-    required this.onViewAll,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: _AppColors.cardBackground,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.people_outline, color: Colors.white70, size: 20),
-              const SizedBox(width: 8),
-              Text(
-                'Participants (${participants.length})',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 14,
-                ),
-              ),
-            ],
-          ),
-          IconButton(
-            icon: const Icon(
-              Icons.arrow_forward_ios,
-              color: Colors.white54,
-              size: 16,
-            ),
-            onPressed: onViewAll,
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 class _ActionButtonsGroup extends StatelessWidget {
   final bool isFavorite;

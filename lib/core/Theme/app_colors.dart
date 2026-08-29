@@ -1,16 +1,26 @@
 import 'package:flutter/material.dart';
 
-class AppColors {
+abstract class AppColors {
   AppColors._();
 
   // Core Theme Branded Palette
-  static const Color background = Color(0xFF121212);
+  static const Color background = Color(0xFF0C0E12);
   static const Color surface = Color(0xFF1C1C1E);
   static const Color primary = Color(0xFFFFCC00); // Amber Accent
+  static const Color primaryGold = Color(0xFFFFC72C);
+  static const Color primaryGoldGlow = Color(0x33FFC72C);
+
+  // Cards & Container Palette
+  static const Color cardBackground = Color(0xFF14171F);
+  static const Color cardBorder = Color(0x12FFFFFF);
+  static const Color divider = Color(0x12FFFFFF);
+
+  // Typography Palette
   static const Color textPrimary = Colors.white;
-  static const Color textSecondary = Colors.grey;
-  
-  // Custom Specialized Inputs Infrastructure 
+  static const Color textSecondary = Color(0x99FFFFFF);
+  static const Color textMuted = Color(0x66FFFFFF);
+
+  // Custom Specialized Inputs Infrastructure
   static const Color inputBackground = Color(0xFF0F0F10);
   static const Color inputBorder = Color(0xFF2C2C2E);
 
