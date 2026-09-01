@@ -25,6 +25,7 @@ class CompetitionModel extends CompetitionEntity {
     required super.imageUrl,
     required super.winnerId,
     required super.participantIds,
+    super.isFavorite,
     super.participants,
     super.teams,
     super.basePoints,
@@ -60,6 +61,7 @@ class CompetitionModel extends CompetitionEntity {
       imageUrl: entity.imageUrl,
       winnerId: entity.winnerId,
       participantIds: entity.participantIds,
+      isFavorite: entity.isFavorite,
       participants: entity.participants,
       teams: entity.teams,
       basePoints: entity.basePoints,
@@ -72,9 +74,13 @@ class CompetitionModel extends CompetitionEntity {
   }
 
   /// Deserializes Firestore JSON Map into Data Model
-  factory CompetitionModel.fromJson(Map<String, dynamic> json, String id) {
+  factory CompetitionModel.fromJson(
+    Map<String, dynamic> json, {
+    String? id,
+    bool isFavorite = false,
+  }) {
     return CompetitionModel(
-      id: json['id'] ?? '',
+      id: id ?? json['id'] ?? '',
       name: json['name'] ?? '',
       description: json['description'] ?? '',
       type: json['type'] ?? 'individual',
@@ -96,6 +102,8 @@ class CompetitionModel extends CompetitionEntity {
       imageUrl: json['imageUrl'],
       winnerId: json['winnerId'],
       participantIds: Set<String>.from(json['participantIds'] ?? []),
+      // Checks json['isFavorite'] first; falls back to explicit parameter passed from database queries
+      isFavorite: json['isFavorite'] ?? isFavorite,
       participants: json['participants'],
       teams: json['teams'],
       basePoints: (json['basePoints'] as num?)?.toDouble() ?? 100.0,
@@ -125,15 +133,12 @@ class CompetitionModel extends CompetitionEntity {
       'inviteCode': inviteCode,
       'joinCode': joinCode,
       'category': category,
-
-      // Auto-generate keywords if empty to prevent search misses in Firestore
       'searchKeywords': searchKeywords.isNotEmpty
           ? searchKeywords
           : SearchKeywordsGenerator.generate(
               name: name,
               category: category,
             ),
-
       'maxTeams': maxTeams,
       'maxTeamMembers': maxTeamMembers,
       'participantsCount': participantsCount,
@@ -141,7 +146,8 @@ class CompetitionModel extends CompetitionEntity {
       'status': status,
       'imageUrl': imageUrl,
       'winnerId': winnerId,
-      'participantIds': participantIds,
+      'participantIds': participantIds.toList(),
+      'isFavorite': isFavorite,
       'participants': participants,
       'teams': teams,
       'basePoints': basePoints,
@@ -180,6 +186,7 @@ class CompetitionModel extends CompetitionEntity {
       winnerId: winnerId,
       searchKeywords: searchKeywords,
       participantIds: participantIds,
+      isFavorite: isFavorite,
       basePoints: basePoints,
       penaltyPoints: penaltyPoints,
       leaderboardVisibility: leaderboardVisibility,
@@ -199,7 +206,6 @@ class CompetitionModel extends CompetitionEntity {
       return DateTime.tryParse(value) ?? DateTime.now();
     }
 
-    // Handles Firestore Timestamp objects cleanly
     try {
       return (value as dynamic).toDate();
     } catch (_) {

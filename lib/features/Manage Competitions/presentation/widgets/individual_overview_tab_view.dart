@@ -189,7 +189,10 @@ class _TopPerformersCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final topThree = participants.take(3).toList();
+    final topThree = (List<ParticipantEntity>.from(participants)
+          ..sort((a, b) => b.points.compareTo(a.points)))
+        .take(3)
+        .toList();
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -570,18 +573,17 @@ class _AdminActionsCard extends StatelessWidget {
               ),
               const SizedBox(width: 10),
               Expanded(
-                child: OutlinedButton.icon(
+                child: TextButton.icon(
                   onPressed: () => _showConfirmationDialog(
                     context,
                     title: 'Delete Competition',
-                    content:
-                        'This action is permanent and cannot be undone.',
+                    content: 'This action is permanent and cannot be undone.',
                     isDanger: true,
                     onConfirm: () => context
                         .read<ManageCompetitionCubit>()
                         .deleteCompetition(),
                   ),
-                  style: OutlinedButton.styleFrom(
+                  style: TextButton.styleFrom(
                     minimumSize: const Size(0, 44),
                     side: const BorderSide(color: Colors.redAccent, width: 1),
                     shape: RoundedRectangleBorder(

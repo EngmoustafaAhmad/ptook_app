@@ -8,7 +8,6 @@ import 'package:ptook/features/Manage%20Competitions/presentation/cubits/team_ma
 import 'package:ptook/features/Manage%20Competitions/presentation/cubits/team_management/team_management_state.dart';
 import 'package:ptook/features/Manage%20Competitions/presentation/pages/manage_individual_competition_view.dart';
 import 'package:ptook/features/Manage%20Competitions/presentation/pages/manage_team_competition_view.dart';
-import 'package:ptook/features/competitions/presintation/views/manage_team_competition_view.dart';
 import 'package:ptook/features/shared/domain/entities/competition_entity.dart';
 import '../../../../core/di/injection_container.dart';
 

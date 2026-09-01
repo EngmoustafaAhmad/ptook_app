@@ -20,6 +20,9 @@ class ViewCompetitionRemoteDataSourceImpl
   CollectionReference<Map<String, dynamic>> get _competitionsRef =>
       firestore.collection('competitions');
 
+  CollectionReference<Map<String, dynamic>> _userFavoritesRef(String userId) =>
+      firestore.collection('users').doc(userId).collection('favorites');
+
   // ===========================================================================
   // DISCOVERY & FETCHING
   // ===========================================================================
@@ -42,7 +45,8 @@ class ViewCompetitionRemoteDataSourceImpl
       query = await _applyPagination(query, lastCompetitionId);
 
       final snapshot = await query.limit(limit).get();
-      return snapshot.docs.map(_mapDocToModel).toList();
+      final competitions = snapshot.docs.map(_mapDocToModel).toList();
+      return _attachFavoriteFlags(competitions);
     } on FirebaseException catch (e) {
       debugPrint('Firestore Error in getPublicCompetitions: ${e.message}');
       throw ServerException(
@@ -76,7 +80,8 @@ class ViewCompetitionRemoteDataSourceImpl
           await _applyPagination(firestoreQuery, lastCompetitionId);
 
       final snapshot = await firestoreQuery.limit(limit).get();
-      return snapshot.docs.map(_mapDocToModel).toList();
+      final competitions = snapshot.docs.map(_mapDocToModel).toList();
+      return _attachFavoriteFlags(competitions);
     } on FirebaseException catch (e) {
       throw ServerException(e.message ?? 'Search query failed');
     } catch (e) {
@@ -104,16 +109,16 @@ class ViewCompetitionRemoteDataSourceImpl
           await _applyPagination(firestoreQuery, lastCompetitionId);
 
       final snapshot = await firestoreQuery.limit(limit).get();
-      final competitions = snapshot.docs.map(_mapDocToModel).toList();
+      var competitions = snapshot.docs.map(_mapDocToModel).toList();
 
       final cleanKeyword = query?.trim().toLowerCase() ?? '';
       if (cleanKeyword.isNotEmpty) {
-        return competitions
+        competitions = competitions
             .where((comp) => comp.name.toLowerCase().contains(cleanKeyword))
             .toList();
       }
 
-      return competitions;
+      return _attachFavoriteFlags(competitions);
     } on FirebaseException catch (e) {
       debugPrint('Firestore Error in getJoinedCompetitions: ${e.message}');
       throw ServerException(
@@ -131,7 +136,20 @@ class ViewCompetitionRemoteDataSourceImpl
       if (!doc.exists) {
         throw const ServerException('Competition not found');
       }
-      return _mapDocToModel(doc);
+
+      var model = _mapDocToModel(doc);
+      final user = auth.currentUser;
+      if (user != null) {
+        final favDoc =
+            await _userFavoritesRef(user.uid).doc(competitionId).get();
+        if (favDoc.exists) {
+          model = CompetitionModel.fromEntity(
+            model.copyWith(isFavorite: true),
+          );
+        }
+      }
+
+      return model;
     } on FirebaseException catch (e) {
       throw ServerException(e.message ?? 'Failed to get competition');
     } catch (e) {
@@ -139,9 +157,32 @@ class ViewCompetitionRemoteDataSourceImpl
     }
   }
 
-  @override
-  Future<CompetitionModel> getCompetitionDetails(String competitionId) async {
-    return getCompetitionById(competitionId);
+@override
+  Future<CompetitionModel> getCompetitionDetails({
+    required String competitionId,
+    required String userId,
+  }) async {
+    try {
+      // 1. Fetch competition document
+      final compDoc = await _competitionsRef.doc(competitionId).get();
+      if (!compDoc.exists || compDoc.data() == null) {
+        throw const ServerException('Competition not found');
+      }
+
+      // 2. Check if this user has favorited this competition
+      final favDoc = await _userFavoritesRef(userId).doc(competitionId).get();
+
+      // 3. Return Model with actual isFavorite status from DB
+      return CompetitionModel.fromJson(
+        compDoc.data()!,
+        id: compDoc.id,
+        isFavorite: favDoc.exists,
+      );
+    } on FirebaseException catch (e) {
+      throw ServerException(e.message ?? 'Failed to fetch competition details');
+    } catch (e) {
+      throw ServerException(e.toString());
+    }
   }
 
   @override
@@ -156,7 +197,19 @@ class ViewCompetitionRemoteDataSourceImpl
         return null;
       }
 
-      return _mapDocToModel(snapshot.docs.first);
+      var model = _mapDocToModel(snapshot.docs.first);
+      final user = auth.currentUser;
+      if (user != null) {
+        final favDoc =
+            await _userFavoritesRef(user.uid).doc(model.id).get();
+        if (favDoc.exists) {
+          model = CompetitionModel.fromEntity(
+            model.copyWith(isFavorite: true),
+          );
+        }
+      }
+
+      return model;
     } on FirebaseException catch (e) {
       throw ServerException(e.message ?? 'Failed to get competition by code');
     } catch (e) {
@@ -165,11 +218,141 @@ class ViewCompetitionRemoteDataSourceImpl
   }
 
   // ===========================================================================
+  // FAVORITES ACTIONS
+  // ===========================================================================
+
+  @override
+  Future<void> toggleFavorite({
+    required String userId,
+    required String competitionId,
+    required bool isFavorite,
+  }) async {
+    try {
+      final favDocRef = _userFavoritesRef(userId).doc(competitionId);
+
+      if (isFavorite) {
+        await favDocRef.set({
+          'competitionId': competitionId,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+      } else {
+        await favDocRef.delete();
+      }
+    } on FirebaseException catch (e) {
+      throw ServerException(e.message ?? 'Failed to update favorite status');
+    } catch (e) {
+      throw ServerException(e.toString());
+    }
+  }
+
+  @override
+Future<bool> isFavorite({
+  required String userId,
+  required String competitionId,
+}) async {
+  try {
+    final docSnap = await _userFavoritesRef(userId).doc(competitionId).get();
+    return docSnap.exists;
+  } catch (e) {
+    return false;
+  }
+}
+
+  @override
+  Future<List<String>> getFavoriteCompetitionIds(String userId) async {
+    try {
+      final snapshot = await _userFavoritesRef(userId).get();
+      return snapshot.docs.map((doc) => doc.id).toList();
+    } on FirebaseException catch (e) {
+      throw ServerException(
+        e.message ?? 'Failed to fetch favorite competition IDs',
+      );
+    } catch (e) {
+      throw ServerException(e.toString());
+    }
+  }
+
+  @override
+Future<List<CompetitionModel>> getFavoriteCompetitions({
+  String? userId,
+  int limit = 10,
+  String? lastCompetitionId,
+}) async {
+  // Use passed userId, or fallback to authenticated currentUser
+  final targetUserId = userId ?? auth.currentUser?.uid;
+
+  if (targetUserId == null || targetUserId.isEmpty) {
+    throw const ServerException('User must be logged in to fetch favorites');
+  }
+
+  try {
+    Query<Map<String, dynamic>> favQuery = _userFavoritesRef(targetUserId)
+        .orderBy(FieldPath.documentId);
+
+    if (lastCompetitionId != null && lastCompetitionId.isNotEmpty) {
+      final lastDoc =
+          await _userFavoritesRef(targetUserId).doc(lastCompetitionId).get();
+      if (lastDoc.exists) {
+        favQuery = favQuery.startAfterDocument(lastDoc);
+      }
+    }
+
+    final favSnap = await favQuery.limit(limit).get();
+    if (favSnap.docs.isEmpty) return [];
+
+    final favIds = favSnap.docs.map((doc) => doc.id).toList();
+
+    final Map<String, CompetitionModel> compMap = {};
+    for (var i = 0; i < favIds.length; i += 10) {
+      final chunk = favIds.sublist(
+        i,
+        i + 10 > favIds.length ? favIds.length : i + 10,
+      );
+
+      final compSnap = await _competitionsRef
+          .where(FieldPath.documentId, whereIn: chunk)
+          .get();
+
+      for (final doc in compSnap.docs) {
+        final model = _mapDocToModel(doc);
+        compMap[doc.id] = CompetitionModel.fromEntity(
+          model.copyWith(isFavorite: true),
+        );
+      }
+    }
+
+    final List<CompetitionModel> sortedFavorites = [];
+    for (final id in favIds) {
+      if (compMap.containsKey(id)) {
+        sortedFavorites.add(compMap[id]!);
+      }
+    }
+
+    return sortedFavorites;
+  } on FirebaseException catch (e) {
+    throw ServerException(
+      e.message ?? 'Failed to fetch favorite competitions',
+    );
+  } catch (e) {
+    throw ServerException(e.toString());
+  }
+}
+
+  @override
+  Stream<List<String>> streamFavoriteCompetitionIds(String userId) {
+    return _userFavoritesRef(userId).snapshots().map(
+          (snapshot) => snapshot.docs.map((doc) => doc.id).toList(),
+        );
+  }
+
+
+
+  // ===========================================================================
   // PARTICIPANT ACTIONS
   // ===========================================================================
 
   @override
-  Future<void> joinCompetition(String competitionId) async {
+  Future<void> joinIndividualCompetition(String competitionId) async {
     final user = auth.currentUser;
     if (user == null) {
       throw const ServerException('User must be logged in to join');
@@ -181,6 +364,7 @@ class ViewCompetitionRemoteDataSourceImpl
       final participantDocRef =
           compDocRef.collection('participants').doc(user.uid);
 
+      // Increments participantsCount and adds user to participantIds
       batch.update(compDocRef, {
         'participantIds': FieldValue.arrayUnion([user.uid]),
         'participantsCount': FieldValue.increment(1),
@@ -208,7 +392,7 @@ class ViewCompetitionRemoteDataSourceImpl
   }
 
   @override
-  Future<void> leaveCompetition(String competitionId) async {
+  Future<void> leaveIndividualCompetition(String competitionId) async {
     final user = auth.currentUser;
     if (user == null) {
       throw const ServerException('User must be logged in to leave');
@@ -220,6 +404,7 @@ class ViewCompetitionRemoteDataSourceImpl
       final participantDocRef =
           compDocRef.collection('participants').doc(user.uid);
 
+      // Decrements participantsCount and removes user from participantIds
       batch.update(compDocRef, {
         'participantIds': FieldValue.arrayRemove([user.uid]),
         'participantsCount': FieldValue.increment(-1),
@@ -233,6 +418,82 @@ class ViewCompetitionRemoteDataSourceImpl
     } catch (e) {
       throw ServerException(e.toString());
     }
+  }
+
+  @override
+  Future<void> joinTeamCompetition(String competitionId) async {
+    final user = auth.currentUser;
+    if (user == null) {
+      throw const ServerException('User must be logged in to join');
+    }
+
+    try {
+      final compDocRef = _competitionsRef.doc(competitionId);
+
+      // Adds user to participantIds (Does NOT increment participantsCount)
+      await compDocRef.update({
+        'participantIds': FieldValue.arrayUnion([user.uid]),
+      });
+    } on FirebaseException catch (e) {
+      throw ServerException(e.message ?? 'Failed to join team competition');
+    } catch (e) {
+      throw ServerException(e.toString());
+    }
+  }
+
+  @override
+  Future<void> leaveTeamCompetition(String competitionId) async {
+    final user = auth.currentUser;
+    if (user == null) {
+      throw const ServerException('User must be logged in to leave');
+    }
+
+    final compRef = _competitionsRef.doc(competitionId);
+    final participantRef = compRef.collection('participants').doc(user.uid);
+
+    return firestore.runTransaction((transaction) async {
+      // 1. ALL READS FIRST
+      final compSnap = await transaction.get(compRef);
+      if (!compSnap.exists) throw const ServerException('Competition not found');
+
+      final participantSnap = await transaction.get(participantRef);
+      String? teamId;
+
+      if (participantSnap.exists && participantSnap.data() != null) {
+        teamId = participantSnap.data()!['teamId'];
+      }
+
+      DocumentSnapshot<Map<String, dynamic>>? teamSnap;
+      if (teamId != null && teamId.isNotEmpty) {
+        teamSnap = await transaction.get(compRef.collection('teams').doc(teamId));
+      }
+
+      // 2. ALL WRITES
+      if (teamSnap != null && teamSnap.exists && teamSnap.data() != null) {
+        final teamRef = compRef.collection('teams').doc(teamId);
+        final List<dynamic> rawMembers = teamSnap.data()!['members'] ?? [];
+        final List<Map<String, dynamic>> members = rawMembers
+            .map((m) => Map<String, dynamic>.from(m as Map))
+            .toList();
+
+        members.removeWhere((m) => m['id'] == user.uid);
+
+        transaction.update(teamRef, {
+          'members': members,
+          'membersCount': members.length,
+        });
+        transaction.delete(teamRef.collection('members').doc(user.uid));
+      }
+
+      if (participantSnap.exists) {
+        transaction.delete(participantRef);
+      }
+
+      // Removes user from participantIds (Does NOT decrement participantsCount)
+      transaction.update(compRef, {
+        'participantIds': FieldValue.arrayRemove([user.uid]),
+      });
+    });
   }
 
   // ===========================================================================
@@ -256,7 +517,7 @@ class ViewCompetitionRemoteDataSourceImpl
         competitionRef.collection('participants').doc(user.uid);
 
     return firestore.runTransaction((transaction) async {
-      // 1. ALL READS
+      // 1. ALL READS FIRST
       final compSnap = await transaction.get(competitionRef);
       final teamSnap = await transaction.get(teamRef);
       final participantSnap = await transaction.get(participantRef);
@@ -293,10 +554,7 @@ class ViewCompetitionRemoteDataSourceImpl
       members.add(memberMap);
 
       // 2. ALL WRITES
-      transaction.update(competitionRef, {
-        'participantsCount': FieldValue.increment(1),
-      });
-
+      // Updates team members list and increments membersCount
       transaction.update(teamRef, {
         'members': members,
         'membersCount': members.length,
@@ -307,6 +565,11 @@ class ViewCompetitionRemoteDataSourceImpl
       if (participantSnap.exists) {
         transaction.update(participantRef, {'teamId': teamId});
       }
+
+      // Increments competition participantsCount
+      transaction.update(competitionRef, {
+        'participantsCount': FieldValue.increment(1),
+      });
     });
   }
 
@@ -343,10 +606,7 @@ class ViewCompetitionRemoteDataSourceImpl
       members.removeWhere((m) => m['id'] == user.uid);
 
       // 2. ALL WRITES
-      transaction.update(competitionRef, {
-        'participantsCount': FieldValue.increment(-1),
-      });
-
+      // Updates team members list and decrements membersCount
       transaction.update(teamRef, {
         'members': members,
         'membersCount': members.length,
@@ -359,6 +619,11 @@ class ViewCompetitionRemoteDataSourceImpl
           'teamId': FieldValue.delete(),
         });
       }
+
+      // Decrements competition participantsCount
+      transaction.update(competitionRef, {
+        'participantsCount': FieldValue.increment(-1),
+      });
     });
   }
 
@@ -383,7 +648,7 @@ class ViewCompetitionRemoteDataSourceImpl
         competitionRef.collection('participants').doc(user.uid);
 
     return firestore.runTransaction((transaction) async {
-      // 1. ALL READS
+      // 1. ALL READS FIRST
       final fromSnap = await transaction.get(fromRef);
       final toSnap = await transaction.get(toRef);
       final participantSnap = await transaction.get(participantRef);
@@ -426,6 +691,8 @@ class ViewCompetitionRemoteDataSourceImpl
       toMembers.add(memberMap);
 
       // 2. ALL WRITES
+      // Updates both old and new team members lists & membersCount.
+      // Does NOT touch competition participantsCount.
       transaction.update(fromRef, {
         'members': fromMembers,
         'membersCount': fromMembers.length,
@@ -443,26 +710,33 @@ class ViewCompetitionRemoteDataSourceImpl
       }
     });
   }
-
   // ===========================================================================
   // REAL-TIME STREAMS
   // ===========================================================================
 
   @override
-  Stream<CompetitionModel> streamCompetition(String competitionId) {
-    return _competitionsRef
-        .doc(competitionId)
-        .snapshots()
-        .where((doc) => doc.exists && doc.data() != null)
-        .map((doc) {
-      final data = doc.data()!;
-      data['id'] = doc.id;
-      return CompetitionModel.fromJson(
-        doc.data()!,
-        doc.id,
-      );
-    });
-  }
+Stream<CompetitionModel> streamCompetition({
+  required String competitionId,
+  required String userId,
+}) {
+  return _competitionsRef
+      .doc(competitionId)
+      .snapshots()
+      .where((doc) => doc.exists && doc.data() != null)
+      .asyncMap((doc) async {
+    final data = doc.data()!;
+
+    // Check if the user favorited this competition
+    final favDoc =
+        await _userFavoritesRef(userId).doc(competitionId).get();
+
+    return CompetitionModel.fromJson(
+      data,
+      id: doc.id, // Fixed: Passed as named argument
+      isFavorite: favDoc.exists, // Preserves favorited state
+    );
+  });
+}
 
   @override
   Stream<List<ParticipantModel>> streamParticipants(String competitionId) {
@@ -478,13 +752,13 @@ class ViewCompetitionRemoteDataSourceImpl
               ))
           .toList();
 
-      // Sort locally by points descending to safely handle both legacy & new models
+      // Sort locally by points descending
       participants.sort((a, b) => b.points.compareTo(a.points));
 
       return participants;
     });
   }
-  
+
   @override
   Stream<List<TeamModel>> streamTeams(String competitionId) {
     return _competitionsRef
@@ -503,6 +777,21 @@ class ViewCompetitionRemoteDataSourceImpl
   // ===========================================================================
   // PRIVATE HELPERS
   // ===========================================================================
+
+  Future<List<CompetitionModel>> _attachFavoriteFlags(
+    List<CompetitionModel> competitions,
+  ) async {
+    final user = auth.currentUser;
+    if (user == null || competitions.isEmpty) return competitions;
+
+    final favIds = (await getFavoriteCompetitionIds(user.uid)).toSet();
+
+    return competitions.map((comp) {
+      return CompetitionModel.fromEntity(
+        comp.copyWith(isFavorite: favIds.contains(comp.id)),
+      );
+    }).toList();
+  }
 
   Map<String, dynamic> _buildMemberMap(
     User user,
@@ -551,7 +840,7 @@ class ViewCompetitionRemoteDataSourceImpl
     }
     return CompetitionModel.fromJson(
       data,
-      doc.id,
+      id: doc.id,
     );
   }
 
@@ -576,4 +865,8 @@ class ViewCompetitionRemoteDataSourceImpl
       throw ServerException(e.toString());
     }
   }
+
+
+
+  
 }

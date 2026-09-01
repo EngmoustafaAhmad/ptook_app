@@ -2,7 +2,6 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:ptook/app_scaffold.dart'; // 💡 استيراد الـ AppScaffold للدخول المباشر عند نجاح التسجيل
 import 'package:ptook/core/Theme/app_colors.dart';
 import 'package:ptook/core/Theme/app_text_styles.dart';
 import 'package:ptook/core/extentions/context_extentions.dart';
@@ -48,11 +47,11 @@ class _RegisterViewState extends State<RegisterView> {
         listener: (context, state) {
           if (state is AuthSuccess) {
             context.showSuccess('Welcome to Ptook!');
-            
+
             // 💡 الأفضل للمستخدم (UX): نقله مباشرة إلى الـ AppScaffold الرئيسي بعد إنشاء الحساب فوراً دون إجباره على تسجيل الدخول مرة أخرى
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (context) => const AppScaffold()),
+              MaterialPageRoute(builder: (context) => const LoginView()),
             );
           } else if (state is AuthError) {
             context.showError(state.message); 

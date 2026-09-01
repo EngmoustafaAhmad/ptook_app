@@ -1,12 +1,12 @@
 import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:ptook/core/utils/result.dart';
 import 'package:ptook/features/search_competitions/domain/usecases/get_created_competitions_usecase.dart';
 import 'package:ptook/features/search_competitions/domain/usecases/get_joined_competitions_usecase.dart';
 import 'package:ptook/features/search_competitions/domain/usecases/get_all_competitions_usecase.dart';
 import 'package:ptook/features/search_competitions/domain/usecases/join_competition_search_usecase.dart';
 import 'package:ptook/features/search_competitions/domain/usecases/stream_search_competitions_usecase.dart';
 import 'package:ptook/features/shared/domain/entities/competition_entity.dart';
+
 
 part 'search_competition_state.dart';
 
@@ -17,14 +17,14 @@ class SearchCompetitionCubit extends Cubit<SearchCompetitionState> {
   final StreamSearchCompetitionsUseCase _streamSearchCompetitionsUseCase;
   final StreamJoinedCompetitionsUseCase _streamJoinedCompetitionsUseCase;
   final StreamCreatedCompetitionsUseCase _streamCreatedCompetitionsUseCase;
-  final JoinCompetitionSearchUseCase _joinCompetitionSearchUseCase;
 
   static const int _pageSize = 10;
-  bool _isFetchingMore = false;
 
   CompetitionTab _activeTab = CompetitionTab.all;
   String _currentKeyword = '';
+
   StreamSubscription<List<CompetitionEntity>>? _competitionsSubscription;
+  StreamSubscription<List<CompetitionEntity>>? _paginationSubscription;
 
   CompetitionTab get activeTab => _activeTab;
   String get currentKeyword => _currentKeyword;
@@ -35,105 +35,70 @@ class SearchCompetitionCubit extends Cubit<SearchCompetitionState> {
     required StreamJoinedCompetitionsUseCase streamJoinedCompetitionsUseCase,
     required StreamCreatedCompetitionsUseCase streamCreatedCompetitionsUseCase,
     required JoinCompetitionSearchUseCase joinCompetitionSearchUseCase,  
-  })  :  _streamPublicCompetitionsUseCase = streamPublicCompetitionsUseCase,
+  })  : _streamPublicCompetitionsUseCase = streamPublicCompetitionsUseCase,
         _streamSearchCompetitionsUseCase = streamSearchCompetitionsUseCase,
         _streamJoinedCompetitionsUseCase = streamJoinedCompetitionsUseCase,
         _streamCreatedCompetitionsUseCase = streamCreatedCompetitionsUseCase,
-        _joinCompetitionSearchUseCase = joinCompetitionSearchUseCase,
         super(SearchCompetitionInitial());
 
-  /// 🔄 Changes active tab with an optional search query
   void changeTab(CompetitionTab tab, {String query = ''}) {
     _activeTab = tab;
     _currentKeyword = query.trim().toLowerCase();
     _listenToCompetitions();
   }
 
-  /// 🌟 Fetches public competitions ("All" tab)
   void getPublicCompetitions({String query = ''}) {
     _activeTab = CompetitionTab.all;
     _currentKeyword = query.trim().toLowerCase();
     _listenToCompetitions();
   }
 
-  /// 👥 Fetches competitions joined by user ("Joined" tab)
   void getJoinedCompetitions({String query = ''}) {
     _activeTab = CompetitionTab.joined;
     _currentKeyword = query.trim().toLowerCase();
     _listenToCompetitions();
   }
 
-  /// 👑 Fetches competitions created by user ("My Created" tab)
   void getCreatedCompetitions({String query = ''}) {
     _activeTab = CompetitionTab.created;
     _currentKeyword = query.trim().toLowerCase();
     _listenToCompetitions();
   }
 
-  /// 🔎 Searches within the currently active tab
   void search(String keyword) {
     _currentKeyword = keyword.trim().toLowerCase();
     _listenToCompetitions();
   }
 
-  /// 🧹 Clears search keyword and reloads active tab feed
   void clearSearch() {
     _currentKeyword = '';
     _listenToCompetitions();
   }
 
-  /// 🤝 Joins a competition with optimistic updates and rollback handling
-  Future<void> joinCompetition({
-  required String competitionId,
-  required String userId,
-  String? joinCode,
-}) async {
-  // Optimistic local update
-  toggleParticipationStatus(competitionId: competitionId, isJoining: true);
-
-  final result = await _joinCompetitionSearchUseCase(
-    competitionId: competitionId,
-    userId: userId,
-    joinCode: joinCode,
-  );
-
-  switch (result) {
-    case Success():
-      // Dynamic live Firestore streams will auto-sync UI state.
-      break;
-    case Failure(:final message):
-      // Roll back optimistic increment on failure
-      toggleParticipationStatus(competitionId: competitionId, isJoining: false);
-      _safeEmit(SearchCompetitionError(message));
-      break;
-  }
-}
-
-  /// 🚀 Paginate: Loads the next batch (10 items) for ANY active tab
+  /// 🚀 Paginate: Loads the next batch without duplicates or infinite loops
   void loadMore() {
     final currentState = state;
 
+    // Check loading flags and prevent simultaneous pagination calls
     if (currentState is! SearchCompetitionSuccess ||
         currentState.hasReachedMax ||
-        currentState.isLoadingMore ||
-        _isFetchingMore) {
+        currentState.isLoadingMore) {
       return;
     }
 
-    _isFetchingMore = true;
     _safeEmit(currentState.copyWith(isLoadingMore: true));
 
     final lastCompetitionId = currentState.competitions.isNotEmpty
         ? currentState.competitions.last.id
         : null;
 
-    final stream = _executeStream(lastCompetitionId: lastCompetitionId);
+    // Cancel any active pagination stream listener before starting a new fetch
+    _paginationSubscription?.cancel();
 
-    late final StreamSubscription<List<CompetitionEntity>> tempSub;
-    tempSub = stream.listen(
+    _paginationSubscription = _executeStream(lastCompetitionId: lastCompetitionId).listen(
       (newCompetitions) {
-        _isFetchingMore = false;
-        tempSub.cancel();
+        // Immediately cancel this single-shot listener so future updates don't append again
+        _paginationSubscription?.cancel();
 
         if (newCompetitions.isEmpty) {
           _safeEmit(currentState.copyWith(
@@ -141,30 +106,39 @@ class SearchCompetitionCubit extends Cubit<SearchCompetitionState> {
             isLoadingMore: false,
           ));
         } else {
+          // 1. Filter out items that already exist in state by ID (Deduplication)
+          final existingIds = currentState.competitions.map((c) => c.id).toSet();
+          final uniqueNewItems = newCompetitions
+              .where((c) => !existingIds.contains(c.id))
+              .toList();
+
+          // 2. If all fetched items were already in list, treat as max reached to stop loops
+          final bool reachedEnd = uniqueNewItems.isEmpty || newCompetitions.length < _pageSize;
+
           _safeEmit(
             SearchCompetitionSuccess(
               competitions: [
                 ...currentState.competitions,
-                ...newCompetitions,
+                ...uniqueNewItems,
               ],
-              hasReachedMax: newCompetitions.length < _pageSize,
+              hasReachedMax: reachedEnd,
               isLoadingMore: false,
             ),
           );
         }
       },
       onError: (error) {
-        _isFetchingMore = false;
-        tempSub.cancel();
+        _paginationSubscription?.cancel();
         _safeEmit(currentState.copyWith(isLoadingMore: false));
       },
     );
   }
 
-  /// Subscribes to the live Firestore stream for initial batch
+  /// Subscribes to the initial batch
   void _listenToCompetitions() {
     _safeEmit(SearchCompetitionLoading());
     _competitionsSubscription?.cancel();
+    _paginationSubscription?.cancel();
 
     _competitionsSubscription = _executeStream().listen(
       (competitions) {
@@ -181,7 +155,6 @@ class SearchCompetitionCubit extends Cubit<SearchCompetitionState> {
     );
   }
 
-  /// Query Dispatcher returning Stream<List<CompetitionEntity>>
   Stream<List<CompetitionEntity>> _executeStream({
     String? lastCompetitionId,
   }) {
@@ -219,7 +192,6 @@ class SearchCompetitionCubit extends Cubit<SearchCompetitionState> {
     }
   }
 
-  /// Updates a single competition in the current list locally
   void updateCompetitionInList(CompetitionEntity updatedCompetition) {
     final currentState = state;
     if (currentState is SearchCompetitionSuccess) {
@@ -231,7 +203,6 @@ class SearchCompetitionCubit extends Cubit<SearchCompetitionState> {
     }
   }
 
-  /// Toggles or increments/decrements participant counts locally
   void toggleParticipationStatus({
     required String competitionId,
     required bool isJoining,
@@ -253,7 +224,6 @@ class SearchCompetitionCubit extends Cubit<SearchCompetitionState> {
     }
   }
 
-  /// Safe state emitter
   void _safeEmit(SearchCompetitionState newState) {
     if (!isClosed) {
       emit(newState);
@@ -263,6 +233,7 @@ class SearchCompetitionCubit extends Cubit<SearchCompetitionState> {
   @override
   Future<void> close() {
     _competitionsSubscription?.cancel();
+    _paginationSubscription?.cancel();
     return super.close();
   }
 }

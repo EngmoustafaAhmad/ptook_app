@@ -6,7 +6,13 @@ class StreamCompetitionViewUseCase {
 
   StreamCompetitionViewUseCase(this.repository);
 
-  Stream<CompetitionEntity> call(String competitionId) {
-    return repository.streamCompetition(competitionId);
+  Stream<CompetitionEntity> call({
+    required String competitionId,
+    required String userId,
+  }) {
+    return repository.streamCompetition(
+      competitionId: competitionId,
+      userId: userId,
+    );
   }
 }

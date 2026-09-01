@@ -2,16 +2,20 @@ import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ptook/core/utils/result.dart';
 import 'package:ptook/features/shared/domain/entities/participant_entity.dart';
-import 'package:ptook/features/view_competition/domain/usecases/join_competition_usecase.dart';
-import 'package:ptook/features/view_competition/domain/usecases/leave_competition_usecase.dart';
+import 'package:ptook/features/view_competition/domain/usecases/join_individual_competition_usecase.dart';
+import 'package:ptook/features/view_competition/domain/usecases/join_team_competition_usecase.dart';
+import 'package:ptook/features/view_competition/domain/usecases/leave_individual_competition_usecase.dart';
+import 'package:ptook/features/view_competition/domain/usecases/leave_team_competition_usecase.dart';
 import 'package:ptook/features/view_competition/domain/usecases/stream_participants_view_usecase.dart';
 import 'package:ptook/features/view_competition/domain/usecases/team_actions_usecase.dart';
 import 'view_participants_state.dart';
 
 class ViewParticipantsCubit extends Cubit<ViewParticipantsState> {
   final StreamParticipantsViewUseCase _streamParticipantsViewUseCase;
-  final JoinCompetitionUseCase _joinCompetitionUseCase;
-  final LeaveCompetitionUseCase _leaveCompetitionUseCase;
+  final JoinIndividualCompetitionUseCase _joinIndividualCompetitionUseCase;
+  final JoinTeamCompetitionUseCase _joinTeamCompetitionUseCase;
+  final LeaveIndividualCompetitionUseCase _leaveIndividualCompetitionUseCase;
+  final LeaveTeamCompetitionUseCase _leaveTeamCompetitionUseCase;
   final JoinTeamUseCase _joinTeamUseCase;
   final LeaveTeamUseCase _leaveTeamUseCase;
   final SwitchTeamUseCase _switchTeamUseCase;
@@ -21,14 +25,18 @@ class ViewParticipantsCubit extends Cubit<ViewParticipantsState> {
 
   ViewParticipantsCubit({
     required StreamParticipantsViewUseCase streamParticipantsViewUseCase,
-    required JoinCompetitionUseCase joinCompetitionUseCase,
-    required LeaveCompetitionUseCase leaveCompetitionUseCase,
+    required JoinIndividualCompetitionUseCase joinIndividualCompetitionUseCase,
+    required JoinTeamCompetitionUseCase joinTeamCompetitionUseCase,
+    required LeaveIndividualCompetitionUseCase leaveIndividualCompetitionUseCase,
+    required LeaveTeamCompetitionUseCase leaveTeamCompetitionUseCase,
     required JoinTeamUseCase joinTeamUseCase,
     required LeaveTeamUseCase leaveTeamUseCase,
     required SwitchTeamUseCase switchTeamUseCase,
   })  : _streamParticipantsViewUseCase = streamParticipantsViewUseCase,
-        _joinCompetitionUseCase = joinCompetitionUseCase,
-        _leaveCompetitionUseCase = leaveCompetitionUseCase,
+        _joinIndividualCompetitionUseCase = joinIndividualCompetitionUseCase,
+        _joinTeamCompetitionUseCase = joinTeamCompetitionUseCase,
+        _leaveIndividualCompetitionUseCase = leaveIndividualCompetitionUseCase,
+        _leaveTeamCompetitionUseCase = leaveTeamCompetitionUseCase,
         _joinTeamUseCase = joinTeamUseCase,
         _leaveTeamUseCase = leaveTeamUseCase,
         _switchTeamUseCase = switchTeamUseCase,
@@ -50,20 +58,47 @@ class ViewParticipantsCubit extends Cubit<ViewParticipantsState> {
     );
   }
 
-  Future<void> joinCompetition({
+  Future<void> joinIndividualCompetition({
     required String competitionId,
     required String userId,
   }) async {
     emit(ViewParticipantsActionLoading());
 
-    final result = await _joinCompetitionUseCase(competitionId);
+    final result = await _joinIndividualCompetitionUseCase(competitionId);
+
+    _handleActionResult(
+      result: result,
+      successMessage: 'Successfully joined competition!',
+    );
+  }
+
+  Future<void> joinTeamCompetition({
+    required String competitionId,
+    required String userId,
+  }) async {
+    emit(ViewParticipantsActionLoading());
+
+    final result = await _joinTeamCompetitionUseCase(competitionId);
+
+    _handleActionResult(
+      result: result,
+      successMessage: 'Successfully joined team competition!',
+    );
+  }
+
+  Future<void> leaveIndividualCompetition({
+    required String competitionId,
+    required String userId,
+  }) async {
+    emit(ViewParticipantsActionLoading());
+
+    final result = await _leaveIndividualCompetitionUseCase(competitionId);
 
     switch (result) {
       case Success():
-        emit(const JoinCompetitionSuccess('Successfully joined competition!'));
-        if (_cachedParticipants.isNotEmpty) {
-          emit(ViewParticipantsLoaded(List.unmodifiable(_cachedParticipants)));
-        }
+        _cachedParticipants.removeWhere((p) => p.userId == userId);
+        emit(const LeaveCompetitionSuccess('Left the competition successfully.'));
+        emit(ViewParticipantsLoaded(List.unmodifiable(_cachedParticipants)));
       case Failure(:final message):
         emit(ViewParticipantsError(message));
         if (_cachedParticipants.isNotEmpty) {
@@ -72,18 +107,18 @@ class ViewParticipantsCubit extends Cubit<ViewParticipantsState> {
     }
   }
 
-  Future<void> leaveCompetition({
+  Future<void> leaveTeamCompetition({
     required String competitionId,
     required String userId,
   }) async {
     emit(ViewParticipantsActionLoading());
 
-    final result = await _leaveCompetitionUseCase(competitionId);
+    final result = await _leaveTeamCompetitionUseCase(competitionId);
 
     switch (result) {
       case Success():
         _cachedParticipants.removeWhere((p) => p.userId == userId);
-        emit(const LeaveCompetitionSuccess('Left the competition successfully.'));
+        emit(const LeaveCompetitionSuccess('Left team competition successfully.'));
         emit(ViewParticipantsLoaded(List.unmodifiable(_cachedParticipants)));
       case Failure(:final message):
         emit(ViewParticipantsError(message));
@@ -106,18 +141,10 @@ class ViewParticipantsCubit extends Cubit<ViewParticipantsState> {
       joinCode: joinCode,
     );
 
-    switch (result) {
-      case Success():
-        emit(const JoinCompetitionSuccess('Successfully joined team!'));
-        if (_cachedParticipants.isNotEmpty) {
-          emit(ViewParticipantsLoaded(List.unmodifiable(_cachedParticipants)));
-        }
-      case Failure(:final message):
-        emit(ViewParticipantsError(message));
-        if (_cachedParticipants.isNotEmpty) {
-          emit(ViewParticipantsLoaded(List.unmodifiable(_cachedParticipants)));
-        }
-    }
+    _handleActionResult(
+      result: result,
+      successMessage: 'Successfully joined team!',
+    );
   }
 
   Future<void> leaveTeam({
@@ -160,9 +187,19 @@ class ViewParticipantsCubit extends Cubit<ViewParticipantsState> {
       joinCode: joinCode,
     );
 
+    _handleActionResult(
+      result: result,
+      successMessage: 'Successfully switched teams!',
+    );
+  }
+
+  void _handleActionResult({
+    required Result<void> result,
+    required String successMessage,
+  }) {
     switch (result) {
       case Success():
-        emit(const JoinCompetitionSuccess('Successfully switched teams!'));
+        emit(JoinCompetitionSuccess(successMessage));
         if (_cachedParticipants.isNotEmpty) {
           emit(ViewParticipantsLoaded(List.unmodifiable(_cachedParticipants)));
         }

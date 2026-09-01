@@ -116,14 +116,58 @@ class _CreateCompetitionViewState extends State<CreateCompetitionView> {
     });
   }
 
+  void _submit() {
+    // 1. Guard against duplicate execution if cubit is already processing
+    final cubit = context.read<CreateCompetitionCubit>();
+    if (cubit.state is CreateCompetitionLoading) return;
+
+    if (!_formKey.currentState!.validate()) return;
+
+    if (_startDate == null || _endDate == null) {
+      context.showError("Please select both start and end dates");
+      return;
+    }
+
+    if (_endDate!.isBefore(_startDate!)) {
+      context.showError("End date cannot be before start date");
+      return;
+    }
+
+    int maxParticipants = 0;
+    int? maxTeams;
+    int? membersPerTeam;
+
+    if (_selectedType == "individual") {
+      maxParticipants = int.parse(_participantsController.text.trim());
+    } else {
+      maxTeams = int.parse(_maxTeamsController.text.trim());
+      membersPerTeam = int.parse(_membersController.text.trim());
+      maxParticipants = maxTeams * membersPerTeam;
+    }
+
+    // 2. Hide keyboard to prevent accidental double-taps during submission
+    FocusScope.of(context).unfocus();
+
+    cubit.submitCompetition(
+      name: _nameController.text.trim(),
+      description: _descController.text.trim(),
+      type: _selectedType,
+      totalPoints: int.parse(_pointsController.text.trim()),
+      startDate: _startDate!,
+      endDate: _endDate!,
+      maxParticipants: maxParticipants,
+      isPublic: _selectedType == "individual" ? _isPublic : true,
+      category: _selectedCategory!,
+      maxTeams: maxTeams,
+      membersPerTeam: membersPerTeam,
+      joinCode: !_isPublic ? _joinCodeController.text.trim() : null,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-      ),
       body: SafeArea(
         child: BlocConsumer<CreateCompetitionCubit, CreateCompetitionState>(
           listener: (context, state) {
@@ -132,6 +176,7 @@ class _CreateCompetitionViewState extends State<CreateCompetitionView> {
               _resetForm();
               widget.onSuccess?.call();
               if (Navigator.canPop(context)) {
+                ScaffoldMessenger.of(context).clearSnackBars();
                 Navigator.pop(context);
               }
             }
@@ -321,12 +366,20 @@ class _CreateCompetitionViewState extends State<CreateCompetitionView> {
                       width: double.infinity,
                       height: 55,
                       child: ElevatedButton(
+                        // Disables taps when isLoading is true by assigning null
                         onPressed: isLoading ? null : _submit,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.primary,
                         ),
                         child: isLoading
-                            ? const CircularProgressIndicator(color: Colors.black)
+                            ? const SizedBox(
+                                height: 24,
+                                width: 24,
+                                child: CircularProgressIndicator(
+                                  color: Colors.black,
+                                  strokeWidth: 2.5,
+                                ),
+                              )
                             : const Text(
                                 "Launch Competition 🚀",
                                 style: TextStyle(
@@ -414,46 +467,5 @@ class _CreateCompetitionViewState extends State<CreateCompetitionView> {
         borderSide: BorderSide.none,
       ),
     );
-  }
-
-  void _submit() {
-    if (!_formKey.currentState!.validate()) return;
-
-    if (_startDate == null || _endDate == null) {
-      context.showError("Please select both start and end dates");
-      return;
-    }
-
-    if (_endDate!.isBefore(_startDate!)) {
-      context.showError("End date cannot be before start date");
-      return;
-    }
-
-    int maxParticipants = 0;
-    int? maxTeams;
-    int? membersPerTeam;
-
-    if (_selectedType == "individual") {
-      maxParticipants = int.parse(_participantsController.text.trim());
-    } else {
-      maxTeams = int.parse(_maxTeamsController.text.trim());
-      membersPerTeam = int.parse(_membersController.text.trim());
-      maxParticipants = maxTeams * membersPerTeam;
-    }
-
-    context.read<CreateCompetitionCubit>().submitCompetition(
-          name: _nameController.text.trim(),
-          description: _descController.text.trim(),
-          type: _selectedType,
-          totalPoints: int.parse(_pointsController.text.trim()),
-          startDate: _startDate!,
-          endDate: _endDate!,
-          maxParticipants: maxParticipants,
-          isPublic: _selectedType == "individual" ? _isPublic : true,
-          category: _selectedCategory!,
-          maxTeams: maxTeams,
-          membersPerTeam: membersPerTeam,
-          joinCode: !_isPublic ? _joinCodeController.text.trim() : null, // <-- ADD THIS
-        );
   }
 }

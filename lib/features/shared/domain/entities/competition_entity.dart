@@ -28,6 +28,7 @@ class CompetitionEntity extends Equatable {
   final String? winnerId;
   final List<String> searchKeywords;
   final Set<String> participantIds;
+  final bool isFavorite;
 
   // Settings & Scoring Parameters
   final double basePoints;
@@ -62,6 +63,7 @@ class CompetitionEntity extends Equatable {
     this.winnerId,
     required this.searchKeywords,
     required this.participantIds,
+    this.isFavorite = false,
     this.basePoints = 100.0,
     this.penaltyPoints = -15.0,
     this.leaderboardVisibility = true,
@@ -88,13 +90,15 @@ class CompetitionEntity extends Equatable {
 
     // 2. Fallback: Check individual participants list
     if (participants != null && participants!.isNotEmpty) {
-      final isParticipant = participants!.any((p) => p.id == userId || p.userId == userId);
+      final isParticipant =
+          participants!.any((p) => p.id == userId || p.userId == userId);
       if (isParticipant) return true;
     }
 
     // 3. Fallback: Check team members list
     if (teams != null && teams!.isNotEmpty) {
-      final isTeamMember = teams!.any((t) => t.members.any((m) => m.id == userId || m.userId == userId));
+      final isTeamMember = teams!.any(
+          (t) => t.members.any((m) => m.id == userId || m.userId == userId));
       if (isTeamMember) return true;
     }
 
@@ -126,6 +130,7 @@ class CompetitionEntity extends Equatable {
     String? winnerId,
     List<String>? searchKeywords,
     Set<String>? participantIds,
+    bool? isFavorite,
     double? basePoints,
     double? penaltyPoints,
     bool? leaderboardVisibility,
@@ -158,6 +163,7 @@ class CompetitionEntity extends Equatable {
       winnerId: winnerId ?? this.winnerId,
       searchKeywords: searchKeywords ?? this.searchKeywords,
       participantIds: participantIds ?? this.participantIds,
+      isFavorite: isFavorite ?? this.isFavorite,
       basePoints: basePoints ?? this.basePoints,
       penaltyPoints: penaltyPoints ?? this.penaltyPoints,
       leaderboardVisibility: leaderboardVisibility ?? this.leaderboardVisibility,
@@ -193,6 +199,7 @@ class CompetitionEntity extends Equatable {
         winnerId,
         searchKeywords,
         participantIds,
+        isFavorite,
         basePoints,
         penaltyPoints,
         leaderboardVisibility,

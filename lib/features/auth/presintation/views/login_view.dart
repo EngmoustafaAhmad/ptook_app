@@ -1,5 +1,6 @@
 // features/auth/presintation/views/login_view.dart
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ptook/app_scaffold.dart';
@@ -45,17 +46,19 @@ class _LoginViewState extends State<LoginView> {
         listener: (context, state) {
           if (state is AuthSuccess) {
             context.showSuccess('Welcome Back to Ptook!');
+
+            final currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
             
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (context) => const AppScaffold()),
+              MaterialPageRoute(builder: (context) => AppScaffold(userId: currentUserId,)),
             );
           } else if (state is AuthError) {
             context.showError(state.message); 
           }
         },
         builder: (context, state) {
-          return SafeArea(
+          return  SafeArea(
             child: Center( // تجعل محتوى الصفحة ممركزاً تماماً في المتصفح للـ Web UX
               child: SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 36),

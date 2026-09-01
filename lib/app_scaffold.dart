@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ptook/core/Theme/app_colors.dart';
@@ -7,15 +8,30 @@ import 'package:ptook/features/create_competition/presintation/pages/create_comp
 import 'package:ptook/features/home/presintation/views/home_view.dart';
 import 'package:ptook/features/search_competitions/presentation/cubits/search_competition_cubit.dart';
 import 'package:ptook/features/search_competitions/presentation/pages/search_competition_page.dart';
+import 'package:ptook/features/shared/presintation/widgets/app_drawer.dart';
+import 'package:ptook/features/shared/presintation/widgets/app_top_bar.dart';
+import 'package:ptook/features/view_competition/presintation/cubits/competition_home_cubit.dart';
+import 'package:ptook/features/view_competition/presintation/pages/saved_competitions_view.dart';
 
 class AppScaffold extends StatefulWidget {
-  const AppScaffold({super.key});
+  final String userId;
+  final String userName;
+  final String userEmail;
+
+  const AppScaffold({
+    super.key,
+    required this.userId , // Replace with dynamic authenticated user ID
+    this.userName = 'Moustafa',
+    this.userEmail = 'moustafa@gmail.com',
+  });
 
   @override
   State<AppScaffold> createState() => _AppScaffoldState();
 }
 
 class _AppScaffoldState extends State<AppScaffold> {
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+
   int _selectedIndex = 0;
   late final List<Widget> _pages;
 
@@ -25,7 +41,6 @@ class _AppScaffoldState extends State<AppScaffold> {
     _pages = [
       const HomeView(),
 
-      // 👈 2. Wrap CompetitionSearchView with BlocProvider
       BlocProvider<SearchCompetitionCubit>(
         create: (context) => sl<SearchCompetitionCubit>(),
         child: const CompetitionSearchView(),
@@ -49,22 +64,54 @@ class _AppScaffoldState extends State<AppScaffold> {
     });
   }
 
+  void _navigateToSavedCompetitions() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => BlocProvider<CompetitionHomeCubit>(
+          create: (context) => sl<CompetitionHomeCubit>(),
+          child: SavedCompetitionsView(userId: widget.userId),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: _scaffoldKey,
       backgroundColor: AppColors.background,
-      body: IndexedStack(
-        index: _selectedIndex,
-        children: _pages,
+      drawer: AppDrawer(
+        userId: widget.userId,
+        userName: widget.userName,
+        userEmail: widget.userEmail,
       ),
-      extendBody: true, // Enables transparency/floating under bottom nav bar
+      body: SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: AppTopBar(
+                onMenuPressed: () => _scaffoldKey.currentState?.openDrawer(),
+                onBookmarkPressed: _navigateToSavedCompetitions,
+              ),
+            ),
+            Expanded(
+              child: IndexedStack(
+                index: _selectedIndex,
+                children: _pages,
+              ),
+            ),
+          ],
+        ),
+      ),
+      extendBody: true,
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       floatingActionButton: _buildCenterFloatingActionButton(),
       bottomNavigationBar: _buildBottomNavigationBar(),
     );
   }
 
-  /// Center '+' Floating Action Button matching exact UI
   Widget _buildCenterFloatingActionButton() {
     return Container(
       height: 60,
@@ -74,10 +121,10 @@ class _AppScaffoldState extends State<AppScaffold> {
         child: FloatingActionButton(
           elevation: 6,
           highlightElevation: 10,
-          backgroundColor: const Color(0xFF14161D), // Dark inner fill
+          backgroundColor: const Color(0xFF14161D),
           shape: const CircleBorder(
             side: BorderSide(
-              color: AppColors.primary, // Gold stroke border
+              color: AppColors.primary,
               width: 2.0,
             ),
           ),
@@ -92,7 +139,6 @@ class _AppScaffoldState extends State<AppScaffold> {
     );
   }
 
-  /// Curved Floating Bottom Navigation Bar
   Widget _buildBottomNavigationBar() {
     return Container(
       margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
@@ -123,7 +169,6 @@ class _AppScaffoldState extends State<AppScaffold> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                // 1. Home
                 Expanded(
                   child: _BottomNavItem(
                     isSelected: _selectedIndex == 0,
@@ -133,7 +178,6 @@ class _AppScaffoldState extends State<AppScaffold> {
                     onTap: () => _onItemTapped(0),
                   ),
                 ),
-                // 2. Explore
                 Expanded(
                   child: _BottomNavItem(
                     isSelected: _selectedIndex == 1,
@@ -143,9 +187,7 @@ class _AppScaffoldState extends State<AppScaffold> {
                     onTap: () => _onItemTapped(1),
                   ),
                 ),
-                // Gap reserved for Center Docked FAB
                 const SizedBox(width: 60),
-                // 3. Activity
                 Expanded(
                   child: _BottomNavItem(
                     isSelected: _selectedIndex == 3,
@@ -155,7 +197,6 @@ class _AppScaffoldState extends State<AppScaffold> {
                     onTap: () => _onItemTapped(3),
                   ),
                 ),
-                // 4. Profile
                 Expanded(
                   child: _BottomNavItem(
                     isSelected: _selectedIndex == 4,
@@ -202,14 +243,12 @@ class _BottomNavItem extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           const Spacer(),
-          // Icon
           Icon(
             isSelected ? activeIcon : icon,
             color: isSelected ? activeColor : inactiveColor,
             size: 22,
           ),
           const SizedBox(height: 4),
-          // Label
           Text(
             label,
             style: TextStyle(
@@ -220,7 +259,6 @@ class _BottomNavItem extends StatelessWidget {
             ),
           ),
           const Spacer(),
-          // Active Indicator Pill Bar
           AnimatedContainer(
             duration: const Duration(milliseconds: 200),
             height: 3,

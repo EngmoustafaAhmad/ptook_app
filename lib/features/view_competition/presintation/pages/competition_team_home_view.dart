@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:ptook/core/Theme/app_colors.dart';
 import 'package:ptook/core/di/injection_container.dart';
 import 'package:ptook/features/Manage%20Competitions/presentation/cubits/manage_competition/manage_competition_cubit.dart';
 import 'package:ptook/features/Manage%20Competitions/presentation/cubits/manage_competition/manage_competition_state.dart';
@@ -10,18 +11,9 @@ import 'package:ptook/features/view_competition/presintation/cubits/view_partici
 import 'package:ptook/features/view_competition/presintation/cubits/view_participants/view_participants_state.dart';
 import 'package:ptook/features/view_competition/presintation/cubits/view_teams/view_teams_cubit.dart';
 import 'package:ptook/features/view_competition/presintation/cubits/view_teams/view_teams_state.dart';
+import 'package:ptook/features/view_competition/presintation/widgets/team_expansion_card.dart';
 
-abstract class _AppTheme {
-  static const background = Color(0xFF0D0F17);
-  static const cardBackground = Color(0xFF161926);
-  static const borderOutline = Color(0xFF262B3E);
-  static const goldAccent = Color(0xFFFFD700);
-  static const silverAccent = Color(0xFFC0C0C0);
-  static const bronzeAccent = Color(0xFFCD7F32);
-  static const primaryPurple = Color(0xFF9D61FF);
-  static const publicGreen = Color(0xFF2ECC71);
-  static const privateRed = Color(0xFFE74C3C);
-}
+
 
 class CompetitionTeamHomeView extends StatelessWidget {
   final CompetitionEntity competition;
@@ -58,7 +50,7 @@ class CompetitionTeamHomeView extends StatelessWidget {
         ),
         BlocProvider(
           create: (context) => sl<ViewParticipantsCubit>()
-            ..listenToParticipants(competition.id), // Added missing provider
+            ..listenToParticipants(competition.id),
         ),
       ],
       child: BlocConsumer<ManageCompetitionCubit, ManageCompetitionState>(
@@ -69,7 +61,7 @@ class CompetitionTeamHomeView extends StatelessWidget {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(state.errorMessage!),
-                backgroundColor: _AppTheme.privateRed,
+                backgroundColor: AppColors.privateRed,
                 behavior: SnackBarBehavior.floating,
               ),
             );
@@ -78,7 +70,7 @@ class CompetitionTeamHomeView extends StatelessWidget {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(state.successMessage!),
-                backgroundColor: _AppTheme.publicGreen,
+                backgroundColor: AppColors.publicGreen,
                 behavior: SnackBarBehavior.floating,
               ),
             );
@@ -93,9 +85,9 @@ class CompetitionTeamHomeView extends StatelessWidget {
               cubitState.isFinished || competition.isFinished;
 
           return Scaffold(
-            backgroundColor: _AppTheme.background,
+            backgroundColor: AppColors.background,
             appBar: AppBar(
-              backgroundColor: _AppTheme.background,
+              backgroundColor: AppColors.background,
               elevation: 0,
               centerTitle: false,
               title: Text(
@@ -110,7 +102,7 @@ class CompetitionTeamHomeView extends StatelessWidget {
                   ? const PreferredSize(
                       preferredSize: Size.fromHeight(2),
                       child: LinearProgressIndicator(
-                        color: _AppTheme.primaryPurple,
+                        color: AppColors.primaryPurple,
                         backgroundColor: Colors.transparent,
                       ),
                     )
@@ -122,7 +114,7 @@ class CompetitionTeamHomeView extends StatelessWidget {
                     teamsState is ViewTeamsInitial) {
                   return const Center(
                     child: CircularProgressIndicator(
-                      color: _AppTheme.primaryPurple,
+                      color: AppColors.primaryPurple,
                     ),
                   );
                 }
@@ -133,10 +125,6 @@ class CompetitionTeamHomeView extends StatelessWidget {
 
                 final teams =
                     (teamsState is ViewTeamsLoaded) ? teamsState.teams : <TeamEntity>[];
-
-                if (teams.isEmpty) {
-                  return _buildEmptyState();
-                }
 
                 final sortedTeams = List<TeamEntity>.from(teams)
                   ..sort((a, b) => b.totalPoints.compareTo(a.totalPoints));
@@ -151,6 +139,9 @@ class CompetitionTeamHomeView extends StatelessWidget {
                           orElse: () => null,
                         );
 
+                final bool isUserInAnyTeam = userCurrentTeam != null;
+                final bool hasNoTeams = sortedTeams.isEmpty;
+
                 return SingleChildScrollView(
                   physics: const BouncingScrollPhysics(),
                   padding: const EdgeInsets.symmetric(
@@ -164,66 +155,134 @@ class CompetitionTeamHomeView extends StatelessWidget {
                         _buildPodiumContainer(topThree),
                         const SizedBox(height: 24),
                       ],
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            isCompetitionEnded
-                                ? 'Final Standings'
-                                : 'Team Leaderboard',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
+                      if (hasNoTeams) ...[
+                        _buildEmptyState(),
+                      ] else ...[
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              isCompetitionEnded
+                                  ? 'Final Standings'
+                                  : 'Team Leaderboard',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
-                          ),
-                          Text(
-                            '${sortedTeams.length} Teams',
-                            style: TextStyle(
-                              color: Colors.white.withOpacity(0.5),
-                              fontSize: 13,
+                            Text(
+                              '${sortedTeams.length} Teams',
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(0.5),
+                                fontSize: 13,
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      ListView.separated(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        itemCount: sortedTeams.length,
-                        separatorBuilder: (_, _) => const SizedBox(height: 12),
-                        itemBuilder: (context, index) {
-                          final team = sortedTeams[index];
-                          final isUserInThisTeam =
-                              userCurrentTeam?.id == team.id;
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        ListView.separated(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: sortedTeams.length,
+                          separatorBuilder: (_, _) => const SizedBox(height: 12),
+                          itemBuilder: (context, index) {
+                            final team = sortedTeams[index];
+                            final isUserInThisTeam =
+                                userCurrentTeam?.id == team.id;
 
-                          return _TeamExpansionCard(
-                            team: team,
-                            rank: index + 1,
-                            isJoined: isUserInThisTeam,
-                            hasJoinedOtherTeam: userCurrentTeam != null &&
-                                !isUserInThisTeam,
-                            currentUserId: currentUserId,
-                            isCompetitionEnded: isCompetitionEnded,
-                            maxMembersLimit: _getCapacityLimit(team),
-                            isActionPending: isLoading,
-                            onToggleJoin: () => _handleJoinLeave(
-                              context: context,
-                              targetTeam: team,
-                            ),
-                          );
-                        },
-                      ),
-                      const SizedBox(height: 24),
+                            return TeamExpansionCard(
+                              team: team,
+                              rank: index + 1,
+                              isJoined: isUserInThisTeam,
+                              hasJoinedOtherTeam: isUserInAnyTeam &&
+                                  !isUserInThisTeam,
+                              currentUserId: currentUserId,
+                              isCompetitionEnded: isCompetitionEnded,
+                              maxMembersLimit: _getCapacityLimit(team),
+                              isActionPending: isLoading,
+                              onToggleJoin: () => _handleJoinLeave(
+                                context: context,
+                                targetTeam: team,
+                              ),
+                            );
+                          },
+                        ),
+                      ],
+                      const SizedBox(height: 16),
                     ],
                   ),
                 );
               },
             ),
+            bottomNavigationBar: isCompetitionEnded
+                ? null
+                : Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: const BoxDecoration(
+                      color: AppColors.cardBackground,
+                      border: Border(
+                        top: BorderSide(color: AppColors.borderOutline),
+                      ),
+                    ),
+                    child: SafeArea(
+                      child: SizedBox(
+                        width: double.infinity,
+                        height: 50,
+                        child: TextButton.icon(
+                          style: TextButton.styleFrom(
+                            foregroundColor: AppColors.privateRed,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              side: const BorderSide(
+                                color: AppColors.privateRed,
+                                width: 1.5,
+                              ),
+                            ),
+                            backgroundColor: Colors.transparent,
+                          ),
+                          icon: const Icon(Icons.exit_to_app_rounded, size: 20),
+                          label: const Text(
+                            'Leave Competition',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 0.3,
+                            ),
+                          ),
+                          onPressed: () => _handleLeaveCompetition(context),
+                        ),
+                      )
+                    ),
+                  ),
           );
         },
       ),
     );
+  }
+
+  Future<void> _handleLeaveCompetition(BuildContext context) async {
+    final bool? confirm = await _showConfirmationDialog(
+      context,
+      title: 'Leave Competition?',
+      message:
+          'Are you sure you want to leave this competition? You will be removed from your team (if assigned) and lose access to all competition data.',
+      confirmText: 'Leave',
+      confirmColor: AppColors.privateRed,
+    );
+
+    if (confirm == true && context.mounted) {
+      final viewParticipantsCubit = context.read<ViewParticipantsCubit>();
+      
+      await viewParticipantsCubit.leaveTeamCompetition(
+        competitionId: competition.id,
+        userId: currentUserId,
+      );
+
+      if (context.mounted) {
+        Navigator.pop(context);
+      }
+    }
   }
 
   Future<void> _handleJoinLeave({
@@ -288,7 +347,7 @@ class CompetitionTeamHomeView extends StatelessWidget {
         message:
             'You are currently assigned to another team. You can only participate in one team at a time.\n\nDo you want to switch to "${targetTeam.name}"?',
         confirmText: 'Switch Team',
-        confirmColor: _AppTheme.primaryPurple,
+        confirmColor: AppColors.primaryPurple,
       );
 
       if (confirmSwitch != true) return;
@@ -307,7 +366,7 @@ class CompetitionTeamHomeView extends StatelessWidget {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Invalid team join code. Access denied.'),
-              backgroundColor: _AppTheme.privateRed,
+              backgroundColor: AppColors.privateRed,
               behavior: SnackBarBehavior.floating,
             ),
           );
@@ -342,10 +401,10 @@ class CompetitionTeamHomeView extends StatelessWidget {
     return showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: _AppTheme.cardBackground,
+        backgroundColor: AppColors.cardBackground,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
-          side: const BorderSide(color: _AppTheme.borderOutline),
+          side: const BorderSide(color: AppColors.borderOutline),
         ),
         title: Text(
           title,
@@ -378,9 +437,6 @@ class CompetitionTeamHomeView extends StatelessWidget {
     );
   }
 
-  
-}
-
   Widget _buildPodiumContainer(List<TeamEntity> topThree) {
     final first = topThree.isNotEmpty ? topThree[0] : null;
     final second = topThree.length > 1 ? topThree[1] : null;
@@ -389,9 +445,9 @@ class CompetitionTeamHomeView extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 12),
       decoration: BoxDecoration(
-        color: _AppTheme.cardBackground,
+        color: AppColors.cardBackground,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: _AppTheme.borderOutline),
+        border: Border.all(color: AppColors.borderOutline),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.4),
@@ -409,7 +465,7 @@ class CompetitionTeamHomeView extends StatelessWidget {
               child: Text(
                 '🏆 Final Podium Winners',
                 style: TextStyle(
-                  color: _AppTheme.goldAccent,
+                  color: AppColors.goldAccent,
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
                 ),
@@ -425,7 +481,7 @@ class CompetitionTeamHomeView extends StatelessWidget {
                     ? _buildPodiumAvatar(
                         team: second,
                         rank: 2,
-                        accentColor: _AppTheme.silverAccent,
+                        accentColor: AppColors.silverAccent,
                         avatarSize: 60,
                         isCenter: false,
                       )
@@ -436,7 +492,7 @@ class CompetitionTeamHomeView extends StatelessWidget {
                     ? _buildPodiumAvatar(
                         team: first,
                         rank: 1,
-                        accentColor: _AppTheme.goldAccent,
+                        accentColor: AppColors.goldAccent,
                         avatarSize: 80,
                         isCenter: true,
                       )
@@ -447,7 +503,7 @@ class CompetitionTeamHomeView extends StatelessWidget {
                     ? _buildPodiumAvatar(
                         team: third,
                         rank: 3,
-                        accentColor: _AppTheme.bronzeAccent,
+                        accentColor: AppColors.bronzeAccent,
                         avatarSize: 55,
                         isCenter: false,
                       )
@@ -495,7 +551,7 @@ class CompetitionTeamHomeView extends StatelessWidget {
               ),
               child: CircleAvatar(
                 radius: avatarSize / 2,
-                backgroundColor: _AppTheme.borderOutline,
+                backgroundColor: AppColors.borderOutline,
                 child: Text(
                   team.name.isNotEmpty ? team.name[0].toUpperCase() : 'T',
                   style: TextStyle(
@@ -511,13 +567,13 @@ class CompetitionTeamHomeView extends StatelessWidget {
               child: isCenter
                   ? const Icon(
                       Icons.workspace_premium,
-                      color: _AppTheme.goldAccent,
+                      color: AppColors.goldAccent,
                       size: 28,
                     )
                   : Container(
                       padding: const EdgeInsets.all(4),
                       decoration: BoxDecoration(
-                        color: _AppTheme.cardBackground,
+                        color: AppColors.cardBackground,
                         shape: BoxShape.circle,
                         border: Border.all(color: accentColor, width: 1.5),
                       ),
@@ -562,6 +618,7 @@ class CompetitionTeamHomeView extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
+          SizedBox(height: 48),
           Icon(Icons.groups_outlined, size: 64, color: Colors.white38),
           SizedBox(height: 12),
           Text(
@@ -585,280 +642,8 @@ class CompetitionTeamHomeView extends StatelessWidget {
       ),
     );
   }
-
-
-class _TeamExpansionCard extends StatefulWidget {
-  final TeamEntity team;
-  final int rank;
-  final bool isJoined;
-  final bool hasJoinedOtherTeam;
-  final String currentUserId;
-  final bool isCompetitionEnded;
-  final int? maxMembersLimit;
-  final bool isActionPending;
-  final VoidCallback onToggleJoin;
-
-  const _TeamExpansionCard({
-    required this.team,
-    required this.rank,
-    required this.isJoined,
-    required this.hasJoinedOtherTeam,
-    required this.currentUserId,
-    required this.isCompetitionEnded,
-    required this.maxMembersLimit,
-    required this.isActionPending,
-    required this.onToggleJoin,
-  });
-
-  @override
-  State<_TeamExpansionCard> createState() => _TeamExpansionCardState();
 }
 
-class _TeamExpansionCardState extends State<_TeamExpansionCard> {
-  bool _isExpanded = false;
-
-  String _getButtonText({required bool isPrivate, required bool isFull}) {
-    if (widget.isJoined) return 'Leave';
-    if (isFull) return 'Full';
-    if (widget.hasJoinedOtherTeam) return 'Switch';
-    return isPrivate ? 'Join (Code)' : 'Join';
-  }
-
-  Color _getRankColor(int rank) {
-    switch (rank) {
-      case 1:
-        return _AppTheme.goldAccent;
-      case 2:
-        return _AppTheme.silverAccent;
-      case 3:
-        return _AppTheme.bronzeAccent;
-      default:
-        return Colors.white54;
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final bool isPrivate = widget.team.isPrivate;
-    final bool isFull = widget.maxMembersLimit != null &&
-        widget.team.members.length >= widget.maxMembersLimit! &&
-        !widget.isJoined;
-
-    final members = List.from(widget.team.members)
-      ..sort((a, b) => (b.points ?? 0).compareTo(a.points ?? 0));
-
-    return Container(
-      decoration: BoxDecoration(
-        color: _AppTheme.cardBackground,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: widget.isJoined
-              ? _AppTheme.primaryPurple
-              : _AppTheme.borderOutline,
-          width: widget.isJoined ? 2 : 1,
-        ),
-      ),
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(14),
-            child: Row(
-              children: [
-                Container(
-                  width: 34,
-                  height: 34,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: _getRankColor(widget.rank).withOpacity(0.15),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Text(
-                    '${widget.rank}',
-                    style: TextStyle(
-                      color: _getRankColor(widget.rank),
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Flexible(
-                            child: Text(
-                              widget.team.name,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 15,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Icon(
-                            isPrivate ? Icons.lock_outline : Icons.public,
-                            size: 14,
-                            color: isPrivate
-                                ? _AppTheme.privateRed
-                                : _AppTheme.publicGreen,
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        '${widget.team.totalPoints} pts • ${widget.team.members.length}'
-                        '${widget.maxMembersLimit != null ? '/${widget.maxMembersLimit}' : ''} members',
-                        style: TextStyle(
-                          color: Colors.white.withOpacity(0.5),
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                if (!widget.isCompetitionEnded) ...[
-                  ElevatedButton(
-                    onPressed: (isFull || widget.isActionPending)
-                        ? null
-                        : widget.onToggleJoin,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: widget.isJoined
-                          ? Colors.redAccent.withOpacity(0.15)
-                          : (isFull ? Colors.white10 : _AppTheme.primaryPurple),
-                      foregroundColor: widget.isJoined
-                          ? Colors.redAccent
-                          : (isFull ? Colors.white38 : Colors.white),
-                      elevation: 0,
-                      side: widget.isJoined
-                          ? const BorderSide(color: Colors.redAccent, width: 1)
-                          : BorderSide.none,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
-                      ),
-                    ),
-                    child: Text(
-                      _getButtonText(isPrivate: isPrivate, isFull: isFull),
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ),
-                ],
-                IconButton(
-                  icon: Icon(
-                    _isExpanded ? Icons.expand_less : Icons.expand_more,
-                    color: Colors.white54,
-                  ),
-                  onPressed: () => setState(() => _isExpanded = !_isExpanded),
-                ),
-              ],
-            ),
-          ),
-          if (_isExpanded) ...[
-            const Divider(color: _AppTheme.borderOutline, height: 1),
-            Container(
-              padding: const EdgeInsets.all(12),
-              color: Colors.black.withOpacity(0.15),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Padding(
-                    padding: EdgeInsets.only(bottom: 8, left: 4),
-                    child: Text(
-                      'Participant Rankings',
-                      style: TextStyle(
-                        color: Colors.white70,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                  if (members.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 8),
-                      child: Text(
-                        'No participants in this team yet.',
-                        style: TextStyle(color: Colors.white38, fontSize: 12),
-                      ),
-                    )
-                  else
-                    ListView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: members.length,
-                      itemBuilder: (context, idx) {
-                        final member = members[idx];
-                        final isMe = member.id == widget.currentUserId;
-
-                        return Container(
-                          margin: const EdgeInsets.only(bottom: 6),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 8,
-                          ),
-                          decoration: BoxDecoration(
-                            color: isMe
-                                ? _AppTheme.primaryPurple.withOpacity(0.2)
-                                : Colors.white.withOpacity(0.04),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Row(
-                            children: [
-                              Text(
-                                '#${idx + 1}',
-                                style: TextStyle(
-                                  color: isMe
-                                      ? _AppTheme.primaryPurple
-                                      : Colors.white38,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 12,
-                                ),
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Text(
-                                  member.name + (isMe ? ' (You)' : ''),
-                                  style: TextStyle(
-                                    color: isMe ? Colors.white : Colors.white70,
-                                    fontWeight: isMe
-                                        ? FontWeight.bold
-                                        : FontWeight.normal,
-                                    fontSize: 13,
-                                  ),
-                                ),
-                              ),
-                              Text(
-                                '${member.points ?? 0} pts',
-                                style: const TextStyle(
-                                  color: Colors.white70,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
-                ],
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
 class _JoinCodeDialog extends StatefulWidget {
   final String teamName;
 
@@ -886,10 +671,10 @@ class _JoinCodeDialogState extends State<_JoinCodeDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      backgroundColor: _AppTheme.cardBackground,
+      backgroundColor: AppColors.cardBackground,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: const BorderSide(color: _AppTheme.borderOutline),
+        side: const BorderSide(color: AppColors.borderOutline),
       ),
       title: Text(
         'Join ${widget.teamName}',
@@ -915,11 +700,11 @@ class _JoinCodeDialogState extends State<_JoinCodeDialog> {
               fillColor: Colors.black26,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
-                borderSide: const BorderSide(color: _AppTheme.borderOutline),
+                borderSide: const BorderSide(color: AppColors.borderOutline),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
-                borderSide: const BorderSide(color: _AppTheme.primaryPurple),
+                borderSide: const BorderSide(color: AppColors.primaryPurple),
               ),
             ),
           ),
@@ -932,7 +717,7 @@ class _JoinCodeDialogState extends State<_JoinCodeDialog> {
         ),
         ElevatedButton(
           style: ElevatedButton.styleFrom(
-            backgroundColor: _AppTheme.primaryPurple,
+            backgroundColor: AppColors.primaryPurple,
           ),
           onPressed: () => Navigator.pop(context, _controller.text),
           child: const Text('Confirm', style: TextStyle(color: Colors.white)),
@@ -942,7 +727,6 @@ class _JoinCodeDialogState extends State<_JoinCodeDialog> {
   }
 }
 
-// Call helper function remains clean:
 Future<String?> _showJoinCodeDialog(BuildContext context, String teamName) {
   return showDialog<String>(
     context: context,

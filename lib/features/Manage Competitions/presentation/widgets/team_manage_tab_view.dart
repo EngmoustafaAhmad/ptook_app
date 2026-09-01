@@ -246,7 +246,7 @@ class TeamManageTabView extends StatelessWidget {
             style: TextStyle(color: Colors.white54, fontSize: 12),
           ),
           const SizedBox(height: 8),
-          OutlinedButton(
+          TextButton(
             onPressed: () {
               onShowConfirmDialog(
                 context: context,
@@ -262,7 +262,7 @@ class TeamManageTabView extends StatelessWidget {
                 },
               );
             },
-            style: OutlinedButton.styleFrom(
+            style: TextButton.styleFrom(
               minimumSize: const Size(double.infinity, 44),
               side: const BorderSide(color: Colors.redAccent),
             ),
@@ -273,7 +273,7 @@ class TeamManageTabView extends StatelessWidget {
                 fontWeight: FontWeight.bold,
               ),
             ),
-          ),
+          )
         ],
       ),
     );
@@ -315,6 +315,7 @@ class _CreateTeamDialogState extends State<_CreateTeamDialog> {
         _isPrivate,
         _isPrivate ? _joinCodeController.text.trim() : null,
       );
+      ScaffoldMessenger.of(context).clearSnackBars();
       Navigator.pop(context);
     }
   }

@@ -47,11 +47,16 @@ import 'package:ptook/features/view_competition/data/datasources/i_view_competit
 import 'package:ptook/features/view_competition/data/datasources/view_competition_remote_data_source_impl.dart';
 import 'package:ptook/features/view_competition/data/repositories/view_competition_repository_impl.dart';
 import 'package:ptook/features/view_competition/domain/repositories/i_view_competition_repository.dart';
-import 'package:ptook/features/view_competition/domain/usecases/join_competition_usecase.dart';
-import 'package:ptook/features/view_competition/domain/usecases/leave_competition_usecase.dart';
+import 'package:ptook/features/view_competition/domain/usecases/get_favorite_competitions_usecase.dart';
+import 'package:ptook/features/view_competition/domain/usecases/is_favorite_usecase.dart';
+import 'package:ptook/features/view_competition/domain/usecases/join_individual_competition_usecase.dart';
+import 'package:ptook/features/view_competition/domain/usecases/join_team_competition_usecase.dart';
+import 'package:ptook/features/view_competition/domain/usecases/leave_individual_competition_usecase.dart';
+import 'package:ptook/features/view_competition/domain/usecases/leave_team_competition_usecase.dart';
 import 'package:ptook/features/view_competition/domain/usecases/stream_participants_view_usecase.dart';
 import 'package:ptook/features/view_competition/domain/usecases/stream_teams_view_usecase.dart';
 import 'package:ptook/features/view_competition/domain/usecases/team_actions_usecase.dart';
+import 'package:ptook/features/view_competition/domain/usecases/toggle_favorite_usecase.dart';
 import 'package:ptook/features/view_competition/presintation/cubits/competition_home_cubit.dart';
 import 'package:ptook/features/view_competition/presintation/cubits/view_participants/view_participants_cubit.dart';
 import 'package:ptook/features/view_competition/presintation/cubits/view_teams/view_teams_cubit.dart';
@@ -182,8 +187,7 @@ void _initSearchCompetitionFeature() {
   _registerFactory<SearchCompetitionCubit>(
     () => SearchCompetitionCubit(
       streamPublicCompetitionsUseCase: sl<StreamPublicCompetitionsUseCase>(),
-      streamSearchCompetitionsUseCase:
-          sl<StreamSearchCompetitionsUseCase>(),
+      streamSearchCompetitionsUseCase:sl<StreamSearchCompetitionsUseCase>(),
       streamJoinedCompetitionsUseCase: sl<StreamJoinedCompetitionsUseCase>(),
       streamCreatedCompetitionsUseCase: sl<StreamCreatedCompetitionsUseCase>(),
       joinCompetitionSearchUseCase: sl<JoinCompetitionSearchUseCase>(),
@@ -292,6 +296,10 @@ void _initViewCompetitionFeature() {
     ),
   );
 
+  _registerLazySingleton<ToggleFavoriteUsecase>(
+    () => ToggleFavoriteUsecase(sl<IViewCompetitionRepository>()),
+  );
+
   // Repository
   _registerLazySingleton<IViewCompetitionRepository>(
     () => ViewCompetitionRepositoryImpl(
@@ -309,13 +317,12 @@ void _initViewCompetitionFeature() {
   _registerLazySingleton<GetCompetitionDetailsUseCase>(
     () => GetCompetitionDetailsUseCase(sl<IViewCompetitionRepository>()),
   );
-  _registerLazySingleton<JoinCompetitionUseCase>(
-    () => JoinCompetitionUseCase(sl<IViewCompetitionRepository>()),
+  _registerLazySingleton<JoinIndividualCompetitionUseCase>(
+    () => JoinIndividualCompetitionUseCase(sl<IViewCompetitionRepository>()),
   );
-  _registerLazySingleton<LeaveCompetitionUseCase>(
-    () => LeaveCompetitionUseCase(sl<IViewCompetitionRepository>()),
+  _registerLazySingleton<JoinTeamCompetitionUseCase>(
+    () => JoinTeamCompetitionUseCase(sl<IViewCompetitionRepository>()),
   );
-
   // Use Cases - Team Actions
   _registerLazySingleton<JoinTeamUseCase>(
     () => JoinTeamUseCase(sl<IViewCompetitionRepository>()),
@@ -326,16 +333,30 @@ void _initViewCompetitionFeature() {
   _registerLazySingleton<SwitchTeamUseCase>(
     () => SwitchTeamUseCase(sl<IViewCompetitionRepository>()),
   );
+  _registerLazySingleton<IsFavoriteUseCase>(
+    () => IsFavoriteUseCase(sl<IViewCompetitionRepository>()),
+  );
+  _registerLazySingleton<GetFavoriteCompetitionsUsecase>(
+    () => GetFavoriteCompetitionsUsecase(sl<IViewCompetitionRepository>()),
+  );
+  _registerLazySingleton<LeaveIndividualCompetitionUseCase>(
+    () => LeaveIndividualCompetitionUseCase(sl<IViewCompetitionRepository>()),
+  );
+  _registerLazySingleton<LeaveTeamCompetitionUseCase>(
+    () => LeaveTeamCompetitionUseCase(sl<IViewCompetitionRepository>()),
+  );
 
   // Cubits
   _registerFactory<ViewParticipantsCubit>(
     () => ViewParticipantsCubit(
       streamParticipantsViewUseCase: sl<StreamParticipantsViewUseCase>(),
-      joinCompetitionUseCase: sl<JoinCompetitionUseCase>(),
-      leaveCompetitionUseCase: sl<LeaveCompetitionUseCase>(),
+      joinIndividualCompetitionUseCase: sl<JoinIndividualCompetitionUseCase>(),
       joinTeamUseCase: sl<JoinTeamUseCase>(),
       leaveTeamUseCase: sl<LeaveTeamUseCase>(), 
-      switchTeamUseCase: sl<SwitchTeamUseCase>(),
+      switchTeamUseCase: sl<SwitchTeamUseCase>(), 
+      joinTeamCompetitionUseCase: sl<JoinTeamCompetitionUseCase>(), 
+      leaveIndividualCompetitionUseCase: sl<LeaveIndividualCompetitionUseCase>(), 
+      leaveTeamCompetitionUseCase: sl<LeaveTeamCompetitionUseCase>(),
     ),
   );
 
@@ -349,7 +370,10 @@ void _initViewCompetitionFeature() {
     () => CompetitionHomeCubit(
       streamParticipantsViewUseCase: sl<StreamParticipantsViewUseCase>(),
       getCompetitionDetailsUseCase: sl<GetCompetitionDetailsUseCase>(),
-      joinCompetitionUseCase: sl<JoinCompetitionUseCase>(),
+      joinIndividualCompetitionUseCase: sl<JoinIndividualCompetitionUseCase>(), 
+      toggleFavoriteUseCase: sl<ToggleFavoriteUsecase>(), 
+      isFavoriteUseCase: sl<IsFavoriteUseCase>(), 
+      getFavoriteCompetitionsUseCase: sl<GetFavoriteCompetitionsUsecase>(),
     ),
   );
 }
@@ -386,4 +410,5 @@ void _initCreateCompetitionFeature() {
       auth: sl<FirebaseAuth>(),
     ),
   );
+
 }

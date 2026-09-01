@@ -36,7 +36,7 @@ Stream<List<CompetitionModel>> streamAllCompetitions({
 
   return query.snapshots().map((snapshot) {
     return snapshot.docs
-        .map((doc) => CompetitionModel.fromJson(doc.data(), doc.id))
+        .map((doc) => CompetitionModel.fromJson(doc.data(), id:doc.id))
         .toList();
   });
 }
@@ -56,7 +56,7 @@ Stream<List<CompetitionModel>> streamSearchCompetitions({
 
   return firebaseQuery.snapshots().map((snapshot) {
     return snapshot.docs
-        .map((doc) => CompetitionModel.fromJson(doc.data(), doc.id))
+        .map((doc) => CompetitionModel.fromJson(doc.data(), id:doc.id))
         .toList();
   });
 }
@@ -74,7 +74,7 @@ Stream<List<CompetitionModel>> streamJoinedCompetitions({
   return firebaseQuery.snapshots().map((snapshot) {
     // 1. Map raw documents to models
     var competitions = snapshot.docs
-        .map((doc) => CompetitionModel.fromJson(doc.data(), doc.id))
+        .map((doc) => CompetitionModel.fromJson(doc.data(), id:doc.id))
         .toList();
 
     // 2. Perform local text filtering if query is provided
@@ -117,7 +117,7 @@ Stream<List<CompetitionModel>> streamJoinedCompetitions({
 
     return firebaseQuery.limit(limit).snapshots().map((snapshot) {
       return snapshot.docs
-          .map((doc) => CompetitionModel.fromJson(doc.data(), doc.id))
+          .map((doc) => CompetitionModel.fromJson(doc.data(), id:doc.id))
           .toList();
     });
   }
@@ -233,7 +233,7 @@ Stream<List<CompetitionModel>> streamJoinedCompetitions({
     if (snapshot.docs.isEmpty) return null;
 
     final doc = snapshot.docs.first;
-    return CompetitionModel.fromJson(doc.data(), doc.id);
+    return CompetitionModel.fromJson(doc.data(), id:doc.id);
   }
 
   @override
@@ -242,7 +242,7 @@ Stream<List<CompetitionModel>> streamJoinedCompetitions({
     if (!doc.exists || doc.data() == null) {
       throw Exception('Competition not found');
     }
-    return CompetitionModel.fromJson(doc.data()!, doc.id);
+    return CompetitionModel.fromJson(doc.data()!, id:doc.id);
   }
 
   @override

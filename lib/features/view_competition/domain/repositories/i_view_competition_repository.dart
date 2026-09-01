@@ -32,20 +32,46 @@ abstract class IViewCompetitionRepository {
     String code,
   );
 
-  Future<Result<CompetitionEntity>> getCompetitionDetails(
-    String competitionId,
-  );
+  Future<Result<CompetitionEntity>> getCompetitionDetails({
+    required String competitionId,
+    required String userId,
+  });
+
+  // Favorites Actions
+  Future<Result<void>> toggleFavorite({
+    required String userId,
+    required String competitionId,
+    required bool isFavorite,
+  });
+
+  Future<Result<bool>> isFavorite({
+    required String userId,
+    required String competitionId,
+  });
+  
+  Future<Result<List<String>>> getFavoriteCompetitionIds(String userId);
+
+  Future<Result<List<CompetitionEntity>>> getFavoriteCompetitions({
+    required String userId,
+    int limit = 10,
+    String? lastCompetitionId,
+  });
 
   // Participant Queries
   Future<Result<List<ParticipantEntity>>> getParticipants(
     String competitionId,
   );
 
-  // Participant Actions
-  Future<Result<void>> joinCompetition(String competitionId);
+  // Competition Participant Actions (Modifies competition.participantsCount)
+  Future<Result<void>> joinIndividualCompetition(String competitionId);
 
-  Future<Result<void>> leaveCompetition(String competitionId);
+  Future<Result<void>> leaveIndividualCompetition(String competitionId);
 
+  Future<Result<void>> joinTeamCompetition(String competitionId);
+
+  Future<Result<void>> leaveTeamCompetition(String competitionId);
+
+  // Team Membership Actions (Modifies team.membersCount)
   Future<Result<void>> joinTeam({
     required String competitionId,
     required String teamId,
@@ -64,11 +90,15 @@ abstract class IViewCompetitionRepository {
     String? joinCode,
   });
 
-
   // Realtime Streams
-  Stream<CompetitionEntity> streamCompetition(String competitionId);
+  Stream<CompetitionEntity> streamCompetition({
+    required String competitionId,
+    required String userId,
+  });
 
   Stream<List<ParticipantEntity>> streamParticipants(String competitionId);
 
   Stream<List<TeamEntity>> streamTeams(String competitionId);
+
+  Stream<List<String>> streamFavoriteCompetitionIds(String userId);
 }

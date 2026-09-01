@@ -2,6 +2,7 @@ import 'dart:ui';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:ptook/core/Theme/app_colors.dart';
 import 'package:ptook/core/di/injection_container.dart';
 import 'package:ptook/features/Manage%20Competitions/presentation/pages/manage_competition_view.dart';
 import 'package:ptook/features/shared/domain/entities/competition_entity.dart';
@@ -13,20 +14,7 @@ import 'package:ptook/features/view_competition/presintation/pages/competition_h
 // DESIGN SYSTEM TOKENS
 // =============================================================================
 
-abstract class AppColors {
-  static const background = Color(0xFF14161D);
-  static const cardBackground = Color(0xFF1C1F2A);
-  static const cardBorder = Color(0x12FFFFFF);
-  static const primaryGold = Color(0xFFFFC107);
-  static const primaryGoldGlow = Color(0x33FFC107);
-  static const accentBlue = Color(0xFF007AFF);
-  static const textPrimary = Colors.white;
-  static const textSecondary = Color(0x99FFFFFF);
-  static const textMuted = Color(0x66FFFFFF);
-  static const divider = Color(0x12FFFFFF);
-  static const error = Color(0xFFFF5252);
-  static const success = Color(0xFF4CAF50);
-}
+
 
 // =============================================================================
 // MAIN COMPETITION DETAILS VIEW
@@ -89,6 +77,7 @@ class _CompetitionDetailsContentState extends State<_CompetitionDetailsContent> 
       canPop: false,
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
+        ScaffoldMessenger.of(context).clearSnackBars();
         Navigator.pop(context, _competition);
       },
       child: BlocConsumer<ViewParticipantsCubit, ViewParticipantsState>(
@@ -293,6 +282,22 @@ class _CompetitionDetailsContentState extends State<_CompetitionDetailsContent> 
     }
   }
 
+
+  void _executeJoinAction(BuildContext context) {
+    final cubit = context.read<ViewParticipantsCubit>();
+    if (_isTeamType) {
+      cubit.joinTeamCompetition(
+        competitionId: _competition.id,
+        userId: _currentUserId,
+      );
+    } else {
+      cubit.joinIndividualCompetition(
+        competitionId: _competition.id,
+        userId: _currentUserId,
+      );
+    }
+  }
+
   void _handleJoinAction(BuildContext context) {
     if (_currentUserId.isEmpty) {
       _showSnackBar(context, "Please log in first.", AppColors.primaryGold);
@@ -302,10 +307,7 @@ class _CompetitionDetailsContentState extends State<_CompetitionDetailsContent> 
     if (_isPrivate) {
       _showJoinCodeDialog(context);
     } else {
-      context.read<ViewParticipantsCubit>().joinCompetition(
-            competitionId: _competition.id,
-            userId: _currentUserId,
-          );
+      _executeJoinAction(context);
     }
   }
 
@@ -385,10 +387,7 @@ class _CompetitionDetailsContentState extends State<_CompetitionDetailsContent> 
               onPressed: () {
                 if (formKey.currentState!.validate()) {
                   if (_currentUserId.isNotEmpty) {
-                    parentContext.read<ViewParticipantsCubit>().joinCompetition(
-                          competitionId: _competition.id,
-                          userId: _currentUserId,
-                        );
+                    _executeJoinAction(parentContext);
                   }
                   Navigator.pop(dialogContext);
                 }
@@ -402,7 +401,7 @@ class _CompetitionDetailsContentState extends State<_CompetitionDetailsContent> 
   }
 
   void _onLeavePressed() {
-    context.read<ViewParticipantsCubit>().leaveCompetition(
+    context.read<ViewParticipantsCubit>().leaveIndividualCompetition(
           competitionId: _competition.id,
           userId: _currentUserId,
         );

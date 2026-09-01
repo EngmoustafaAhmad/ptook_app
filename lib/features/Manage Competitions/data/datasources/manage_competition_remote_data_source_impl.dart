@@ -432,7 +432,7 @@ Future<void> removeTeamParticipant({
       data['id'] = doc.id;
       return CompetitionModel.fromJson(
         doc.data()!,
-        doc.id,
+         id: doc.id,
       );
     });
   }
@@ -494,7 +494,7 @@ Future<void> removeTeamParticipant({
     }
     return CompetitionModel.fromJson(
       data,
-      doc.id,
+      id: doc.id,
     );
   }
 

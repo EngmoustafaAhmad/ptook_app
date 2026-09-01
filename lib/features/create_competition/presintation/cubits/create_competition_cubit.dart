@@ -34,6 +34,9 @@ class CreateCompetitionCubit extends Cubit<CreateCompetitionState> {
     int? maxTeams,
     int? membersPerTeam,
   }) async {
+    // 🛑 Prevent double submission if already loading
+    if (state is CreateCompetitionLoading) return;
+
     _safeEmit(const CreateCompetitionLoading());
 
     final user = _auth.currentUser;

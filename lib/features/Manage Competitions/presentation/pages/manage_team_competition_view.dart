@@ -8,6 +8,7 @@ import 'package:ptook/features/Manage%20Competitions/presentation/cubits/partici
 import 'package:ptook/features/Manage%20Competitions/presentation/cubits/participant_management/participant_management_state.dart';
 import 'package:ptook/features/Manage%20Competitions/presentation/cubits/team_management/team_management_cubit.dart';
 import 'package:ptook/features/Manage%20Competitions/presentation/cubits/team_management/team_management_state.dart';
+import 'package:ptook/features/Manage%20Competitions/presentation/widgets/management_appbar.dart';
 import 'package:ptook/features/Manage%20Competitions/presentation/widgets/team_manage_tab_view.dart';
 import 'package:ptook/features/Manage%20Competitions/presentation/widgets/team_overview_tab_view.dart';
 import 'package:ptook/features/shared/domain/entities/competition_entity.dart';
@@ -49,6 +50,10 @@ class ManageTeamCompetitionView extends StatelessWidget {
   }
 }
 
+// ===========================================================================
+// VIEW STATE & CONTENT
+// ===========================================================================
+
 class _ManageTeamCompetitionContent extends StatefulWidget {
   final CompetitionEntity initialCompetition;
 
@@ -88,7 +93,10 @@ class _ManageTeamCompetitionContentState extends State<_ManageTeamCompetitionCon
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
+            onPressed: () {
+              ScaffoldMessenger.of(context).clearSnackBars();
+              Navigator.pop(dialogContext);
+            },
             child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
           ),
           ElevatedButton(
@@ -278,68 +286,33 @@ class _ManageTeamCompetitionContentState extends State<_ManageTeamCompetitionCon
         length: 2,
         child: Scaffold(
           backgroundColor: AppColors.background,
-          appBar: AppBar(
-            backgroundColor: AppColors.background,
-            elevation: 0,
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
-              onPressed: () => Navigator.pop(context),
-            ),
-            title: BlocBuilder<ManageCompetitionCubit, ManageCompetitionState>(
+          appBar: PreferredSize(
+            preferredSize: const Size.fromHeight(kToolbarHeight + 48.0 + 8.0),
+            child: BlocBuilder<ManageCompetitionCubit, ManageCompetitionState>(
               builder: (context, state) {
                 final title = state.competition?.name ?? widget.initialCompetition.name;
-                final status = state.competition?.status ?? widget.initialCompetition.status;
-                final isFinished = status.toLowerCase() == 'finished' ||
+                final rawStatus = state.competition?.status ?? widget.initialCompetition.status;
+                final isFinished = rawStatus.toLowerCase() == 'finished' ||
                     state.status == ManageCompetitionStatus.finished;
-
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18,
-                      ),
-                    ),
-                    Row(
-                      children: [
-                        CircleAvatar(
-                          radius: 3,
-                          backgroundColor: isFinished ? Colors.amber : AppColors.success,
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          isFinished ? 'FINISHED' : status.toUpperCase(),
-                          style: TextStyle(
-                            color: isFinished ? Colors.amber : AppColors.success,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+            
+                return ManagementAppBar(
+                  title: title,
+                  status: rawStatus,
+                  isFinished: isFinished,
+                  onSettingsTap: () => _showSettingsMenu(context),
+                  bottomTabBar: const TabBar(
+                    indicatorColor: AppColors.primaryGold,
+                    indicatorWeight: 3,
+                    labelColor: AppColors.primaryGold,
+                    unselectedLabelColor: Colors.white60,
+                    labelStyle: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                    tabs: [
+                      Tab(text: 'Overview'),
+                      Tab(text: 'Manage'),
+                    ],
+                  ),
                 );
               },
-            ),
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.settings_outlined, color: Colors.white),
-                onPressed: () => _showSettingsMenu(context),
-              ),
-            ],
-            bottom: const TabBar(
-              indicatorColor: AppColors.primaryGold,
-              indicatorWeight: 3,
-              labelColor: AppColors.primaryGold,
-              unselectedLabelColor: Colors.white60,
-              labelStyle: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-              tabs: [
-                Tab(text: 'Overview'),
-                Tab(text: 'Manage'),
-              ],
             ),
           ),
           body: TabBarView(

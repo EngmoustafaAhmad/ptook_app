@@ -1,18 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:ptook/core/Theme/app_colors.dart';
 import 'package:ptook/features/shared/domain/entities/competition_entity.dart';
 import 'package:ptook/features/shared/domain/entities/participant_entity.dart';
+import 'package:ptook/features/view_competition/presintation/cubits/competition_home_cubit.dart';
+import 'package:ptook/features/view_competition/presintation/cubits/competition_home_state.dart';
 import 'package:ptook/features/view_competition/presintation/cubits/view_participants/view_participants_cubit.dart';
-import 'package:ptook/features/view_competition/presintation/cubits/view_participants/view_participants_state.dart';
 import 'package:ptook/features/view_competition/presintation/pages/competition_participants_view_all.dart';
+import 'package:ptook/features/view_competition/presintation/widgets/report_dialog.dart';
 
-abstract class _AppColors {
-  static const background = Color(0xFF0F111A);
-  static const cardBackground = Color(0xFF1B1E2B);
-  static const primaryAccent = Color(0xFF9D61FF);
-  static const secondaryGradient = [Color(0xFF8B5CF6), Color(0xFF6366F1)];
-}
+
+
 
 class CompetitionIndividualHomeView extends StatefulWidget {
   final CompetitionEntity competition;
@@ -31,21 +30,32 @@ class CompetitionIndividualHomeView extends StatefulWidget {
 
 class _CompetitionIndividualHomeViewState
     extends State<CompetitionIndividualHomeView> {
-  bool _isFavorite = false;
-  List<ParticipantEntity> _participants = [];
-
   @override
   void initState() {
     super.initState();
-    _fetchParticipants();
+    _loadData();
   }
 
-  void _fetchParticipants() {
-    context
-        .read<ViewParticipantsCubit>()
-        .listenToParticipants(widget.competition.id);
+  void _loadData() {
+    context.read<CompetitionHomeCubit>().loadCompetitionData(
+          competition: widget.competition,
+          userId: widget.currentUserId,
+        );
   }
 
+  void _toggleFavorite(CompetitionEntity currentCompetition) {
+    context.read<CompetitionHomeCubit>().toggleFavorite(
+          userId: widget.currentUserId,
+          competition: currentCompetition,
+        );
+  }
+
+  void _handleLeave() {
+    context.read<ViewParticipantsCubit>().leaveIndividualCompetition(
+          competitionId: widget.competition.id,
+          userId: widget.currentUserId,
+        );
+  }
   void _shareCompetition() {
     final shareUrl =
         'https://yourapp.com/competitions/${widget.competition.id}';
@@ -57,14 +67,14 @@ class _CompetitionIndividualHomeViewState
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: _AppColors.cardBackground,
+        backgroundColor: AppColors.cardBackground,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
           side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
         ),
         title: const Row(
           children: [
-            Icon(Icons.gavel_outlined, color: _AppColors.primaryAccent),
+            Icon(Icons.gavel_outlined, color: AppColors.primaryAccent),
             SizedBox(width: 8),
             Text(
               'Rules & Terms',
@@ -95,7 +105,7 @@ class _CompetitionIndividualHomeViewState
             onPressed: () => Navigator.pop(context),
             child: const Text(
               'Got it',
-              style: TextStyle(color: _AppColors.primaryAccent),
+              style: TextStyle(color: AppColors.primaryAccent),
             ),
           ),
         ],
@@ -103,259 +113,72 @@ class _CompetitionIndividualHomeViewState
     );
   }
 
-  void _showReportDialog() {
-    final reasonController = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: _AppColors.cardBackground,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
-        ),
-        title: const Text(
-          'Report Competition',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Please describe why you are reporting this competition:',
-              style: TextStyle(color: Colors.white70, fontSize: 13),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: reasonController,
-              maxLines: 3,
-              style: const TextStyle(color: Colors.white, fontSize: 14),
-              decoration: InputDecoration(
-                hintText: 'Inappropriate content, spam, etc.',
-                hintStyle: const TextStyle(color: Colors.white38),
-                filled: true,
-                fillColor: Colors.black26,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: BorderSide(
-                    color: Colors.white.withValues(alpha: 0.1),
-                  ),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide:
-                      const BorderSide(color: _AppColors.primaryAccent),
-                ),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text(
-              'Cancel',
-              style: TextStyle(color: Colors.white54),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              if (reasonController.text.trim().isEmpty) return;
-              Navigator.pop(context);
-              _showSnackBar(
-                  context, 'Report submitted successfully.', Colors.green);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.redAccent,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-            child: const Text(
-              'Submit',
-              style: TextStyle(color: Colors.white),
-            ),
-          ),
-        ],
+  // Cleaned-up caller methods inside your parent State class
+void _confirmLeaveCompetition() {
+  showDialog(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      backgroundColor: AppColors.cardBackground,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
       ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: _AppColors.background,
-      appBar: _buildAppBar(context),
-      body: BlocConsumer<ViewParticipantsCubit, ViewParticipantsState>(
-        listener: (context, state) {
-          // 👈 FIX: Move state caching inside the listener
-          if (state is ViewParticipantsLoaded) {
-            setState(() {
-              _participants = state.participants;
-            });
-          } else if (state is JoinCompetitionSuccess) {
-            _showSnackBar(context, state.message, Colors.green);
-          } else if (state is LeaveCompetitionSuccess) {
-            _showSnackBar(context, state.message, Colors.orangeAccent);
-          } else if (state is ViewParticipantsError) {
-            _showSnackBar(context, state.message, Colors.redAccent);
-          }
-        },
-        builder: (context, state) {
-          if (state is ViewParticipantsLoading && _participants.isEmpty) {
-            return const Center(
-              child: CircularProgressIndicator(color: _AppColors.primaryAccent),
-            );
-          }
-
-          final sortedParticipants = List<ParticipantEntity>.from(_participants)
-            ..sort((a, b) => b.points.compareTo(a.points));
-
-          final userIndex = sortedParticipants
-              .indexWhere((p) => p.userId == widget.currentUserId);
-          final isJoined = userIndex != -1;
-          final userRank = isJoined ? '#${userIndex + 1}' : 'N/A';
-          final userPoints =
-              isJoined ? sortedParticipants[userIndex].points : 0;
-
-          return RefreshIndicator(
-            onRefresh: () async => _fetchParticipants(),
-            color: _AppColors.primaryAccent,
-            backgroundColor: _AppColors.cardBackground,
-            child: SingleChildScrollView(
-              physics: const AlwaysScrollableScrollPhysics(
-                parent: BouncingScrollPhysics(),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _HeroHeaderCard(competition: widget.competition),
-                  const SizedBox(height: 16),
-                  _QuickStatsRow(
-                    participantCount: _participants.length,
-                    maxCapacity: widget.competition.maxParticipants ?? 100,
-                    userRank: userRank,
-                    userPoints: userPoints,
-                  ),
-                  const SizedBox(height: 16),
-                  _LeaderboardCard(
-                    topParticipants: sortedParticipants.take(3).toList(),
-                    onViewFullRanking: () => _navigateToParticipants(context),
-                  ),
-                  const SizedBox(height: 24),
-                  _ActionButtonsGroup(
-                    isFavorite: _isFavorite,
-                    isLoading: state is ViewParticipantsActionLoading,
-                    onFavoriteToggle: () {
-                      setState(() => _isFavorite = !_isFavorite);
-                    },
-                    onLeavePressed: () => _handleLeave(),
-                  ),
-                  const SizedBox(height: 32),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  PreferredSizeWidget _buildAppBar(BuildContext context) {
-    return AppBar(
-      backgroundColor: _AppColors.background,
-      elevation: 0,
-      scrolledUnderElevation: 0,
-      leading: IconButton(
-        icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20),
-        onPressed: () => Navigator.maybePop(context),
-      ),
-      title: Text(
-        widget.competition.name,
-        style: const TextStyle(
+      title: const Text(
+        'Leave Competition',
+        style: TextStyle(
           color: Colors.white,
           fontSize: 18,
           fontWeight: FontWeight.bold,
         ),
       ),
+      content: const Text(
+        'Are you sure you want to leave this competition? Your current rank and accumulated points will be removed.',
+        style: TextStyle(color: Colors.white70, fontSize: 14, height: 1.4),
+      ),
       actions: [
-        IconButton(
-          icon: Icon(
-            _isFavorite ? Icons.favorite : Icons.favorite_border,
-            color: _isFavorite ? Colors.redAccent : Colors.white70,
+        TextButton(
+          onPressed: () => Navigator.pop(dialogContext),
+          child: const Text(
+            'Cancel',
+            style: TextStyle(color: Colors.white54),
           ),
-          onPressed: () => setState(() => _isFavorite = !_isFavorite),
         ),
-        PopupMenuButton<String>(
-          icon: const Icon(Icons.more_vert, color: Colors.white70),
-          color: _AppColors.cardBackground,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-            side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
-          ),
-          onSelected: (String value) {
-            switch (value) {
-              case 'share':
-                _shareCompetition();
-                break;
-              case 'rules':
-                _showRulesDialog();
-                break;
-              case 'report':
-                _showReportDialog();
-                break;
-            }
+        ElevatedButton(
+          onPressed: () {
+            final messenger = ScaffoldMessenger.of(context);
+            Navigator.pop(dialogContext);
+            messenger.clearSnackBars();
+            _handleLeave();
           },
-          itemBuilder: (BuildContext context) => [
-            const PopupMenuItem<String>(
-              value: 'share',
-              child: Row(
-                children: [
-                  Icon(Icons.share_outlined, color: Colors.white70, size: 18),
-                  SizedBox(width: 10),
-                  Text('Share Competition', style: TextStyle(color: Colors.white)),
-                ],
-              ),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.redAccent,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
             ),
-            const PopupMenuItem<String>(
-              value: 'rules',
-              child: Row(
-                children: [
-                  Icon(Icons.gavel_outlined, color: Colors.white70, size: 18),
-                  SizedBox(width: 10),
-                  Text('Rules & Terms', style: TextStyle(color: Colors.white)),
-                ],
-              ),
+          ),
+          child: const Text(
+            'Leave',
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
             ),
-            const PopupMenuDivider(height: 1),
-            const PopupMenuItem<String>(
-              value: 'report',
-              child: Row(
-                children: [
-                  Icon(Icons.flag_outlined, color: Colors.redAccent, size: 18),
-                  SizedBox(width: 10),
-                  Text('Report', style: TextStyle(color: Colors.redAccent)),
-                ],
-              ),
-            ),
-          ],
+          ),
         ),
       ],
-    );
-  }
+    ),
+  );
+}
 
-  void _handleLeave() {
-    context.read<ViewParticipantsCubit>().leaveCompetition(
-          competitionId: widget.competition.id,
-          userId: widget.currentUserId,
-        );
-  }
+void _showReportDialog() {
+  showDialog(
+    context: context,
+    builder: (dialogContext) => ReportDialog(
+      onSubmit: (reason) {
+        _showSnackBar(context, 'Report submitted successfully.', Colors.green);
+      },
+    ),
+  );
+}
 
   void _navigateToParticipants(BuildContext context) {
     Navigator.push(
@@ -382,6 +205,153 @@ class _CompetitionIndividualHomeViewState
       ),
     );
   }
+
+  PreferredSizeWidget _buildAppBar(
+    BuildContext context,
+    CompetitionEntity competition,
+    bool isFavorite,
+  ) {
+    return AppBar(
+      backgroundColor: AppColors.background,
+      elevation: 0,
+      title: Text(
+        competition.name,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      actions: [
+        IconButton(
+          icon: Icon(
+            isFavorite ? Icons.bookmark : Icons.bookmark_border,
+            color: isFavorite ? Colors.amber : Colors.white70,
+          ),
+          onPressed: () => _toggleFavorite(competition),
+        ),
+        IconButton(
+          icon: const Icon(Icons.share, color: Colors.white70),
+          onPressed: _shareCompetition,
+        ),
+        PopupMenuButton<String>(
+          icon: const Icon(Icons.more_vert, color: Colors.white70),
+          color: AppColors.cardBackground,
+          onSelected: (value) {
+            if (value == 'rules') _showRulesDialog();
+            if (value == 'report') _showReportDialog();
+          },
+          itemBuilder: (context) => [
+            const PopupMenuItem(
+              value: 'rules',
+              child: Text('Rules & Terms',
+                  style: TextStyle(color: Colors.white)),
+            ),
+            const PopupMenuItem(
+              value: 'report',
+              child: Text('Report', style: TextStyle(color: Colors.redAccent)),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocConsumer<CompetitionHomeCubit, CompetitionHomeState>(
+      listener: (context, state) {
+        if (state is CompetitionHomeActionSuccess) {
+          _showSnackBar(context, state.message, Colors.green);
+        } else if (state is CompetitionHomeError) {
+          _showSnackBar(context, state.message, Colors.redAccent);
+        }
+      },
+      builder: (context, state) {
+        if (state is CompetitionHomeLoading) {
+          return const Scaffold(
+            backgroundColor: AppColors.background,
+            body: Center(
+              child:
+                  CircularProgressIndicator(color: AppColors.primaryAccent),
+            ),
+          );
+        }
+
+        if (state is CompetitionHomeLoaded) {
+          final competition = state.competition;
+          final participants = state.participants;
+          final isFavorite = state.isFavorite;
+
+          final sortedParticipants =
+              List<ParticipantEntity>.from(participants)
+                ..sort((a, b) => b.points.compareTo(a.points));
+
+          final userIndex = sortedParticipants
+              .indexWhere((p) => p.userId == widget.currentUserId);
+          final isJoined = userIndex != -1;
+          final userRank = isJoined ? '#${userIndex + 1}' : 'N/A';
+          final userPoints =
+              isJoined ? sortedParticipants[userIndex].points : 0;
+
+          return Scaffold(
+            backgroundColor: AppColors.background,
+            appBar: _buildAppBar(context, competition, isFavorite),
+            body: RefreshIndicator(
+              onRefresh: () async => context
+                  .read<CompetitionHomeCubit>()
+                  .fetchCompetitionDetails(competitionId: widget.competition.id, userId: widget.currentUserId),
+              color: AppColors.primaryAccent,
+              backgroundColor: AppColors.cardBackground,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(
+                  parent: BouncingScrollPhysics(),
+                ),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 16, vertical: 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _HeroHeaderCard(competition: competition),
+                    const SizedBox(height: 16),
+                    _QuickStatsRow(
+                      participantCount: participants.length,
+                      maxCapacity: competition.maxParticipants ?? 100,
+                      userRank: userRank,
+                      userPoints: userPoints,
+                    ),
+                    const SizedBox(height: 16),
+                    _LeaderboardCard(
+                      topParticipants:
+                          sortedParticipants.take(3).toList(),
+                      onViewFullRanking: () =>
+                          _navigateToParticipants(context),
+                    ),
+                    const SizedBox(height: 24),
+                    _ActionButtonsGroup(
+                      isLoading: state.isActionLoading,
+                      onLeavePressed: _confirmLeaveCompetition,
+                    ),
+                    const SizedBox(height: 32),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }
+
+        return const Scaffold(
+          backgroundColor: AppColors.background,
+          body: Center(
+            child: Text(
+              'Failed to load competition details.',
+              style: TextStyle(color: Colors.white70),
+            ),
+          ),
+        );
+      },
+    );
+  }
 }
 
 class _HeroHeaderCard extends StatelessWidget {
@@ -395,14 +365,14 @@ class _HeroHeaderCard extends StatelessWidget {
       width: double.infinity,
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: _AppColors.secondaryGradient,
+          colors: AppColors.secondaryGradient,
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: _AppColors.primaryAccent.withValues(alpha: 0.3),
+            color: AppColors.primaryAccent.withValues(alpha: 0.3),
             blurRadius: 12,
             offset: const Offset(0, 6),
           ),
@@ -416,7 +386,8 @@ class _HeroHeaderCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
                   color: Colors.black26,
                   borderRadius: BorderRadius.circular(12),
@@ -491,7 +462,7 @@ class _QuickStatsRow extends StatelessWidget {
             title: 'Points',
             value: '$userPoints',
             icon: Icons.stars,
-            iconColor: _AppColors.primaryAccent,
+            iconColor: AppColors.primaryAccent,
           ),
         ),
         const SizedBox(width: 12),
@@ -526,7 +497,7 @@ class _StatBox extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: _AppColors.cardBackground,
+        color: AppColors.cardBackground,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
       ),
@@ -567,7 +538,7 @@ class _LeaderboardCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: _AppColors.cardBackground,
+        color: AppColors.cardBackground,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
       ),
@@ -589,7 +560,7 @@ class _LeaderboardCard extends StatelessWidget {
                 child: const Text(
                   'View All',
                   style: TextStyle(
-                    color: _AppColors.primaryAccent,
+                    color: AppColors.primaryAccent,
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
                   ),
@@ -643,7 +614,7 @@ class _LeaderboardCard extends StatelessWidget {
                       Text(
                         '${participant.points} pts',
                         style: const TextStyle(
-                          color: _AppColors.primaryAccent,
+                          color: AppColors.primaryAccent,
                           fontWeight: FontWeight.bold,
                           fontSize: 13,
                         ),
@@ -659,56 +630,47 @@ class _LeaderboardCard extends StatelessWidget {
   }
 }
 
-
 class _ActionButtonsGroup extends StatelessWidget {
-  final bool isFavorite;
   final bool isLoading;
-  final VoidCallback onFavoriteToggle;
   final VoidCallback onLeavePressed;
 
   const _ActionButtonsGroup({
-    required this.isFavorite,
     required this.isLoading,
-    required this.onFavoriteToggle,
     required this.onLeavePressed,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        SizedBox(
-          width: double.infinity,
-          height: 48,
-          child: ElevatedButton(
-            onPressed: isLoading ? null : onLeavePressed,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.redAccent.withValues(alpha: 0.15),
-              foregroundColor: Colors.redAccent,
-              side: const BorderSide(color: Colors.redAccent, width: 1),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            child: isLoading
-                ? const SizedBox(
-                    height: 20,
-                    width: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.redAccent,
-                    ),
-                  )
-                : const Text(
-                    'Leave Competition',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+    return SizedBox(
+      width: double.infinity,
+      height: 48,
+      child: ElevatedButton(
+        onPressed: isLoading ? null : onLeavePressed,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.redAccent.withValues(alpha: 0.15),
+          foregroundColor: Colors.redAccent,
+          side: const BorderSide(color: Colors.redAccent, width: 1),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
           ),
         ),
-      ],
+        child: isLoading
+            ? const SizedBox(
+                height: 20,
+                width: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.redAccent,
+                ),
+              )
+            : const Text(
+                'Leave Competition',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+      ),
     );
   }
 }

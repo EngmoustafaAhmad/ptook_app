@@ -24,15 +24,47 @@ abstract class IViewCompetitionRemoteDataSource {
   });
 
   Future<CompetitionModel> getCompetitionById(String competitionId);
-  Future<CompetitionModel> getCompetitionDetails(String competitionId);
+
+  Future<CompetitionModel> getCompetitionDetails({
+    required String competitionId,
+    required String userId,
+  });
+
   Future<CompetitionModel?> getCompetitionByCode(String code);
 
-  // Participant Actions
+  // Favorites Actions
+  Future<void> toggleFavorite({
+    required String userId,
+    required String competitionId,
+    required bool isFavorite,
+  });
+
+  Future<bool> isFavorite({
+    required String userId,
+    required String competitionId,
+  });
+
+  Future<List<String>> getFavoriteCompetitionIds(String userId);
+
+  Future<List<CompetitionModel>> getFavoriteCompetitions({
+    required String userId,
+    int limit = 10,
+    String? lastCompetitionId,
+  });
+
+  // Participant Queries
   Future<List<ParticipantModel>> getParticipants(String competitionId);
-  Future<void> joinCompetition(String competitionId);
-  Future<void> leaveCompetition(String competitionId);
 
+  // Participant Competition Actions (Modifies competition.participantsCount)
+  Future<void> joinIndividualCompetition(String competitionId);
 
+  Future<void> leaveIndividualCompetition(String competitionId);
+
+  Future<void> joinTeamCompetition(String competitionId);
+
+  Future<void> leaveTeamCompetition(String competitionId);
+
+  // Team Membership Actions (Modifies team.membersCount)
   Future<void> joinTeam({
     required String competitionId,
     required String teamId,
@@ -52,7 +84,14 @@ abstract class IViewCompetitionRemoteDataSource {
   });
 
   // Real-time Streams
-  Stream<CompetitionModel> streamCompetition(String competitionId);
+  Stream<CompetitionModel> streamCompetition({
+    required String competitionId,
+    required String userId,
+  });
+
   Stream<List<ParticipantModel>> streamParticipants(String competitionId);
+
   Stream<List<TeamModel>> streamTeams(String competitionId);
+
+  Stream<List<String>> streamFavoriteCompetitionIds(String userId);
 }

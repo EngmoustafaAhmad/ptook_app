@@ -3,8 +3,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ptook/core/Theme/app_colors.dart';
 import 'package:ptook/core/di/injection_container.dart';
 import 'package:ptook/core/extentions/spacing_extentions.dart';
-import 'package:ptook/features/competitions/presintation/bloc/search_competition_cubit.dart';
-import 'package:ptook/features/competitions/presintation/views/competition_search_view.dart';
 import 'package:ptook/features/search_competitions/presentation/cubits/search_competition_cubit.dart';
 import 'package:ptook/features/search_competitions/presentation/pages/search_competition_page.dart';
 
@@ -22,8 +20,6 @@ class HomeView extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // 1️⃣ Custom Top Bar
-              _buildTopBar(context),
-              20.vs,
 
               // 2️⃣ Profile Header Card
               _buildProfileHeaderCard(),
@@ -55,91 +51,6 @@ class HomeView extends StatelessWidget {
     );
   }
 
-  // --- 1️⃣ TOP APP BAR ---
-  Widget _buildTopBar(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        // Menu Icon Button
-        Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.white12),
-          ),
-          child: IconButton(
-            icon: const Icon(Icons.menu, color: Colors.amber, size: 22),
-            onPressed: () {},
-          ),
-        ),
-
-        // Brand Logo Center
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.emoji_events, color: Colors.amber, size: 24),
-            8.hs,
-            const Text(
-              "PTOOK",
-              style: TextStyle(
-                color: Colors.amber,
-                fontSize: 22,
-                fontWeight: FontWeight.w900,
-                letterSpacing: 1.5,
-              ),
-            ),
-          ],
-        ),
-
-        // Notification Icon with Badge
-        Stack(
-          clipBehavior: Clip.none,
-          children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.white12),
-              ),
-              child: IconButton(
-                icon: const Icon(Icons.notifications_none_outlined,
-                    color: Colors.amber, size: 22),
-                onPressed: () {},
-              ),
-            ),
-            Positioned(
-              right: -2,
-              top: -2,
-              child: Container(
-                padding: const EdgeInsets.all(4),
-                decoration: const BoxDecoration(
-                  color: Colors.amber,
-                  shape: BoxShape.circle,
-                ),
-                constraints: const BoxConstraints(
-                  minWidth: 16,
-                  minHeight: 16,
-                ),
-                child: const Text(
-                  '3',
-                  style: TextStyle(
-                    color: Colors.black,
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
 
   // --- 2️⃣ PROFILE HEADER CARD ---
   Widget _buildProfileHeaderCard() {

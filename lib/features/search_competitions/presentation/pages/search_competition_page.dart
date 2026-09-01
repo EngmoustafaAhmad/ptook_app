@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ptook/core/Theme/app_colors.dart';
 import 'package:ptook/core/extentions/spacing_extentions.dart';
-import 'package:ptook/features/create_competition/presintation/pages/create_competition_view.dart';
 import 'package:ptook/features/search_competitions/presentation/cubits/search_competition_cubit.dart';
 import 'package:ptook/features/search_competitions/presentation/widgets/competition_card.dart';
 import 'package:ptook/features/shared/domain/entities/competition_entity.dart';
@@ -31,7 +30,6 @@ class _CompetitionSearchViewState extends State<CompetitionSearchView> {
     super.initState();
     _scrollController.addListener(_onScroll);
 
-    // Initial fetch when screen opens
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _fetchCompetitions();
     });
@@ -45,28 +43,33 @@ class _CompetitionSearchViewState extends State<CompetitionSearchView> {
     super.dispose();
   }
 
+  /// Reset scroll position to top when changing filters/search
+  void _resetScroll() {
+    if (_scrollController.hasClients) {
+      _scrollController.jumpTo(0);
+    }
+  }
+
   /// Handles empty search vs query search
   Future<void> _fetchCompetitions() async {
+    _resetScroll();
     final cubit = context.read<SearchCompetitionCubit>();
     final trimmedQuery = _controller.text.trim();
     final String? searchQuery = trimmedQuery.isEmpty ? null : trimmedQuery;
 
-    // 1. SEARCHBAR IS EMPTY
     if (searchQuery == null) {
       switch (_selectedFilterIndex) {
-        case 0: // All / Public
+        case 0:
           cubit.getPublicCompetitions();
           break;
-        case 1: // Joined
+        case 1:
           cubit.getJoinedCompetitions();
           break;
-        case 2: // My Created
+        case 2:
           cubit.getCreatedCompetitions();
           break;
       }
-    } 
-    // 2. SEARCHBAR HAS TEXT
-    else {
+    } else {
       switch (_selectedFilterIndex) {
         case 0:
           cubit.search(searchQuery);
@@ -81,13 +84,12 @@ class _CompetitionSearchViewState extends State<CompetitionSearchView> {
     }
   }
 
-  /// Debounces user input to avoid making backend requests on every single keystroke
   void _onSearchChanged(String value) {
     _debounce?.cancel();
     _debounce = Timer(const Duration(milliseconds: 500), () {
       _fetchCompetitions();
     });
-    setState(() {}); // Updates clear icon visibility
+    setState(() {}); 
   }
 
   void _onFilterSelected(int index) {
@@ -100,9 +102,15 @@ class _CompetitionSearchViewState extends State<CompetitionSearchView> {
     _fetchCompetitions();
   }
 
+  /// Guard against triggering multiple loadMore calls
   void _onScroll() {
     if (_isBottom) {
-      context.read<SearchCompetitionCubit>().loadMore();
+      final state = context.read<SearchCompetitionCubit>().state;
+      if (state is SearchCompetitionSuccess &&
+          !state.isLoadingMore &&
+          !state.hasReachedMax) {
+        context.read<SearchCompetitionCubit>().loadMore();
+      }
     }
   }
 
@@ -133,20 +141,6 @@ class _CompetitionSearchViewState extends State<CompetitionSearchView> {
           .read<SearchCompetitionCubit>()
           .updateCompetitionInList(updatedCompetition);
     } else {
-      // Re-fetch list if item was deleted or state needs full sync
-      _fetchCompetitions();
-    }
-  }
-
-  Future<void> _navigateToCreateCompetition() async {
-    final isCreated = await Navigator.push<bool>(
-      context,
-      MaterialPageRoute(
-        builder: (_) => const CreateCompetitionView(),
-      ),
-    );
-
-    if (isCreated == true && context.mounted) {
       _fetchCompetitions();
     }
   }
@@ -157,12 +151,6 @@ class _CompetitionSearchViewState extends State<CompetitionSearchView> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: _buildCustomAppBar(),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: AppColors.primary,
-        onPressed: _navigateToCreateCompetition,
-        child: const Icon(Icons.add, color: Colors.black),
-      ),
       body: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16.0),
         child: Column(
@@ -179,16 +167,10 @@ class _CompetitionSearchViewState extends State<CompetitionSearchView> {
               ),
             ),
             14.vs,
-
-            // Search Bar Input Field
             _buildSearchTextField(),
             16.vs,
-
-            // Filter Chips Bar
             _buildFilterChips(),
             18.vs,
-
-            // Feed Results
             Expanded(
               child: BlocBuilder<SearchCompetitionCubit, SearchCompetitionState>(
                 builder: (context, state) {
@@ -224,7 +206,7 @@ class _CompetitionSearchViewState extends State<CompetitionSearchView> {
                                 child: Text(
                                   "No competitions found",
                                   style: TextStyle(
-                                    color: Colors.white.withOpacity(.5),
+                                    color: Colors.white.withValues(alpha: .5),
                                     fontSize: 16,
                                   ),
                                 ),
@@ -235,6 +217,10 @@ class _CompetitionSearchViewState extends State<CompetitionSearchView> {
                       );
                     }
 
+                    // Total items count includes footer loader or end-of-list indicator
+                    final int itemCount = state.competitions.length +
+                        (state.isLoadingMore || state.hasReachedMax ? 1 : 0);
+
                     return RefreshIndicator(
                       onRefresh: _fetchCompetitions,
                       color: AppColors.primary,
@@ -244,20 +230,37 @@ class _CompetitionSearchViewState extends State<CompetitionSearchView> {
                         physics: const AlwaysScrollableScrollPhysics(
                           parent: BouncingScrollPhysics(),
                         ),
-                        itemCount: state.competitions.length +
-                            (state.isLoadingMore ? 1 : 0),
-                        separatorBuilder: (_, __) => 12.vs,
+                        itemCount: itemCount,
+                        separatorBuilder: (_, _) => 12.vs,
                         itemBuilder: (context, index) {
+                          // Handle Bottom Footer (Loader OR Reached Max Indicator)
                           if (index == state.competitions.length) {
-                            return const Padding(
-                              padding: EdgeInsets.symmetric(vertical: 16.0),
-                              child: Center(
-                                child: CircularProgressIndicator(
-                                  color: AppColors.primary,
-                                  strokeWidth: 2.5,
+                            if (state.isLoadingMore) {
+                              return const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 16.0),
+                                child: Center(
+                                  child: CircularProgressIndicator(
+                                    color: AppColors.primary,
+                                    strokeWidth: 2.5,
+                                  ),
                                 ),
-                              ),
-                            );
+                              );
+                            }
+                            if (state.hasReachedMax && state.competitions.length > 5) {
+                              return Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 20.0),
+                                child: Center(
+                                  child: Text(
+                                    "No more competitions",
+                                    style: TextStyle(
+                                      color: Colors.white.withValues(alpha: .3),
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ),
+                              );
+                            }
+                            return const SizedBox.shrink();
                           }
 
                           final competition = state.competitions[index];
@@ -293,72 +296,13 @@ class _CompetitionSearchViewState extends State<CompetitionSearchView> {
     );
   }
 
-  PreferredSizeWidget _buildCustomAppBar() {
-    return AppBar(
-      backgroundColor: Colors.transparent,
-      elevation: 0,
-      centerTitle: true,
-      leading: IconButton(
-        icon: const Icon(Icons.menu_rounded, color: AppColors.primary, size: 26),
-        onPressed: () {},
-      ),
-      title: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: const [
-          Icon(Icons.emoji_events_rounded, color: AppColors.primary, size: 22),
-          SizedBox(width: 6),
-          Text(
-            "PTOOK",
-            style: TextStyle(
-              color: AppColors.primary,
-              fontWeight: FontWeight.w900,
-              fontSize: 20,
-              letterSpacing: 1.5,
-            ),
-          ),
-        ],
-      ),
-      actions: [
-        Stack(
-          alignment: Alignment.center,
-          children: [
-            IconButton(
-              icon: const Icon(Icons.notifications_none_rounded,
-                  color: AppColors.primary, size: 26),
-              onPressed: () {},
-            ),
-            Positioned(
-              right: 12,
-              top: 12,
-              child: Container(
-                padding: const EdgeInsets.all(4),
-                decoration: const BoxDecoration(
-                  color: Colors.amber,
-                  shape: BoxShape.circle,
-                ),
-                child: const Text(
-                  '3',
-                  style: TextStyle(
-                    color: Colors.black,
-                    fontSize: 9,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
   Widget _buildSearchTextField() {
     return Container(
       decoration: BoxDecoration(
         color: const Color(0xFF14161D),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: Colors.white.withOpacity(0.06),
+          color: Colors.white.withValues(alpha: .06),
         ),
       ),
       child: TextField(
@@ -368,7 +312,7 @@ class _CompetitionSearchViewState extends State<CompetitionSearchView> {
         decoration: InputDecoration(
           hintText: "Search tournaments, leagues...",
           hintStyle: TextStyle(
-            color: Colors.white.withOpacity(0.4),
+            color: Colors.white.withValues(alpha: .4),
             fontSize: 14,
           ),
           prefixIcon: const Icon(
@@ -403,7 +347,7 @@ class _CompetitionSearchViewState extends State<CompetitionSearchView> {
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),
         itemCount: _filters.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        separatorBuilder: (_, _) => const SizedBox(width: 8),
         itemBuilder: (context, index) {
           final isSelected = _selectedFilterIndex == index;
           return GestureDetector(
@@ -421,7 +365,7 @@ class _CompetitionSearchViewState extends State<CompetitionSearchView> {
                 boxShadow: isSelected
                     ? [
                         BoxShadow(
-                          color: AppColors.primary.withOpacity(0.2),
+                          color: AppColors.primary.withValues(alpha: .2),
                           blurRadius: 8,
                           spreadRadius: 1,
                         )

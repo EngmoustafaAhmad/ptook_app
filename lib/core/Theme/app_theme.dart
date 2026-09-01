@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'app_colors.dart';
 import 'app_text_styles.dart';
 
-class AppTheme {
+abstract class AppTheme {
   AppTheme._();
 
   static ThemeData get darkTheme {
@@ -11,14 +11,14 @@ class AppTheme {
       useMaterial3: true,
       fontFamily: 'Cairo',
       brightness: Brightness.dark,
-      
+
       // Complete Theme Color Mapping
       colorScheme: const ColorScheme.dark(
-        primary: AppColors.primary,        // Amber / Yellow accent
-        secondary: AppColors.primary,      
+        primary: AppColors.primary,
+        secondary: AppColors.primaryPurple,
         error: AppColors.error,
-        surface: AppColors.background,     // Pure dark background base
-        surfaceContainer: AppColors.surface, // Container card base color
+        surface: AppColors.background,
+        surfaceContainer: AppColors.surface,
       ),
 
       // Global App Scaffold Configuration
@@ -33,7 +33,7 @@ class AppTheme {
         titleTextStyle: AppTextStyles.headlineSmall,
         systemOverlayStyle: SystemUiOverlayStyle(
           statusBarColor: Colors.transparent,
-          statusBarIconBrightness: Brightness.light, // White status icons over dark base
+          statusBarIconBrightness: Brightness.light,
           statusBarBrightness: Brightness.dark,
         ),
       ),
@@ -42,28 +42,35 @@ class AppTheme {
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.primary,
-          foregroundColor: AppColors.background, // Text pops in dark over yellow
+          foregroundColor: AppColors.background,
           minimumSize: const Size(double.infinity, 52),
+          elevation: 0,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
           textStyle: AppTextStyles.titleMedium.copyWith(
             fontWeight: FontWeight.bold,
           ),
-          elevation: 0,
         ),
       ),
 
       // Reusable Outlined Action Button Styles
       outlinedButtonTheme: OutlinedButtonThemeData(
-        style: OutlinedButton.styleFrom(
-          foregroundColor: AppColors.primary,
-          minimumSize: const Size(double.infinity, 52),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+        style: ButtonStyle(
+          foregroundColor: WidgetStateProperty.all(AppColors.primary),
+          minimumSize: WidgetStateProperty.all(const Size(double.infinity, 52)),
+          elevation: WidgetStateProperty.all(0),
+          shape: WidgetStateProperty.all(
+            RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
-          side: const BorderSide(color: AppColors.primary, width: 1.5),
-          textStyle: AppTextStyles.titleMedium.copyWith(fontWeight: FontWeight.bold),
+          side: WidgetStateProperty.all(
+            const BorderSide(color: AppColors.primary, width: 1.5),
+          ),
+          textStyle: WidgetStateProperty.all(
+            AppTextStyles.titleMedium.copyWith(fontWeight: FontWeight.bold),
+          ),
         ),
       ),
 
@@ -75,7 +82,7 @@ class AppTheme {
         ),
       ),
 
-      // Global Input Box Decorations (Matches your Exact Design Snippet)
+      // Global Input Box Decorations
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: AppColors.inputBackground,
@@ -83,7 +90,6 @@ class AppTheme {
           horizontal: 16,
           vertical: 16,
         ),
-        // Default idle styling 
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: AppColors.inputBorder),
@@ -92,12 +98,10 @@ class AppTheme {
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: AppColors.inputBorder),
         ),
-        // Active focusing styling
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
         ),
-        // Structural validation alert styling
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: AppColors.error),
@@ -113,11 +117,11 @@ class AppTheme {
 
       // High-End Surface Card Specifications
       cardTheme: CardThemeData(
-        color: AppColors.surface,
+        color: AppColors.cardBackground,
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
-          side: const BorderSide(color: AppColors.inputBorder),
+          side: const BorderSide(color: AppColors.borderOutline),
         ),
       ),
 
@@ -133,11 +137,10 @@ class AppTheme {
 
       // Clean Section Partition Separators
       dividerTheme: const DividerThemeData(
-        color: AppColors.inputBorder,
+        color: AppColors.borderOutline,
         thickness: 1,
         space: 0,
       ),
     );
   }
-
 }

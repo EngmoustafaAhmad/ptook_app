@@ -14,26 +14,25 @@ class CompetitionHomeInitial extends CompetitionHomeState {
   const CompetitionHomeInitial();
 }
 
-/// General loading state (e.g., initial page load)
+/// Loading state for initial fetch
 class CompetitionHomeLoading extends CompetitionHomeState {
   const CompetitionHomeLoading();
 }
 
-/// Loaded state containing competition & participant details
+/// Main loaded state holding single screen data
 class CompetitionHomeLoaded extends CompetitionHomeState {
   final CompetitionEntity competition;
   final List<ParticipantEntity> participants;
   final bool isFavorite;
-  final bool isActionLoading; // For non-blocking actions like join/leave
+  final bool isActionLoading;
 
-  const CompetitionHomeLoaded({
+  CompetitionHomeLoaded({
     required this.competition,
     required this.participants,
-    this.isFavorite = false,
+    bool? isFavorite,
     this.isActionLoading = false,
-  });
+  }) : isFavorite = isFavorite ?? competition.isFavorite;
 
-  /// Allows updating specific state properties seamlessly without rebuilding the entire object
   CompetitionHomeLoaded copyWith({
     CompetitionEntity? competition,
     List<ParticipantEntity>? participants,
@@ -55,6 +54,26 @@ class CompetitionHomeLoaded extends CompetitionHomeState {
         isFavorite,
         isActionLoading,
       ];
+}
+
+/// State holding the list of saved/favorited competitions
+class SavedCompetitionsLoaded extends CompetitionHomeState {
+  final List<CompetitionEntity> competitions;
+
+  const SavedCompetitionsLoaded({
+    required this.competitions,
+  });
+
+  SavedCompetitionsLoaded copyWith({
+    List<CompetitionEntity>? competitions,
+  }) {
+    return SavedCompetitionsLoaded(
+      competitions: competitions ?? this.competitions,
+    );
+  }
+
+  @override
+  List<Object?> get props => [competitions];
 }
 
 /// Error state for handling network or business errors

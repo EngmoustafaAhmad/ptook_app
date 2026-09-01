@@ -41,7 +41,10 @@ class _CompetitionParticipantsViewAllState extends State<CompetitionParticipants
         centerTitle: true,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
-          onPressed: () => Navigator.maybePop(context),
+          onPressed: () {
+            ScaffoldMessenger.of(context).clearSnackBars();
+             Navigator.maybePop(context);
+          },
         ),
         title: const Text(
           'PARTICIPANTS',
