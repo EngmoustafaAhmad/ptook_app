@@ -6,7 +6,6 @@ import 'package:ptook/features/shared/domain/entities/participant_entity.dart';
 import 'package:ptook/features/shared/domain/usecase/get_competition_details_usecase.dart';
 import 'package:ptook/features/view_competition/domain/usecases/get_favorite_competitions_usecase.dart';
 import 'package:ptook/features/view_competition/domain/usecases/is_favorite_usecase.dart';
-import 'package:ptook/features/view_competition/domain/usecases/join_individual_competition_usecase.dart';
 import 'package:ptook/features/view_competition/domain/usecases/stream_participants_view_usecase.dart';
 import 'package:ptook/features/view_competition/domain/usecases/toggle_favorite_usecase.dart';
 import 'competition_home_state.dart';
@@ -23,7 +22,6 @@ class CompetitionHomeCubit extends Cubit<CompetitionHomeState> {
   CompetitionHomeCubit({
     required StreamParticipantsViewUseCase streamParticipantsViewUseCase,
     required GetCompetitionDetailsUseCase getCompetitionDetailsUseCase,
-    required JoinIndividualCompetitionUseCase joinIndividualCompetitionUseCase,
     required ToggleFavoriteUsecase toggleFavoriteUseCase,
     required IsFavoriteUseCase isFavoriteUseCase,
     required GetFavoriteCompetitionsUsecase getFavoriteCompetitionsUseCase,
@@ -41,7 +39,7 @@ class CompetitionHomeCubit extends Cubit<CompetitionHomeState> {
   }) async {
     _safeEmit(const CompetitionHomeLoading());
 
-    // 1. Fetch exact favorite status directly from backend/cache
+    // 1. Fetch favorite status
     bool initialFavState = competition.isFavorite;
     final favResult = await _isFavoriteUseCase(
       userId: userId,
@@ -52,8 +50,19 @@ class CompetitionHomeCubit extends Cubit<CompetitionHomeState> {
       initialFavState = favResult.data;
     }
 
-    // 2. Start streaming participants with verified favorite state
-    await _participantsSubscription?.cancel();
+    final initialComp = competition.copyWith(isFavorite: initialFavState);
+
+    // 2. Immediate baseline state emission so UI opens without blocking on stream sync
+    _safeEmit(
+      CompetitionHomeLoaded(
+        competition: initialComp,
+        participants: const [],
+        isFavorite: initialFavState,
+      ),
+    );
+
+    // 3. Unsubscribe non-blocking and bind stream
+    _participantsSubscription?.cancel();
     _participantsSubscription =
         _streamParticipantsViewUseCase(competition.id).listen(
       (participants) {
@@ -65,7 +74,7 @@ class CompetitionHomeCubit extends Cubit<CompetitionHomeState> {
 
         final currentComp = currentState is CompetitionHomeLoaded
             ? currentState.competition.copyWith(isFavorite: currentIsFav)
-            : competition.copyWith(isFavorite: initialFavState);
+            : initialComp;
 
         _safeEmit(
           CompetitionHomeLoaded(
@@ -95,12 +104,12 @@ class CompetitionHomeCubit extends Cubit<CompetitionHomeState> {
       lastCompetitionId: lastCompetitionId,
     );
 
-    switch (result) {
-      case Success(data: final competitions):
-        _safeEmit(SavedCompetitionsLoaded(competitions: competitions));
-      case Failure(:final message):
-        _safeEmit(CompetitionHomeError(message));
-    }
+    result.when(
+      onSuccess: (competitions) =>
+          _safeEmit(SavedCompetitionsLoaded(competitions: competitions)),
+      onFailure: (failure) =>
+          _safeEmit(CompetitionHomeError(failure.message)),
+    );
   }
 
   /// Fetches full competition details and checks favorite status
@@ -115,15 +124,17 @@ class CompetitionHomeCubit extends Cubit<CompetitionHomeState> {
       userId: userId,
     );
 
-    switch (result) {
-      case Success(data: final competition):
+    result.when(
+      onSuccess: (competition) async {
         await loadCompetitionData(
           competition: competition,
           userId: userId,
         );
-      case Failure(:final message):
-        _safeEmit(CompetitionHomeError(message));
-    }
+      },
+      onFailure: (failure) {
+        _safeEmit(CompetitionHomeError(failure.message));
+      },
+    );
   }
 
   /// Toggles favorite status with an optimistic state update
@@ -131,7 +142,6 @@ class CompetitionHomeCubit extends Cubit<CompetitionHomeState> {
     required String userId,
     required CompetitionEntity competition,
   }) async {
-    // 1. Handling toggle when inside SavedCompetitionsLoaded state
     if (state is SavedCompetitionsLoaded) {
       final currentState = state as SavedCompetitionsLoaded;
       final newIsFavorite = !competition.isFavorite;
@@ -148,7 +158,7 @@ class CompetitionHomeCubit extends Cubit<CompetitionHomeState> {
         isFavorite: newIsFavorite,
       );
 
-      if (result is Failure) {
+      if (result is Err) {
         await fetchSavedCompetitions(userId: userId);
         _safeEmit(CompetitionHomeError(result.message));
       }
@@ -161,7 +171,6 @@ class CompetitionHomeCubit extends Cubit<CompetitionHomeState> {
     final previousIsFavorite = currentState.isFavorite;
     final newIsFavorite = !previousIsFavorite;
 
-    // 2. Optimistic Update
     final updatedCompetition = currentState.competition.copyWith(
       isFavorite: newIsFavorite,
     );
@@ -173,15 +182,13 @@ class CompetitionHomeCubit extends Cubit<CompetitionHomeState> {
       ),
     );
 
-    // 3. Network Persist
     final result = await _toggleFavoriteUseCase(
       userId: userId,
       competitionId: competition.id,
       isFavorite: newIsFavorite,
     );
 
-    // 4. Rollback on Failure
-    if (result is Failure) {
+    if (result is Err) {
       final rolledBackCompetition = currentState.competition.copyWith(
         isFavorite: previousIsFavorite,
       );

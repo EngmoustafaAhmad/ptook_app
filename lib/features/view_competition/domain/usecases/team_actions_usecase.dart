@@ -1,8 +1,8 @@
+import 'package:ptook/features/view_competition/domain/repositories/team/i_view_team_repository.dart';
 import '../../../../core/utils/result.dart';
-import '../repositories/i_view_competition_repository.dart';
 
 class JoinTeamUseCase {
-  final IViewCompetitionRepository repository;
+  final IViewTeamRepository repository;
 
   JoinTeamUseCase(this.repository);
 
@@ -20,7 +20,7 @@ class JoinTeamUseCase {
 }
 
 class LeaveTeamUseCase {
-  final IViewCompetitionRepository repository;
+  final IViewTeamRepository repository;
 
   LeaveTeamUseCase(this.repository);
 
@@ -35,22 +35,3 @@ class LeaveTeamUseCase {
   }
 }
 
-class SwitchTeamUseCase {
-  final IViewCompetitionRepository repository;
-
-  SwitchTeamUseCase(this.repository);
-
-  Future<Result<void>> call({
-    required String competitionId,
-    required String fromTeamId,
-    required String toTeamId,
-    String? joinCode,
-  }) {
-    return repository.switchTeam(
-      competitionId: competitionId,
-      fromTeamId: fromTeamId,
-      toTeamId: toTeamId,
-      joinCode: joinCode,
-    );
-  }
-}

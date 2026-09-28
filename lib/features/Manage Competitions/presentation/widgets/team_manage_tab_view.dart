@@ -29,6 +29,18 @@ class TeamManageTabView extends StatelessWidget {
   });
 
   void _showCreateTeamDialog(BuildContext context, List<TeamEntity> existingTeams) {
+    // 💡 Check Max Teams constraint
+    final maxTeams = competition.maxTeams;
+    if (maxTeams != null && maxTeams > 0 && existingTeams.length >= maxTeams) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Maximum team limit ($maxTeams) reached for this competition.'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
     final currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
 
     showDialog(
@@ -54,6 +66,8 @@ class TeamManageTabView extends StatelessWidget {
       builder: (context, state) {
         final rankedTeams = state.rankedTeams;
         final isFinished = competition.isFinished;
+        final maxTeams = competition.maxTeams;
+        final isMaxTeamsReached = maxTeams != null && maxTeams > 0 && rankedTeams.length >= maxTeams;
 
         return SingleChildScrollView(
           padding: const EdgeInsets.all(16),
@@ -63,30 +77,58 @@ class TeamManageTabView extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
-                    'Teams Management',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Teams Management',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      if (maxTeams != null && maxTeams > 0) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          '${rankedTeams.length} / $maxTeams Teams Created',
+                          style: TextStyle(
+                            color: isMaxTeamsReached ? Colors.orangeAccent : Colors.white54,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                   if (!isFinished)
                     ElevatedButton.icon(
-                      onPressed: () => _showCreateTeamDialog(context, rankedTeams),
+                      onPressed: isMaxTeamsReached
+                          ? () {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Maximum team limit ($maxTeams) reached.'),
+                                  backgroundColor: Colors.orangeAccent,
+                                ),
+                              );
+                            }
+                          : () => _showCreateTeamDialog(context, rankedTeams),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFFFC107),
-                        disabledBackgroundColor: Colors.grey,
+                        backgroundColor: isMaxTeamsReached ? Colors.grey.shade800 : const Color(0xFFFFC107),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(20),
                         ),
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       ),
-                      icon: const Icon(Icons.add, color: Colors.black, size: 18),
-                      label: const Text(
-                        'Create Team',
+                      icon: Icon(
+                        Icons.add,
+                        color: isMaxTeamsReached ? Colors.white38 : Colors.black,
+                        size: 18,
+                      ),
+                      label: Text(
+                        isMaxTeamsReached ? 'Limit Reached' : 'Create Team',
                         style: TextStyle(
-                          color: Colors.black,
+                          color: isMaxTeamsReached ? Colors.white38 : Colors.black,
                           fontWeight: FontWeight.bold,
                           fontSize: 12,
                         ),
@@ -125,13 +167,17 @@ class TeamManageTabView extends StatelessWidget {
                       isFinished: isFinished,
                       competitionId: competition.id,
                       onTap: () {
+                        // 📡 Stream participants for this competition before/on opening TeamMembersScreen
+                        final participantCubit = context.read<ParticipantManagementCubit>();
+                        participantCubit.listenToParticipants(competition.id);
+
                         Navigator.push(
                           context,
                           MaterialPageRoute(
                             builder: (_) => MultiBlocProvider(
                               providers: [
                                 BlocProvider.value(value: context.read<TeamManagementCubit>()),
-                                BlocProvider.value(value: context.read<ParticipantManagementCubit>()),
+                                BlocProvider.value(value: participantCubit),
                               ],
                               child: TeamMembersScreen(
                                 team: team,

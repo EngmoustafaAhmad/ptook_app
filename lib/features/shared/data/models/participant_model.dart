@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ptook/features/shared/domain/entities/podium_tier.dart';
+import 'package:ptook/features/shared/domain/entities/user_entity.dart';
 import '../../domain/entities/participant_entity.dart';
 
 class ParticipantModel extends ParticipantEntity {
@@ -8,33 +9,41 @@ class ParticipantModel extends ParticipantEntity {
     required super.userId,
     required super.competitionId,
     required super.name,
+    super.bio,
     super.avatarUrl,
     required super.role,
     super.teamId,
     required super.points,
+    super.totalPower = 0,
     required super.joinedAt,
     super.podiumTier,
     super.totalStarsEarned,
   });
 
-    factory ParticipantModel.fromJson(Map<String, dynamic> json, String docId) {
+  factory ParticipantModel.fromJson(Map<String, dynamic> json, String docId) {
+    final extractedUserId = json['userId'] as String?;
+    
     return ParticipantModel(
       id: docId,
-      // Fallback to docId if userId isn't stored as a field in older Firestore documents
-      userId: (json['userId'] as String?)?.isNotEmpty == true
-          ? json['userId']!
+      userId: (extractedUserId != null && extractedUserId.isNotEmpty)
+          ? extractedUserId
           : docId,
       competitionId: json['competitionId'] ?? '',
       name: json['name'] ?? '',
-      avatarUrl: json['avatarUrl'],
+      bio: json['bio'] ?? '',
+      avatarUrl: json['avatarUrl'] ?? '',
       role: json['role'] ?? 'member',
       teamId: json['teamId'],
       points: (json['totalPoints'] as num?)?.toInt() ??
-              (json['points'] as num?)?.toInt() ?? 0,
+          (json['points'] as num?)?.toInt() ??
+          0,
+      totalPower: (json['totalPower'] as num?)?.toInt() ??
+          (json['power'] as num?)?.toInt() ??
+          0,
       joinedAt: (json['joinedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       podiumTier: PodiumTier.values.firstWhere(
         (t) => t.name == json['podiumTier'],
-        orElse: () => PodiumTier.none,  
+        orElse: () => PodiumTier.none,
       ),
       totalStarsEarned: (json['totalStarsEarned'] as num?)?.toInt() ?? 0,
     );
@@ -43,15 +52,17 @@ class ParticipantModel extends ParticipantEntity {
   Map<String, dynamic> toJson() {
     return {
       'id': id,
-      'userId': userId,
+      'userId': userId.isNotEmpty ? userId : id,
       'competitionId': competitionId,
       'name': name,
-      'avatarUrl': avatarUrl,
+      'bio': bio ?? '',
+      'avatarUrl': avatarUrl ?? '',
       'role': role,
       'teamId': teamId,
-      // Persist both keys so both team and participant streams stay aligned
       'points': points,
       'totalPoints': points,
+      'totalPower': totalPower,
+      'power': totalPower,
       'joinedAt': Timestamp.fromDate(joinedAt),
       'podiumTier': podiumTier.name,
       'totalStarsEarned': totalStarsEarned,
@@ -64,13 +75,37 @@ class ParticipantModel extends ParticipantEntity {
       userId: entity.userId,
       competitionId: entity.competitionId,
       name: entity.name,
+      bio: entity.bio,
       avatarUrl: entity.avatarUrl,
       role: entity.role,
       teamId: entity.teamId,
       points: entity.points,
+      totalPower: entity.totalPower,
       joinedAt: entity.joinedAt,
       podiumTier: entity.podiumTier,
       totalStarsEarned: entity.totalStarsEarned,
+    );
+  }
+
+  /// 🔗 Bridge Factory: Directly maps UserEntity snapshot to a new ParticipantModel
+  factory ParticipantModel.fromUser({
+    required UserEntity user,
+    required String competitionId,
+    String role = 'member',
+    String? teamId,
+  }) {
+    return ParticipantModel(
+      id: user.id,
+      userId: user.id,
+      competitionId: competitionId,
+      name: user.name,
+      bio: user.bio ?? '',
+      avatarUrl: user.avatarUrl ?? '',
+      role: role,
+      teamId: teamId,
+      points: 0,
+      totalPower: user.totalPower,
+      joinedAt: DateTime.now(),
     );
   }
 }

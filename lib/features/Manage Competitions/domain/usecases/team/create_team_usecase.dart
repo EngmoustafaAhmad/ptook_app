@@ -1,9 +1,9 @@
 import 'package:ptook/core/utils/result.dart';
-import 'package:ptook/features/Manage%20Competitions/domain/repositories/i_manage_competition_repository.dart';
+import 'package:ptook/features/Manage%20Competitions/domain/repositories/team/i_manage_team_repository.dart';
 import 'package:ptook/features/shared/domain/entities/team_entity.dart';
 
 class CreateTeamUseCase {
-  final IManageCompetitionRepository repository;
+  final IManageTeamRepository repository;
 
   CreateTeamUseCase(this.repository);
 

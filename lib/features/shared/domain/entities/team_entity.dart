@@ -6,6 +6,7 @@ class TeamEntity extends Equatable {
   final String name;
   final String competitionId;
   final String ownerId;
+  final String? avatarUrl; // 🖼️ Added avatarUrl field
   final String? joinCode;
   final bool isPrivate;
   final int totalPoints;
@@ -19,6 +20,7 @@ class TeamEntity extends Equatable {
     required this.name,
     required this.competitionId,
     required this.ownerId,
+    this.avatarUrl,
     this.joinCode,
     this.isPrivate = false,
     this.totalPoints = 0,
@@ -53,6 +55,7 @@ class TeamEntity extends Equatable {
     String? name,
     String? competitionId,
     String? ownerId,
+    String? avatarUrl,
     String? joinCode,
     bool? isPrivate,
     int? totalPoints,
@@ -66,6 +69,7 @@ class TeamEntity extends Equatable {
       name: name ?? this.name,
       competitionId: competitionId ?? this.competitionId,
       ownerId: ownerId ?? this.ownerId,
+      avatarUrl: avatarUrl ?? this.avatarUrl,
       joinCode: joinCode ?? this.joinCode,
       isPrivate: isPrivate ?? this.isPrivate,
       totalPoints: totalPoints ?? this.totalPoints,
@@ -82,6 +86,7 @@ class TeamEntity extends Equatable {
         name,
         competitionId,
         ownerId,
+        avatarUrl,
         joinCode,
         isPrivate,
         totalPoints,

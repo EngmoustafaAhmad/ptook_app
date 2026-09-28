@@ -1,8 +1,8 @@
 import 'package:ptook/core/utils/result.dart';
-import 'package:ptook/features/Manage%20Competitions/domain/repositories/i_manage_competition_repository.dart';
+import 'package:ptook/features/Manage%20Competitions/domain/repositories/team/i_manage_team_repository.dart';
 
 class UpdateTeamParticipantPointsUseCase {
-  final IManageCompetitionRepository _repository;
+  final IManageTeamRepository _repository;
 
   UpdateTeamParticipantPointsUseCase(this._repository);
 

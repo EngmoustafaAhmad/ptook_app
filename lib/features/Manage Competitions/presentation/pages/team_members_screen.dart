@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ptook/features/Manage%20Competitions/presentation/cubits/participant_management/participant_management_cubit.dart';
@@ -84,7 +85,7 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
 
                 // Reconcile streamed participants with the active team member list
                 final teamMemberIds = currentTeam.members.map((m) => m.id).toSet();
-                
+
                 final teamMembers = participantState.participants
                     .where((p) => teamMemberIds.contains(p.id) || p.teamId == currentTeam.id)
                     .toList()
@@ -129,9 +130,7 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
                           confirmText: 'Remove',
                           confirmColor: Colors.redAccent,
                           onConfirm: () async {
-                            // 1. Store cubit reference before popping context
                             final teamCubit = context.read<TeamManagementCubit>();
-                            
                             try {
                               await teamCubit.removeTeamParticipant(
                                 competitionId: widget.competitionId,
@@ -177,6 +176,7 @@ class MemberTile extends StatelessWidget {
     final String name = member.name;
     final int points = member.points;
     final String initial = name.isNotEmpty ? name[0].toUpperCase() : '?';
+    final hasAvatar = member.avatarUrl != null && member.avatarUrl!.trim().isNotEmpty;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -195,16 +195,23 @@ class MemberTile extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 12),
+          
+          // 🖼️ Cached Avatar Image with Fallback Initial
           CircleAvatar(
             radius: 20,
             backgroundColor: Colors.white12,
-            child: Text(
-              initial,
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
+            backgroundImage: hasAvatar
+                ? CachedNetworkImageProvider(member.avatarUrl!)
+                : null,
+            child: !hasAvatar
+                ? Text(
+                    initial,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  )
+                : null,
           ),
           const SizedBox(width: 12),
           Expanded(

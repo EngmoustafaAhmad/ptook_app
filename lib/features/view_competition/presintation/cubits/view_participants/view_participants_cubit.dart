@@ -1,6 +1,9 @@
+
 import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ptook/core/utils/result.dart';
+import 'package:ptook/features/activity/domain/entities/activity_entity.dart';
+import 'package:ptook/features/activity/domain/repositories/i_activity_repository.dart';
 import 'package:ptook/features/shared/domain/entities/participant_entity.dart';
 import 'package:ptook/features/view_competition/domain/usecases/join_individual_competition_usecase.dart';
 import 'package:ptook/features/view_competition/domain/usecases/join_team_competition_usecase.dart';
@@ -18,10 +21,10 @@ class ViewParticipantsCubit extends Cubit<ViewParticipantsState> {
   final LeaveTeamCompetitionUseCase _leaveTeamCompetitionUseCase;
   final JoinTeamUseCase _joinTeamUseCase;
   final LeaveTeamUseCase _leaveTeamUseCase;
-  final SwitchTeamUseCase _switchTeamUseCase;
+  final IActivityRepository _activityRepository;
 
   StreamSubscription<List<ParticipantEntity>>? _participantsSubscription;
-  List<ParticipantEntity> _cachedParticipants = [];
+  List<ParticipantEntity> _lastCachedParticipants = [];
 
   ViewParticipantsCubit({
     required StreamParticipantsViewUseCase streamParticipantsViewUseCase,
@@ -31,7 +34,7 @@ class ViewParticipantsCubit extends Cubit<ViewParticipantsState> {
     required LeaveTeamCompetitionUseCase leaveTeamCompetitionUseCase,
     required JoinTeamUseCase joinTeamUseCase,
     required LeaveTeamUseCase leaveTeamUseCase,
-    required SwitchTeamUseCase switchTeamUseCase,
+    required IActivityRepository activityRepository,
   })  : _streamParticipantsViewUseCase = streamParticipantsViewUseCase,
         _joinIndividualCompetitionUseCase = joinIndividualCompetitionUseCase,
         _joinTeamCompetitionUseCase = joinTeamCompetitionUseCase,
@@ -39,50 +42,46 @@ class ViewParticipantsCubit extends Cubit<ViewParticipantsState> {
         _leaveTeamCompetitionUseCase = leaveTeamCompetitionUseCase,
         _joinTeamUseCase = joinTeamUseCase,
         _leaveTeamUseCase = leaveTeamUseCase,
-        _switchTeamUseCase = switchTeamUseCase,
+        _activityRepository = activityRepository,
         super(ViewParticipantsInitial());
 
-  /// Listens to real-time participant stream for a specific competition
   void listenToParticipants(String competitionId) {
-    emit(ViewParticipantsLoading());
+    if (isClosed) return;
+    
+    // Only set loading if we don't already have an active listener
+    if (_participantsSubscription == null) {
+      _safeEmit(ViewParticipantsLoading());
+    }
 
     _participantsSubscription?.cancel();
     _participantsSubscription = _streamParticipantsViewUseCase(competitionId).listen(
       (participants) {
-        _cachedParticipants = participants;
-        emit(ViewParticipantsLoaded(List.unmodifiable(_cachedParticipants)));
+        _lastCachedParticipants = List.unmodifiable(participants);
+        _safeEmit(ViewParticipantsLoaded(_lastCachedParticipants));
       },
       onError: (error) {
-        emit(ViewParticipantsError(error.toString()));
+        _safeEmit(ViewParticipantsError(error.toString()));
       },
     );
   }
+
+  // ---------------------------------------------------------------------------
+  // COMPETITION-LEVEL ACTIONS
+  // ---------------------------------------------------------------------------
 
   Future<void> joinIndividualCompetition({
     required String competitionId,
     required String userId,
   }) async {
-    emit(ViewParticipantsActionLoading());
-
+    _safeEmit(ViewParticipantsActionLoading());
     final result = await _joinIndividualCompetitionUseCase(competitionId);
-
-    _handleActionResult(
+    _handleJoinResult(
       result: result,
       successMessage: 'Successfully joined competition!',
-    );
-  }
-
-  Future<void> joinTeamCompetition({
-    required String competitionId,
-    required String userId,
-  }) async {
-    emit(ViewParticipantsActionLoading());
-
-    final result = await _joinTeamCompetitionUseCase(competitionId);
-
-    _handleActionResult(
-      result: result,
-      successMessage: 'Successfully joined team competition!',
+      competitionId: competitionId,
+      userId: userId,
+      activityTitle: 'Joined Competition 🏆',
+      activityDescription: 'Joined competition as an individual participant.',
     );
   }
 
@@ -90,125 +89,189 @@ class ViewParticipantsCubit extends Cubit<ViewParticipantsState> {
     required String competitionId,
     required String userId,
   }) async {
-    emit(ViewParticipantsActionLoading());
-
+    _safeEmit(ViewParticipantsActionLoading());
     final result = await _leaveIndividualCompetitionUseCase(competitionId);
+    _handleLeaveResult(
+      result: result,
+      successMessage: 'Left the competition successfully.',
+      competitionId: competitionId,
+      userId: userId,
+      activityTitle: 'Left Competition 🚪',
+      activityDescription: 'Left the individual competition.',
+      activityType: ActivityType.competitionLeft, // Updated
+    );
+  }
 
-    switch (result) {
-      case Success():
-        _cachedParticipants.removeWhere((p) => p.userId == userId);
-        emit(const LeaveCompetitionSuccess('Left the competition successfully.'));
-        emit(ViewParticipantsLoaded(List.unmodifiable(_cachedParticipants)));
-      case Failure(:final message):
-        emit(ViewParticipantsError(message));
-        if (_cachedParticipants.isNotEmpty) {
-          emit(ViewParticipantsLoaded(List.unmodifiable(_cachedParticipants)));
-        }
-    }
+  Future<void> joinTeamCompetition({
+    required String competitionId,
+    required String userId,
+  }) async {
+    _safeEmit(ViewParticipantsActionLoading());
+    final result = await _joinTeamCompetitionUseCase(competitionId);
+    _handleJoinResult(
+      result: result,
+      successMessage: 'Successfully joined team competition!',
+      competitionId: competitionId,
+      userId: userId,
+      activityTitle: 'Joined Competition Roster 🏆',
+      activityDescription: 'Joined the team competition roster.',
+    );
   }
 
   Future<void> leaveTeamCompetition({
     required String competitionId,
     required String userId,
   }) async {
-    emit(ViewParticipantsActionLoading());
-
+    _safeEmit(ViewParticipantsActionLoading());
     final result = await _leaveTeamCompetitionUseCase(competitionId);
-
-    switch (result) {
-      case Success():
-        _cachedParticipants.removeWhere((p) => p.userId == userId);
-        emit(const LeaveCompetitionSuccess('Left team competition successfully.'));
-        emit(ViewParticipantsLoaded(List.unmodifiable(_cachedParticipants)));
-      case Failure(:final message):
-        emit(ViewParticipantsError(message));
-        if (_cachedParticipants.isNotEmpty) {
-          emit(ViewParticipantsLoaded(List.unmodifiable(_cachedParticipants)));
-        }
-    }
+    _handleLeaveResult(
+      result: result,
+      successMessage: 'Left team competition successfully.',
+      competitionId: competitionId,
+      userId: userId,
+      activityTitle: 'Left Team Competition 🚪',
+      activityDescription: 'Left the team competition.',
+      activityType: ActivityType.competitionLeft, // Updated
+    );
   }
+
+  // ---------------------------------------------------------------------------
+  // TEAM-LEVEL ACTIONS
+  // ---------------------------------------------------------------------------
 
   Future<void> joinTeam({
     required String competitionId,
     required String teamId,
+    required String userId,
     String? joinCode,
   }) async {
-    emit(ViewParticipantsActionLoading());
-
+    _safeEmit(ViewParticipantsActionLoading());
     final result = await _joinTeamUseCase(
       competitionId: competitionId,
       teamId: teamId,
       joinCode: joinCode,
     );
-
-    _handleActionResult(
+    _handleJoinResult(
       result: result,
       successMessage: 'Successfully joined team!',
+      competitionId: competitionId,
+      userId: userId,
+      activityTitle: 'Joined Team 🛡️',
+      activityDescription: 'Joined a team in the competition.',
     );
   }
 
   Future<void> leaveTeam({
     required String competitionId,
     required String teamId,
+    required String userId,
   }) async {
-    emit(ViewParticipantsActionLoading());
-
+    _safeEmit(ViewParticipantsActionLoading());
     final result = await _leaveTeamUseCase(
       competitionId: competitionId,
       teamId: teamId,
     );
-
-    switch (result) {
-      case Success():
-        emit(const LeaveCompetitionSuccess('Left team successfully.'));
-        if (_cachedParticipants.isNotEmpty) {
-          emit(ViewParticipantsLoaded(List.unmodifiable(_cachedParticipants)));
-        }
-      case Failure(:final message):
-        emit(ViewParticipantsError(message));
-        if (_cachedParticipants.isNotEmpty) {
-          emit(ViewParticipantsLoaded(List.unmodifiable(_cachedParticipants)));
-        }
-    }
-  }
-
-  Future<void> switchTeam({
-    required String competitionId,
-    required String fromTeamId,
-    required String toTeamId,
-    String? joinCode,
-  }) async {
-    emit(ViewParticipantsActionLoading());
-
-    final result = await _switchTeamUseCase(
-      competitionId: competitionId,
-      fromTeamId: fromTeamId,
-      toTeamId: toTeamId,
-      joinCode: joinCode,
-    );
-
-    _handleActionResult(
+    _handleLeaveResult(
       result: result,
-      successMessage: 'Successfully switched teams!',
+      successMessage: 'Left team successfully.',
+      competitionId: competitionId,
+      userId: userId,
+      activityTitle: 'Left Team 🚪',
+      activityDescription: 'Left your current team.',
+      activityType: ActivityType.competitionLeft, // Updated
     );
   }
 
-  void _handleActionResult({
+  // ---------------------------------------------------------------------------
+  // RESULT & ACTIVITY LOG HANDLERS
+  // ---------------------------------------------------------------------------
+
+  void _handleJoinResult({
     required Result<void> result,
     required String successMessage,
+    required String competitionId,
+    required String userId,
+    required String activityTitle,
+    required String activityDescription,
+    ActivityType activityType = ActivityType.competitionJoined,
   }) {
-    switch (result) {
-      case Success():
-        emit(JoinCompetitionSuccess(successMessage));
-        if (_cachedParticipants.isNotEmpty) {
-          emit(ViewParticipantsLoaded(List.unmodifiable(_cachedParticipants)));
-        }
-      case Failure(:final message):
-        emit(ViewParticipantsError(message));
-        if (_cachedParticipants.isNotEmpty) {
-          emit(ViewParticipantsLoaded(List.unmodifiable(_cachedParticipants)));
-        }
+    result.when(
+      onSuccess: (_) {
+        _logActivity(
+          userId: userId,
+          title: activityTitle,
+          description: activityDescription,
+          type: activityType,
+          competitionId: competitionId,
+        );
+        _safeEmit(JoinCompetitionSuccess(successMessage));
+        _restorePreviousState();
+      },
+      onFailure: (failure) {
+        _safeEmit(ViewParticipantsError(failure.message));
+        _restorePreviousState();
+      },
+    );
+  }
+
+  void _handleLeaveResult({
+    required Result<void> result,
+    required String successMessage,
+    required String competitionId,
+    required String userId,
+    required String activityTitle,
+    required String activityDescription,
+    required ActivityType activityType,
+  }) {
+    result.when(
+      onSuccess: (_) {
+        _logActivity(
+          userId: userId,
+          title: activityTitle,
+          description: activityDescription,
+          type: activityType,
+          competitionId: competitionId,
+        );
+        _safeEmit(LeaveCompetitionSuccess(successMessage));
+        _restorePreviousState();
+      },
+      onFailure: (failure) {
+        _safeEmit(ViewParticipantsError(failure.message));
+        _restorePreviousState();
+      },
+    );
+  }
+
+  void _logActivity({
+    required String userId,
+    required String title,
+    required String description,
+    required ActivityType type,
+    required String competitionId,
+  }) {
+    _activityRepository.logActivity(
+      ActivityEntity(
+        id: '',
+        userId: userId,
+        title: title,
+        description: description,
+        type: type,
+        timestamp: DateTime.now(),
+        competitionId: competitionId,
+      ),
+    );
+  }
+
+  void _restorePreviousState() {
+    // If the stream is active, restore the loaded state using cached data 
+    // without tearing down and re-subscribing to the stream.
+    if (_lastCachedParticipants.isNotEmpty) {
+      _safeEmit(ViewParticipantsLoaded(_lastCachedParticipants));
     }
+  }
+
+  void _safeEmit(ViewParticipantsState newState) {
+    if (!isClosed) emit(newState);
   }
 
   @override

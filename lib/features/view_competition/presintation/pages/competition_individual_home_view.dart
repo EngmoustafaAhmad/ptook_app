@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -7,11 +8,9 @@ import 'package:ptook/features/shared/domain/entities/participant_entity.dart';
 import 'package:ptook/features/view_competition/presintation/cubits/competition_home_cubit.dart';
 import 'package:ptook/features/view_competition/presintation/cubits/competition_home_state.dart';
 import 'package:ptook/features/view_competition/presintation/cubits/view_participants/view_participants_cubit.dart';
+import 'package:ptook/features/view_competition/presintation/cubits/view_participants/view_participants_state.dart';
 import 'package:ptook/features/view_competition/presintation/pages/competition_participants_view_all.dart';
 import 'package:ptook/features/view_competition/presintation/widgets/report_dialog.dart';
-
-
-
 
 class CompetitionIndividualHomeView extends StatefulWidget {
   final CompetitionEntity competition;
@@ -30,6 +29,8 @@ class CompetitionIndividualHomeView extends StatefulWidget {
 
 class _CompetitionIndividualHomeViewState
     extends State<CompetitionIndividualHomeView> {
+  bool _isLeaving = false;
+
   @override
   void initState() {
     super.initState();
@@ -51,22 +52,29 @@ class _CompetitionIndividualHomeViewState
   }
 
   void _handleLeave() {
+    if (_isLeaving) return;
+
+    setState(() {
+      _isLeaving = true;
+    });
+
     context.read<ViewParticipantsCubit>().leaveIndividualCompetition(
           competitionId: widget.competition.id,
           userId: widget.currentUserId,
         );
   }
+
   void _shareCompetition() {
     final shareUrl =
         'https://yourapp.com/competitions/${widget.competition.id}';
     Clipboard.setData(ClipboardData(text: shareUrl));
-    _showSnackBar(context, 'Link copied to clipboard!', Colors.green);
+    _showSnackBar('Link copied to clipboard!', Colors.green);
   }
 
   void _showRulesDialog() {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         backgroundColor: AppColors.cardBackground,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
@@ -102,7 +110,7 @@ class _CompetitionIndividualHomeViewState
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text(
               'Got it',
               style: TextStyle(color: AppColors.primaryAccent),
@@ -113,74 +121,74 @@ class _CompetitionIndividualHomeViewState
     );
   }
 
-  // Cleaned-up caller methods inside your parent State class
-void _confirmLeaveCompetition() {
-  showDialog(
-    context: context,
-    builder: (dialogContext) => AlertDialog(
-      backgroundColor: AppColors.cardBackground,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
-      ),
-      title: const Text(
-        'Leave Competition',
-        style: TextStyle(
-          color: Colors.white,
-          fontSize: 18,
-          fontWeight: FontWeight.bold,
+  void _confirmLeaveCompetition() {
+    if (_isLeaving) return;
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: AppColors.cardBackground,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
         ),
-      ),
-      content: const Text(
-        'Are you sure you want to leave this competition? Your current rank and accumulated points will be removed.',
-        style: TextStyle(color: Colors.white70, fontSize: 14, height: 1.4),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(dialogContext),
-          child: const Text(
-            'Cancel',
-            style: TextStyle(color: Colors.white54),
+        title: const Text(
+          'Leave Competition',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
           ),
         ),
-        ElevatedButton(
-          onPressed: () {
-            final messenger = ScaffoldMessenger.of(context);
-            Navigator.pop(dialogContext);
-            messenger.clearSnackBars();
-            _handleLeave();
-          },
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.redAccent,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
+        content: const Text(
+          'Are you sure you want to leave this competition? Your current rank and accumulated points will be removed.',
+          style: TextStyle(color: Colors.white70, fontSize: 14, height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: Colors.white54),
             ),
           ),
-          child: const Text(
-            'Leave',
-            style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(dialogContext);
+              ScaffoldMessenger.of(context).clearSnackBars();
+              _handleLeave();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: const Text(
+              'Leave',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
-        ),
-      ],
-    ),
-  );
-}
+        ],
+      ),
+    );
+  }
 
-void _showReportDialog() {
-  showDialog(
-    context: context,
-    builder: (dialogContext) => ReportDialog(
-      onSubmit: (reason) {
-        _showSnackBar(context, 'Report submitted successfully.', Colors.green);
-      },
-    ),
-  );
-}
+  void _showReportDialog() {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => ReportDialog(
+        onSubmit: (reason) {
+          _showSnackBar('Report submitted successfully.', Colors.green);
+        },
+      ),
+    );
+  }
 
-  void _navigateToParticipants(BuildContext context) {
+  void _navigateToParticipants() {
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -195,7 +203,8 @@ void _showReportDialog() {
     );
   }
 
-  void _showSnackBar(BuildContext context, String msg, Color color) {
+  void _showSnackBar(String msg, Color color) {
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(msg),
@@ -207,7 +216,6 @@ void _showReportDialog() {
   }
 
   PreferredSizeWidget _buildAppBar(
-    BuildContext context,
     CompetitionEntity competition,
     bool isFavorite,
   ) {
@@ -244,8 +252,7 @@ void _showReportDialog() {
           itemBuilder: (context) => [
             const PopupMenuItem(
               value: 'rules',
-              child: Text('Rules & Terms',
-                  style: TextStyle(color: Colors.white)),
+              child: Text('Rules & Terms', style: TextStyle(color: Colors.white)),
             ),
             const PopupMenuItem(
               value: 'report',
@@ -259,97 +266,120 @@ void _showReportDialog() {
 
   @override
   Widget build(BuildContext context) {
-    return BlocConsumer<CompetitionHomeCubit, CompetitionHomeState>(
-      listener: (context, state) {
-        if (state is CompetitionHomeActionSuccess) {
-          _showSnackBar(context, state.message, Colors.green);
-        } else if (state is CompetitionHomeError) {
-          _showSnackBar(context, state.message, Colors.redAccent);
-        }
-      },
-      builder: (context, state) {
-        if (state is CompetitionHomeLoading) {
+    return MultiBlocListener(
+      listeners: [
+        BlocListener<CompetitionHomeCubit, CompetitionHomeState>(
+          listener: (context, state) {
+            if (state is CompetitionHomeActionSuccess) {
+              _showSnackBar(state.message, Colors.green);
+            } else if (state is CompetitionHomeError) {
+              _showSnackBar(state.message, Colors.redAccent);
+            }
+          },
+        ),
+        BlocListener<ViewParticipantsCubit, ViewParticipantsState>(
+          listener: (context, state) {
+            if (state is LeaveCompetitionSuccess) {
+              _showSnackBar(state.message, AppColors.cardBackground);
+              Navigator.pop(context, true);
+            } else if (state is ViewParticipantsError) {
+              if (mounted) {
+                setState(() {
+                  _isLeaving = false;
+                });
+              }
+              _showSnackBar(state.message, Colors.redAccent);
+            }
+          },
+        ),
+      ],
+      child: BlocBuilder<CompetitionHomeCubit, CompetitionHomeState>(
+        builder: (context, state) {
+          if (state is CompetitionHomeLoading) {
+            return const Scaffold(
+              backgroundColor: AppColors.background,
+              body: Center(
+                child: CircularProgressIndicator(color: AppColors.primaryAccent),
+              ),
+            );
+          }
+
+          if (state is CompetitionHomeLoaded) {
+            final competition = state.competition;
+            final participants = state.participants;
+            final isFavorite = state.isFavorite;
+
+            final sortedParticipants = List<ParticipantEntity>.from(participants)
+              ..sort((a, b) => b.points.compareTo(a.points));
+
+            final userIndex = sortedParticipants
+                .indexWhere((p) => p.userId == widget.currentUserId);
+            final isJoined = userIndex != -1;
+            final userRank = isJoined ? '#${userIndex + 1}' : 'N/A';
+            final userPoints =
+                isJoined ? sortedParticipants[userIndex].points : 0;
+
+            return Scaffold(
+              backgroundColor: AppColors.background,
+              appBar: _buildAppBar(competition, isFavorite),
+              body: RefreshIndicator(
+                onRefresh: () async => context
+                    .read<CompetitionHomeCubit>()
+                    .fetchCompetitionDetails(
+                      competitionId: widget.competition.id,
+                      userId: widget.currentUserId,
+                    ),
+                color: AppColors.primaryAccent,
+                backgroundColor: AppColors.cardBackground,
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(
+                    parent: BouncingScrollPhysics(),
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _HeroHeaderCard(competition: competition),
+                      const SizedBox(height: 16),
+                      _QuickStatsRow(
+                        participantCount: participants.length,
+                        maxCapacity: competition.maxParticipants ?? 100,
+                        userRank: userRank,
+                        userPoints: userPoints,
+                      ),
+                      const SizedBox(height: 16),
+                      _LeaderboardCard(
+                        topParticipants:
+                            sortedParticipants.take(3).toList(),
+                        onViewFullRanking: _navigateToParticipants,
+                      ),
+                      const SizedBox(height: 24),
+                      _ActionButtonsGroup(
+                        isLoading: state.isActionLoading || _isLeaving,
+                        onLeavePressed: _confirmLeaveCompetition,
+                      ),
+                      const SizedBox(height: 32),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }
+
           return const Scaffold(
             backgroundColor: AppColors.background,
             body: Center(
-              child:
-                  CircularProgressIndicator(color: AppColors.primaryAccent),
-            ),
-          );
-        }
-
-        if (state is CompetitionHomeLoaded) {
-          final competition = state.competition;
-          final participants = state.participants;
-          final isFavorite = state.isFavorite;
-
-          final sortedParticipants =
-              List<ParticipantEntity>.from(participants)
-                ..sort((a, b) => b.points.compareTo(a.points));
-
-          final userIndex = sortedParticipants
-              .indexWhere((p) => p.userId == widget.currentUserId);
-          final isJoined = userIndex != -1;
-          final userRank = isJoined ? '#${userIndex + 1}' : 'N/A';
-          final userPoints =
-              isJoined ? sortedParticipants[userIndex].points : 0;
-
-          return Scaffold(
-            backgroundColor: AppColors.background,
-            appBar: _buildAppBar(context, competition, isFavorite),
-            body: RefreshIndicator(
-              onRefresh: () async => context
-                  .read<CompetitionHomeCubit>()
-                  .fetchCompetitionDetails(competitionId: widget.competition.id, userId: widget.currentUserId),
-              color: AppColors.primaryAccent,
-              backgroundColor: AppColors.cardBackground,
-              child: SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(
-                  parent: BouncingScrollPhysics(),
-                ),
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _HeroHeaderCard(competition: competition),
-                    const SizedBox(height: 16),
-                    _QuickStatsRow(
-                      participantCount: participants.length,
-                      maxCapacity: competition.maxParticipants ?? 100,
-                      userRank: userRank,
-                      userPoints: userPoints,
-                    ),
-                    const SizedBox(height: 16),
-                    _LeaderboardCard(
-                      topParticipants:
-                          sortedParticipants.take(3).toList(),
-                      onViewFullRanking: () =>
-                          _navigateToParticipants(context),
-                    ),
-                    const SizedBox(height: 24),
-                    _ActionButtonsGroup(
-                      isLoading: state.isActionLoading,
-                      onLeavePressed: _confirmLeaveCompetition,
-                    ),
-                    const SizedBox(height: 32),
-                  ],
-                ),
+              child: Text(
+                'Failed to load competition details.',
+                style: TextStyle(color: Colors.white70),
               ),
             ),
           );
-        }
-
-        return const Scaffold(
-          backgroundColor: AppColors.background,
-          body: Center(
-            child: Text(
-              'Failed to load competition details.',
-              style: TextStyle(color: Colors.white70),
-            ),
-          ),
-        );
-      },
+        },
+      ),
     );
   }
 }
@@ -581,36 +611,47 @@ class _LeaderboardCard extends StatelessWidget {
             Column(
               children: List.generate(topParticipants.length, (index) {
                 final participant = topParticipants[index];
+                final hasAvatar = participant.avatarUrl != null && participant.avatarUrl!.trim().isNotEmpty;
+                final fallbackInitial = participant.name.isNotEmpty ? participant.name[0].toUpperCase() : '?';
+
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 8.0),
                   child: Row(
                     children: [
+                      // 1️⃣ Cached Avatar Image with Fallback Initial
                       CircleAvatar(
-                        radius: 14,
-                        backgroundColor: index == 0
-                            ? Colors.amber
-                            : index == 1
-                                ? Colors.grey
-                                : Colors.brown,
-                        child: Text(
-                          '${index + 1}',
-                          style: const TextStyle(
-                            color: Colors.black,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                        radius: 16,
+                        backgroundColor: AppColors.primaryAccent.withValues(alpha: 0.15),
+                        backgroundImage: hasAvatar
+                            ? CachedNetworkImageProvider(participant.avatarUrl!)
+                            : null,
+                        child: !hasAvatar
+                            ? Text(
+                                fallbackInitial,
+                                style: const TextStyle(
+                                  color: AppColors.primaryAccent,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              )
+                            : null,
                       ),
                       const SizedBox(width: 12),
+
+                      // 2️⃣ Name
                       Expanded(
                         child: Text(
                           participant.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 14,
                           ),
                         ),
                       ),
+
+                      // 3️⃣ Points
                       Text(
                         '${participant.points} pts',
                         style: const TextStyle(
@@ -623,7 +664,7 @@ class _LeaderboardCard extends StatelessWidget {
                   ),
                 );
               }),
-            ),
+            )
         ],
       ),
     );

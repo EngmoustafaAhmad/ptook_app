@@ -1,6 +1,7 @@
+import 'package:ptook/features/view_competition/domain/repositories/competition/i_view_competition_repository.dart';
+
 import '../../../../core/utils/result.dart';
 import '../../../shared/domain/entities/competition_entity.dart';
-import '../repositories/i_view_competition_repository.dart';
 
 class GetFavoriteCompetitionsUsecase {
   final IViewCompetitionRepository repository;

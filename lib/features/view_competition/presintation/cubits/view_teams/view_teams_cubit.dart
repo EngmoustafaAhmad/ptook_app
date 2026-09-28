@@ -14,15 +14,20 @@ class ViewTeamsCubit extends Cubit<ViewTeamsState> {
         super(ViewTeamsInitial());
 
   void streamTeams(String competitionId) {
+    if (isClosed) return;
     emit(ViewTeamsLoading());
 
     _teamsSubscription?.cancel();
     _teamsSubscription = _streamTeamsUseCase(competitionId).listen(
       (teams) {
-        emit(ViewTeamsLoaded(List.unmodifiable(teams)));
+        if (!isClosed) {
+          emit(ViewTeamsLoaded(List.unmodifiable(teams)));
+        }
       },
       onError: (error) {
-        emit(ViewTeamsError(error.toString()));
+        if (!isClosed) {
+          emit(ViewTeamsError(error.toString()));
+        }
       },
     );
   }

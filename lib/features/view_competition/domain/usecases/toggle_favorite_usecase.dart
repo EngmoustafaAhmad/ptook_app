@@ -1,5 +1,6 @@
+import 'package:ptook/features/view_competition/domain/repositories/competition/i_view_competition_repository.dart';
+
 import '../../../../core/utils/result.dart';
-import '../repositories/i_view_competition_repository.dart';
 
 class ToggleFavoriteUsecase {
   final IViewCompetitionRepository repository;

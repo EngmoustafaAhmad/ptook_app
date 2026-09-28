@@ -2,23 +2,14 @@ import 'dart:ui';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:ptook/core/Theme/app_colors.dart';
 import 'package:ptook/core/di/injection_container.dart';
+import 'package:ptook/core/theme/app_colors.dart';
+import 'package:ptook/core/utils/power_guard.dart'; // ⚡ PowerGuard Utility
 import 'package:ptook/features/Manage%20Competitions/presentation/pages/manage_competition_view.dart';
 import 'package:ptook/features/shared/domain/entities/competition_entity.dart';
 import 'package:ptook/features/view_competition/presintation/cubits/view_participants/view_participants_cubit.dart';
 import 'package:ptook/features/view_competition/presintation/cubits/view_participants/view_participants_state.dart';
 import 'package:ptook/features/view_competition/presintation/pages/competition_home_view.dart';
-
-// =============================================================================
-// DESIGN SYSTEM TOKENS
-// =============================================================================
-
-
-
-// =============================================================================
-// MAIN COMPETITION DETAILS VIEW
-// =============================================================================
 
 class CompetitionDetailsView extends StatelessWidget {
   final CompetitionEntity competition;
@@ -48,6 +39,7 @@ class _CompetitionDetailsContent extends StatefulWidget {
 
 class _CompetitionDetailsContentState extends State<_CompetitionDetailsContent> {
   late CompetitionEntity _competition;
+  bool _isProcessingAction = false;
 
   @override
   void initState() {
@@ -71,183 +63,6 @@ class _CompetitionDetailsContentState extends State<_CompetitionDetailsContent> 
     return statusEnded || dateEnded;
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return PopScope(
-      canPop: false,
-      onPopInvokedWithResult: (didPop, result) {
-        if (didPop) return;
-        ScaffoldMessenger.of(context).clearSnackBars();
-        Navigator.pop(context, _competition);
-      },
-      child: BlocConsumer<ViewParticipantsCubit, ViewParticipantsState>(
-        listener: _handleStateListener,
-        builder: (context, state) {
-          final isLoading = state is ViewParticipantsLoading || state is ViewParticipantsActionLoading;
-
-          return Scaffold(
-            backgroundColor: AppColors.background,
-            appBar: AppBar(
-              backgroundColor: AppColors.background,
-              elevation: 0,
-              scrolledUnderElevation: 0,
-              centerTitle: true,
-              leading: IconButton(
-                icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
-                onPressed: () => Navigator.pop(context, _competition),
-              ),
-              title: Text(
-                _competition.name.toUpperCase(),
-                style: const TextStyle(
-                  color: AppColors.primaryGold,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 1.5,
-                  fontSize: 14,
-                ),
-              ),
-              actions: [
-                if (_isOwner)
-                  IconButton(
-                    icon: const Icon(Icons.more_vert_rounded, color: AppColors.textSecondary),
-                    onPressed: _onManagePressed,
-                  ),
-              ],
-            ),
-            body: Stack(
-              children: [
-                Positioned.fill(
-                  child: SingleChildScrollView(
-                    physics: const BouncingScrollPhysics(),
-                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 140),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (_competition.imageUrl != null && _competition.imageUrl!.isNotEmpty) ...[
-                          _CompetitionBanner(imageUrl: _competition.imageUrl!),
-                          const SizedBox(height: 20),
-                        ],
-                        _BadgesRow(
-                          competition: _competition,
-                          isEnded: _isEnded,
-                          isTeamType: _isTeamType,
-                          isPrivate: _isPrivate,
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          _competition.name,
-                          style: const TextStyle(
-                            color: AppColors.textPrimary,
-                            fontSize: 26,
-                            fontWeight: FontWeight.w800,
-                            height: 1.25,
-                            letterSpacing: -0.5,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        Text(
-                          _competition.description,
-                          style: const TextStyle(
-                            color: AppColors.textSecondary,
-                            fontSize: 14,
-                            height: 1.6,
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                        const Divider(color: AppColors.divider, thickness: 1),
-                        const SizedBox(height: 24),
-
-                        // Metrics Section
-                        if (_isTeamType) ...[
-                          Row(
-                            children: [
-                              Expanded(
-                                child: _MetricCard(
-                                  icon: Icons.groups_rounded,
-                                  title: 'Max Teams',
-                                  value: '${_competition.maxTeams ?? 0}',
-                                  unit: 'teams',
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: _MetricCard(
-                                  icon: Icons.person_add_alt_1_rounded,
-                                  title: 'Members / Team',
-                                  value: '${_competition.maxTeamMembers ?? 0}',
-                                  unit: 'members',
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                        ],
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _MetricCard(
-                                icon: Icons.stars_rounded,
-                                title: 'Total Points',
-                                value: '${_competition.totalPoints}',
-                                unit: 'pts',
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: _MetricCard(
-                                icon: Icons.person_rounded,
-                                title: 'Participants',
-                                value: '${_competition.participantsCount}',
-                                unit: _competition.maxParticipants != null
-                                    ? '/ ${_competition.maxParticipants}'
-                                    : '',
-                                progress: _competition.maxParticipants != null &&
-                                        _competition.maxParticipants! > 0
-                                    ? (_competition.participantsCount /
-                                            _competition.maxParticipants!)
-                                        .clamp(0.0, 1.0)
-                                    : null,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        _TimelineCard(
-                          endDate: _competition.endDate,
-                          isEnded: _isEnded,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-                // Bottom Action Dock
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  child: _FloatingBottomDock(
-                    isOwner: _isOwner,
-                    isJoined: _isJoined,
-                    isFull: _isFull,
-                    isEnded: _isEnded,
-                    isPrivate: _isPrivate,
-                    isTeamType: _isTeamType,
-                    isLoading: isLoading,
-                    onJoinPressed: () => _handleJoinAction(context),
-                    onLeavePressed: () => _showLeaveDialog(context),
-                    onOpenDashboardPressed: () => _navigateToHome(context),
-                    onManagePressed: _onManagePressed,
-                    onFullPressed: () => _showFullCompetitionDialog(context),
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
-      ),
-    );
-  }
-
   void _handleStateListener(BuildContext context, ViewParticipantsState state) {
     if (state is ViewParticipantsLoaded) {
       final count = state.participants.length;
@@ -262,6 +77,7 @@ class _CompetitionDetailsContentState extends State<_CompetitionDetailsContent> 
       }
     } else if (state is JoinCompetitionSuccess) {
       setState(() {
+        _isProcessingAction = false;
         _competition = _competition.copyWith(
           participantIds: {..._competition.participantIds, _currentUserId},
           participantsCount: _competition.participantsCount + 1,
@@ -271,6 +87,7 @@ class _CompetitionDetailsContentState extends State<_CompetitionDetailsContent> 
       _navigateToHome(context);
     } else if (state is LeaveCompetitionSuccess) {
       setState(() {
+        _isProcessingAction = false;
         _competition = _competition.copyWith(
           participantIds: Set.from(_competition.participantIds)..remove(_currentUserId),
           participantsCount: (_competition.participantsCount - 1).clamp(0, 999999),
@@ -278,12 +95,20 @@ class _CompetitionDetailsContentState extends State<_CompetitionDetailsContent> 
       });
       _showSnackBar(context, state.message, AppColors.textSecondary);
     } else if (state is ViewParticipantsError) {
+      setState(() {
+        _isProcessingAction = false;
+      });
       _showSnackBar(context, state.message, AppColors.error);
     }
   }
 
-
   void _executeJoinAction(BuildContext context) {
+    if (_isProcessingAction) return;
+
+    setState(() {
+      _isProcessingAction = true;
+    });
+
     final cubit = context.read<ViewParticipantsCubit>();
     if (_isTeamType) {
       cubit.joinTeamCompetition(
@@ -298,17 +123,45 @@ class _CompetitionDetailsContentState extends State<_CompetitionDetailsContent> 
     }
   }
 
+  void _executeLeaveAction(BuildContext context) {
+    if (_isProcessingAction) return;
+
+    setState(() {
+      _isProcessingAction = true;
+    });
+
+    final cubit = context.read<ViewParticipantsCubit>();
+    if (_isTeamType) {
+      cubit.leaveTeamCompetition(
+        competitionId: _competition.id,
+        userId: _currentUserId,
+      );
+    } else {
+      cubit.leaveIndividualCompetition(
+        competitionId: _competition.id,
+        userId: _currentUserId,
+      );
+    }
+  }
+
   void _handleJoinAction(BuildContext context) {
     if (_currentUserId.isEmpty) {
       _showSnackBar(context, "Please log in first.", AppColors.primaryGold);
       return;
     }
 
-    if (_isPrivate) {
-      _showJoinCodeDialog(context);
-    } else {
-      _executeJoinAction(context);
-    }
+    // ⚡ Execute Power Guard Check Before Joining
+    PowerGuard.executeWithPowerCheck(
+      context: context,
+      userId: _currentUserId,
+      onPowerAvailable: () async {
+        if (_isPrivate) {
+          _showJoinCodeDialog(context);
+        } else {
+          _executeJoinAction(context);
+        }
+      },
+    );
   }
 
   void _showJoinCodeDialog(BuildContext parentContext) {
@@ -350,7 +203,7 @@ class _CompetitionDetailsContentState extends State<_CompetitionDetailsContent> 
                     labelText: "Join Code",
                     labelStyle: const TextStyle(color: AppColors.textSecondary),
                     hintText: "Enter code here",
-                    hintStyle: TextStyle(color: Colors.white.withOpacity(0.3)),
+                    hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.3)),
                     prefixIcon: const Icon(Icons.key, color: AppColors.primaryGold),
                     filled: true,
                     fillColor: AppColors.background,
@@ -386,10 +239,10 @@ class _CompetitionDetailsContentState extends State<_CompetitionDetailsContent> 
               ),
               onPressed: () {
                 if (formKey.currentState!.validate()) {
+                  Navigator.pop(dialogContext);
                   if (_currentUserId.isNotEmpty) {
                     _executeJoinAction(parentContext);
                   }
-                  Navigator.pop(dialogContext);
                 }
               },
               child: const Text("Enter", style: TextStyle(fontWeight: FontWeight.bold)),
@@ -400,20 +253,21 @@ class _CompetitionDetailsContentState extends State<_CompetitionDetailsContent> 
     );
   }
 
-  void _onLeavePressed() {
-    context.read<ViewParticipantsCubit>().leaveIndividualCompetition(
-          competitionId: _competition.id,
-          userId: _currentUserId,
-        );
-  }
-
-  void _onManagePressed() {
-    Navigator.push(
+  Future<void> _onManagePressed() async {
+    final result = await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => ManageCompetitionView(competition: _competition),
       ),
     );
+
+    if (!mounted) return;
+
+    if (result == 'deleted') {
+      Navigator.pop(context, 'deleted');
+    } else if (result is CompetitionEntity) {
+      setState(() => _competition = result);
+    }
   }
 
   void _navigateToHome(BuildContext context) {
@@ -503,7 +357,7 @@ class _CompetitionDetailsContentState extends State<_CompetitionDetailsContent> 
             style: TextButton.styleFrom(foregroundColor: AppColors.error),
             onPressed: () {
               Navigator.pop(dialogContext);
-              _onLeavePressed();
+              _executeLeaveAction(context);
             },
             child: const Text('Leave', style: TextStyle(fontWeight: FontWeight.bold)),
           ),
@@ -525,11 +379,183 @@ class _CompetitionDetailsContentState extends State<_CompetitionDetailsContent> 
       ),
     );
   }
-}
 
-// =============================================================================
-// HELPER COMPONENTS
-// =============================================================================
+  @override
+  Widget build(BuildContext context) {
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        ScaffoldMessenger.of(context).clearSnackBars();
+        Navigator.pop(context, _competition);
+      },
+      child: BlocConsumer<ViewParticipantsCubit, ViewParticipantsState>(
+        listener: _handleStateListener,
+        builder: (context, state) {
+          final isLoading = state is ViewParticipantsLoading ||
+              state is ViewParticipantsActionLoading ||
+              _isProcessingAction;
+
+          return Scaffold(
+            backgroundColor: AppColors.background,
+            appBar: AppBar(
+              backgroundColor: AppColors.background,
+              elevation: 0,
+              scrolledUnderElevation: 0,
+              centerTitle: true,
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
+                onPressed: () => Navigator.pop(context, _competition),
+              ),
+              title: Text(
+                _competition.name.toUpperCase(),
+                style: const TextStyle(
+                  color: AppColors.primaryGold,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.5,
+                  fontSize: 14,
+                ),
+              ),
+              actions: [
+                if (_isOwner)
+                  IconButton(
+                    icon: const Icon(Icons.more_vert_rounded, color: AppColors.textSecondary),
+                    onPressed: _onManagePressed,
+                  ),
+              ],
+            ),
+            body: Stack(
+              children: [
+                Positioned.fill(
+                  child: SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(),
+                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 140),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (_competition.imageUrl != null && _competition.imageUrl!.isNotEmpty) ...[
+                          _CompetitionBanner(imageUrl: _competition.imageUrl!),
+                          const SizedBox(height: 20),
+                        ],
+                        _BadgesRow(
+                          competition: _competition,
+                          isEnded: _isEnded,
+                          isTeamType: _isTeamType,
+                          isPrivate: _isPrivate,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          _competition.name,
+                          style: const TextStyle(
+                            color: AppColors.textPrimary,
+                            fontSize: 26,
+                            fontWeight: FontWeight.w800,
+                            height: 1.25,
+                            letterSpacing: -0.5,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          _competition.description,
+                          style: const TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 14,
+                            height: 1.6,
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        const Divider(color: AppColors.divider, thickness: 1),
+                        const SizedBox(height: 24),
+
+                        if (_isTeamType) ...[
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _MetricCard(
+                                  icon: Icons.groups_rounded,
+                                  title: 'Max Teams',
+                                  value: '${_competition.maxTeams ?? 0}',
+                                  unit: 'teams',
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: _MetricCard(
+                                  icon: Icons.person_add_alt_1_rounded,
+                                  title: 'Members / Team',
+                                  value: '${_competition.maxTeamMembers ?? 0}',
+                                  unit: 'members',
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                        ],
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _MetricCard(
+                                icon: Icons.stars_rounded,
+                                title: 'Total Points',
+                                value: '${_competition.totalPoints}',
+                                unit: 'pts',
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _MetricCard(
+                                icon: Icons.person_rounded,
+                                title: 'Participants',
+                                value: '${_competition.participantsCount}',
+                                unit: _competition.maxParticipants != null
+                                    ? '/ ${_competition.maxParticipants}'
+                                    : '',
+                                progress: _competition.maxParticipants != null &&
+                                        _competition.maxParticipants! > 0
+                                    ? (_competition.participantsCount /
+                                            _competition.maxParticipants!)
+                                        .clamp(0.0, 1.0)
+                                    : null,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        _TimelineCard(
+                          endDate: _competition.endDate,
+                          isEnded: _isEnded,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: _FloatingBottomDock(
+                    isOwner: _isOwner,
+                    isJoined: _isJoined,
+                    isFull: _isFull,
+                    isEnded: _isEnded,
+                    isPrivate: _isPrivate,
+                    isTeamType: _isTeamType,
+                    isLoading: isLoading,
+                    onJoinPressed: () => _handleJoinAction(context),
+                    onLeavePressed: () => _showLeaveDialog(context),
+                    onOpenDashboardPressed: () => _navigateToHome(context),
+                    onManagePressed: _onManagePressed,
+                    onFullPressed: () => _showFullCompetitionDialog(context),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
 
 class _CompetitionBanner extends StatelessWidget {
   final String imageUrl;
@@ -555,7 +581,7 @@ class _CompetitionBanner extends StatelessWidget {
           height: 190,
           width: double.infinity,
           fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+          errorBuilder: (_, _, _) => const SizedBox.shrink(),
         ),
       ),
     );
@@ -875,7 +901,7 @@ class _FloatingBottomDock extends StatelessWidget {
       );
     }
 
-    if (isJoined || isTeamType) {
+    if (isJoined) {
       return Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -886,20 +912,18 @@ class _FloatingBottomDock extends StatelessWidget {
             textColor: Colors.white,
             onPressed: onOpenDashboardPressed,
           ),
-          if (isJoined) ...[
-            const SizedBox(height: 6),
-            TextButton(
-              onPressed: onLeavePressed,
-              style: TextButton.styleFrom(
-                foregroundColor: AppColors.error,
-                visualDensity: VisualDensity.compact,
-              ),
-              child: const Text(
-                'Leave Competition',
-                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-              ),
+          const SizedBox(height: 6),
+          TextButton(
+            onPressed: onLeavePressed,
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.error,
+              visualDensity: VisualDensity.compact,
             ),
-          ],
+            child: const Text(
+              'Leave Competition',
+              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+            ),
+          ),
         ],
       );
     }

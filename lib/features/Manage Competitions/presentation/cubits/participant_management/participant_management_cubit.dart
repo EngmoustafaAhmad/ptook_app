@@ -23,6 +23,9 @@ class ParticipantManagementCubit extends Cubit<ParticipantManagementState> {
         _removeParticipantUseCase = removeParticipantUseCase,
         super(const ParticipantManagementInitial());
 
+  /// Alias method matching watchParticipants call
+  void watchParticipants(String competitionId) => listenToParticipants(competitionId);
+
   void listenToParticipants(String competitionId) {
     _safeEmit(ParticipantManagementLoading(participants: state.participants));
     _participantsSubscription?.cancel();
@@ -45,15 +48,17 @@ class ParticipantManagementCubit extends Cubit<ParticipantManagementState> {
       participantId: participantId,
     );
 
-    switch (result) {
-      case Success():
+    result.when(
+      onSuccess: (_) {
         _safeEmit(ParticipantActionSuccess(
           'Participant removed from competition',
           participants: state.participants,
         ));
-      case Failure(:final message):
-        _safeEmit(ParticipantManagementFailure(message, participants: state.participants));
-    }
+      },
+      onFailure: (failure) {
+        _safeEmit(ParticipantManagementFailure(failure.message, participants: state.participants));
+      },
+    );
   }
 
   Future<void> updateParticipantPoints({
@@ -76,12 +81,14 @@ class ParticipantManagementCubit extends Cubit<ParticipantManagementState> {
       addedPoints: addedPoints,
     );
 
-    switch (result) {
-      case Success():
+    result.when(
+      onSuccess: (_) {
         _safeEmit(ParticipantActionSuccess('Points updated', participants: state.participants));
-      case Failure(:final message):
-        _safeEmit(ParticipantManagementFailure(message, participants: state.participants));
-    }
+      },
+      onFailure: (failure) {
+        _safeEmit(ParticipantManagementFailure(failure.message, participants: state.participants));
+      },
+    );
   }
 
   void _safeEmit(ParticipantManagementState newState) {

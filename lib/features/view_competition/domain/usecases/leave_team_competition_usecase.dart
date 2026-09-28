@@ -1,8 +1,8 @@
+import 'package:ptook/features/view_competition/domain/repositories/team/i_view_team_repository.dart';
 import '../../../../core/utils/result.dart';
-import '../repositories/i_view_competition_repository.dart';
 
 class LeaveTeamCompetitionUseCase {
-  final IViewCompetitionRepository repository;
+  final IViewTeamRepository repository;
 
   LeaveTeamCompetitionUseCase(this.repository);
 

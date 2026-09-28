@@ -7,6 +7,7 @@ import 'package:ptook/features/Manage%20Competitions/presentation/widgets/indivi
 import 'package:ptook/features/Manage%20Competitions/presentation/widgets/individual_overview_tab_view.dart';
 import 'package:ptook/features/Manage%20Competitions/presentation/widgets/management_appbar.dart';
 import 'package:ptook/features/shared/domain/entities/competition_entity.dart';
+import 'package:ptook/features/shared/presintation/widgets/banner_ad_widget.dart';
 
 class ManageIndividualCompetitionView extends StatefulWidget {
   final String competitionId;
@@ -202,6 +203,7 @@ class _ManageIndividualCompetitionViewState
                   IndividualManageTabView(),
                 ],
               ),
+              bottomNavigationBar: const BannerAdWidget(),
             );
           },
         ),

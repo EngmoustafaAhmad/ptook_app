@@ -1,8 +1,8 @@
 import 'package:ptook/features/shared/domain/entities/participant_entity.dart';
-import 'package:ptook/features/view_competition/domain/repositories/i_view_competition_repository.dart';
+import 'package:ptook/features/view_competition/domain/repositories/participant/i_view_participant_repository.dart';
 
 class StreamParticipantsViewUseCase {
-  final IViewCompetitionRepository repository;
+  final IViewParticipantRepository repository;
 
   StreamParticipantsViewUseCase(this.repository);
 

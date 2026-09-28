@@ -1,17 +1,19 @@
 import 'package:equatable/equatable.dart';
 
 import 'participant_entity.dart';
-import 'team_entity.dart';
 
 class CompetitionEntity extends Equatable {
   final String id;
   final String name;
   final String description;
   final String ownerId;
+  final String? ownerName;
+  final String? ownerAvatarUrl;
   final String category;
   final String status;
   final String type; // 'team' or 'individual'
   final String? imageUrl;
+  final String? linkUrl;
   final DateTime startDate;
   final DateTime endDate;
   final int totalPoints;
@@ -23,7 +25,7 @@ class CompetitionEntity extends Equatable {
   final int? maxTeams;
   final int? maxTeamMembers;
   final List<ParticipantEntity>? participants;
-  final List<TeamEntity>? teams;
+  final Set<String> teamIds;
   final DateTime createdAt;
   final String? winnerId;
   final List<String> searchKeywords;
@@ -43,10 +45,13 @@ class CompetitionEntity extends Equatable {
     required this.name,
     required this.description,
     required this.ownerId,
+    this.ownerName,
+    this.ownerAvatarUrl,
     required this.category,
     required this.status,
     required this.type,
     this.imageUrl,
+    this.linkUrl,
     required this.startDate,
     required this.endDate,
     required this.totalPoints,
@@ -58,7 +63,7 @@ class CompetitionEntity extends Equatable {
     this.maxTeams,
     this.maxTeamMembers,
     this.participants,
-    this.teams,
+    this.teamIds = const {},
     required this.createdAt,
     this.winnerId,
     required this.searchKeywords,
@@ -71,6 +76,36 @@ class CompetitionEntity extends Equatable {
     this.milestoneAlerts = true,
     this.multipliers = const ['Streak x1.5', 'Underdog x2.0'],
   });
+
+  // ===========================================================================
+  // 💡 DOMAIN CONVENIENCE GETTERS
+  // ===========================================================================
+
+  /// Finds and returns the owner's `ParticipantEntity` if loaded in `participants`.
+  ParticipantEntity? get ownerParticipant {
+    if (participants == null || participants!.isEmpty) return null;
+    try {
+      return participants!.firstWhere(
+        (p) => p.userId == ownerId || p.id == ownerId,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Resolves display name: Explicit field -> Participant Object -> Default fallback.
+  String get displayOwnerName {
+    if (ownerName != null && ownerName!.isNotEmpty) return ownerName!;
+    return ownerParticipant?.name ?? 'Organizer';
+  }
+
+  /// Resolves display avatar: Explicit field -> Participant Object -> Null fallback.
+  String? get displayOwnerAvatarUrl {
+    if (ownerAvatarUrl != null && ownerAvatarUrl!.isNotEmpty) {
+      return ownerAvatarUrl;
+    }
+    return ownerParticipant?.avatarUrl;
+  }
 
   /// True if competition type is team-based.
   bool get isTeamBased => type.toLowerCase() == 'team';
@@ -95,13 +130,6 @@ class CompetitionEntity extends Equatable {
       if (isParticipant) return true;
     }
 
-    // 3. Fallback: Check team members list
-    if (teams != null && teams!.isNotEmpty) {
-      final isTeamMember = teams!.any(
-          (t) => t.members.any((m) => m.id == userId || m.userId == userId));
-      if (isTeamMember) return true;
-    }
-
     return false;
   }
 
@@ -110,10 +138,13 @@ class CompetitionEntity extends Equatable {
     String? name,
     String? description,
     String? ownerId,
+    String? ownerName,
+    String? ownerAvatarUrl,
     String? category,
     String? status,
     String? type,
     String? imageUrl,
+    String? linkUrl,
     DateTime? startDate,
     DateTime? endDate,
     int? totalPoints,
@@ -125,7 +156,7 @@ class CompetitionEntity extends Equatable {
     int? maxTeams,
     int? maxTeamMembers,
     List<ParticipantEntity>? participants,
-    List<TeamEntity>? teams,
+    Set<String>? teamIds,
     DateTime? createdAt,
     String? winnerId,
     List<String>? searchKeywords,
@@ -143,10 +174,13 @@ class CompetitionEntity extends Equatable {
       name: name ?? this.name,
       description: description ?? this.description,
       ownerId: ownerId ?? this.ownerId,
+      ownerName: ownerName ?? this.ownerName,
+      ownerAvatarUrl: ownerAvatarUrl ?? this.ownerAvatarUrl,
       category: category ?? this.category,
       status: status ?? this.status,
       type: type ?? this.type,
       imageUrl: imageUrl ?? this.imageUrl,
+      linkUrl: linkUrl ?? this.linkUrl,
       startDate: startDate ?? this.startDate,
       endDate: endDate ?? this.endDate,
       totalPoints: totalPoints ?? this.totalPoints,
@@ -158,7 +192,7 @@ class CompetitionEntity extends Equatable {
       maxTeams: maxTeams ?? this.maxTeams,
       maxTeamMembers: maxTeamMembers ?? this.maxTeamMembers,
       participants: participants ?? this.participants,
-      teams: teams ?? this.teams,
+      teamIds: teamIds ?? this.teamIds,
       createdAt: createdAt ?? this.createdAt,
       winnerId: winnerId ?? this.winnerId,
       searchKeywords: searchKeywords ?? this.searchKeywords,
@@ -166,7 +200,8 @@ class CompetitionEntity extends Equatable {
       isFavorite: isFavorite ?? this.isFavorite,
       basePoints: basePoints ?? this.basePoints,
       penaltyPoints: penaltyPoints ?? this.penaltyPoints,
-      leaderboardVisibility: leaderboardVisibility ?? this.leaderboardVisibility,
+      leaderboardVisibility:
+          leaderboardVisibility ?? this.leaderboardVisibility,
       rankChangeAlerts: rankChangeAlerts ?? this.rankChangeAlerts,
       milestoneAlerts: milestoneAlerts ?? this.milestoneAlerts,
       multipliers: multipliers ?? this.multipliers,
@@ -179,10 +214,13 @@ class CompetitionEntity extends Equatable {
         name,
         description,
         ownerId,
+        ownerName,
+        ownerAvatarUrl,
         category,
         status,
         type,
         imageUrl,
+        linkUrl,
         startDate,
         endDate,
         totalPoints,
@@ -194,7 +232,7 @@ class CompetitionEntity extends Equatable {
         maxTeams,
         maxTeamMembers,
         participants,
-        teams,
+        teamIds,
         createdAt,
         winnerId,
         searchKeywords,

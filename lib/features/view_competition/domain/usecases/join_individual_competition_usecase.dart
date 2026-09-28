@@ -1,8 +1,8 @@
+import 'package:ptook/features/view_competition/domain/repositories/participant/i_view_participant_repository.dart';
 import '../../../../core/utils/result.dart';
-import '../repositories/i_view_competition_repository.dart';
 
 class JoinIndividualCompetitionUseCase {
-  final IViewCompetitionRepository repository;
+  final IViewParticipantRepository repository;
 
   JoinIndividualCompetitionUseCase(this.repository);
 

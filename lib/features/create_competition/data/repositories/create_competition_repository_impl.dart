@@ -1,3 +1,4 @@
+import 'package:ptook/core/errors/failures.dart';
 import 'package:ptook/core/utils/result.dart';
 import 'package:ptook/features/shared/data/models/competition_model.dart';
 import 'package:ptook/features/shared/domain/entities/competition_entity.dart';
@@ -18,7 +19,7 @@ class CreateCompetitionRepositoryImpl implements ICreateCompetitionRepository {
       await _remoteDataSource.createCompetition(model);
       return const Success(null);
     } catch (e) {
-      return Failure(e.toString().replaceAll('Exception: ', ''));
+      return Err(ServerFailure(e.toString().replaceAll('Exception: ', '')));
     }
   }
 }

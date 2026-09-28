@@ -1,8 +1,9 @@
+import 'package:ptook/features/Manage%20Competitions/domain/repositories/team/i_manage_team_repository.dart';
+
 import '../../../../shared/domain/entities/team_entity.dart';
-import '../../repositories/i_manage_competition_repository.dart';
 
 class StreamTeamsManageUseCase {
-  final IManageCompetitionRepository repository;
+  final IManageTeamRepository repository;
 
   StreamTeamsManageUseCase(this.repository);
 

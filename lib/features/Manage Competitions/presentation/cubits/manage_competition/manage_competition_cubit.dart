@@ -1,7 +1,5 @@
 import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:ptook/core/utils/result.dart';
-
 import '../../../../shared/domain/entities/competition_entity.dart';
 import '../../../domain/usecases/competition/delete_competition_usecase.dart';
 import '../../../domain/usecases/competition/finish_competition_usecase.dart';
@@ -28,14 +26,20 @@ class ManageCompetitionCubit extends Cubit<ManageCompetitionState> {
         _deleteCompetitionUseCase = deleteCompetitionUseCase,
         super(const ManageCompetitionInitial());
 
-  /// Initializes state with competition data and starts real-time streaming
+  /// Initializes state with competition data and starts real-time streaming silently
   void initialize(CompetitionEntity competition) {
     _safeEmit(ManageCompetitionLoaded(competition: competition));
-    streamCompetition(competition.id);
+    // Start streaming without showing a full loading screen since we already have data
+    _listenToCompetitionStream(competition.id);
   }
 
+  /// Public method to stream with explicit loading state (e.g., manual refresh)
   void streamCompetition(String competitionId) {
     _safeEmit(ManageCompetitionLoading(competition: state.competition));
+    _listenToCompetitionStream(competitionId);
+  }
+
+  void _listenToCompetitionStream(String competitionId) {
     _competitionSubscription?.cancel();
     _competitionSubscription = _streamCompetitionUseCase(competitionId).listen(
       (competition) => _safeEmit(ManageCompetitionLoaded(competition: competition)),
@@ -48,15 +52,18 @@ class ManageCompetitionCubit extends Cubit<ManageCompetitionState> {
   Future<void> updateCompetition(CompetitionEntity competition) async {
     _safeEmit(ManageCompetitionLoading(competition: state.competition));
     final result = await _updateCompetitionUseCase(competition);
-    switch (result) {
-      case Success():
+    
+    result.when(
+      onSuccess: (_) {
         _safeEmit(ManageCompetitionActionSuccess(
           'Competition updated successfully',
           competition: competition,
         ));
-      case Failure(:final message):
-        _safeEmit(ManageCompetitionFailure(message, competition: state.competition));
-    }
+      },
+      onFailure: (failure) {
+        _safeEmit(ManageCompetitionFailure(failure.message, competition: state.competition));
+      },
+    );
   }
 
   Future<void> finishCompetition([String? competitionId]) async {
@@ -65,15 +72,18 @@ class ManageCompetitionCubit extends Cubit<ManageCompetitionState> {
 
     _safeEmit(ManageCompetitionLoading(competition: state.competition));
     final result = await _finishCompetitionUseCase(targetId);
-    switch (result) {
-      case Success():
+    
+    result.when(
+      onSuccess: (_) {
         _safeEmit(ManageCompetitionFinished(
           message: 'Competition finished successfully',
           competition: state.competition,
         ));
-      case Failure(:final message):
-        _safeEmit(ManageCompetitionFailure(message, competition: state.competition));
-    }
+      },
+      onFailure: (failure) {
+        _safeEmit(ManageCompetitionFailure(failure.message, competition: state.competition));
+      },
+    );
   }
 
   Future<void> deleteCompetition([String? competitionId]) async {
@@ -82,14 +92,17 @@ class ManageCompetitionCubit extends Cubit<ManageCompetitionState> {
 
     _safeEmit(ManageCompetitionLoading(competition: state.competition));
     final result = await _deleteCompetitionUseCase(targetId);
-    switch (result) {
-      case Success():
+    
+    result.when(
+      onSuccess: (_) {
         _safeEmit(const ManageCompetitionDeleted(
           message: 'Competition deleted successfully',
         ));
-      case Failure(:final message):
-        _safeEmit(ManageCompetitionFailure(message, competition: state.competition));
-    }
+      },
+      onFailure: (failure) {
+        _safeEmit(ManageCompetitionFailure(failure.message, competition: state.competition));
+      },
+    );
   }
 
   void resetState() => _safeEmit(const ManageCompetitionInitial());

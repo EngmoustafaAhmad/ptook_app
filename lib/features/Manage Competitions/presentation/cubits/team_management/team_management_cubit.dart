@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ptook/core/utils/result.dart';
 import 'package:ptook/features/shared/domain/entities/team_entity.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../../domain/usecases/team/create_team_usecase.dart';
 import '../../../domain/usecases/team/delete_team_usecase.dart';
@@ -38,11 +39,7 @@ class TeamManagementCubit extends Cubit<TeamManagementState> {
     _teamsSubscription?.cancel();
     _teamsSubscription = _streamTeamsUseCase(competitionId).listen(
       (teams) {
-        if (state is TeamManagementLoaded) {
-          _safeEmit((state as TeamManagementLoaded).copyWith(teams: teams));
-        } else {
-          _safeEmit(TeamManagementLoaded(teams: teams));
-        }
+        _safeEmit(TeamManagementLoaded(teams: teams));
       },
       onError: (error) => _safeEmit(
         TeamManagementFailure(error.toString(), teams: state.teams),
@@ -56,33 +53,39 @@ class TeamManagementCubit extends Cubit<TeamManagementState> {
     required bool isPrivate,
     required String ownerId,
     String? joinCode,
+    int? maxMembers,
   }) async {
     _safeEmit(TeamManagementLoading(teams: state.teams));
 
+    final newTeamId = const Uuid().v4();
+
     final team = TeamEntity(
-      id: '',
+      id: newTeamId,
       competitionId: competitionId,
       name: teamName,
       isPrivate: isPrivate,
       joinCode: joinCode,
       ownerId: ownerId,
+      maxMembers: maxMembers,
       createdAt: DateTime.now(),
     );
 
     final result = await _createTeamUseCase(team);
 
-    switch (result) {
-      case Success():
+    result.when(
+      onSuccess: (_) {
         _safeEmit(TeamActionSuccess(
           'Team created successfully',
           teams: state.teams,
         ));
-      case Failure(:final message):
+      },
+      onFailure: (failure) {
         _safeEmit(TeamManagementFailure(
-          message,
+          failure.message,
           teams: state.teams,
         ));
-    }
+      },
+    );
   }
 
   Future<void> deleteTeam({
@@ -90,77 +93,85 @@ class TeamManagementCubit extends Cubit<TeamManagementState> {
     required String teamId,
   }) async {
     _safeEmit(TeamManagementLoading(teams: state.teams));
+
     final result = await _deleteTeamUseCase(
       competitionId: competitionId,
       teamId: teamId,
     );
 
-    switch (result) {
-      case Success():
+    result.when(
+      onSuccess: (_) {
         _safeEmit(TeamActionSuccess(
           'Team deleted successfully',
           teams: state.teams,
         ));
-      case Failure(:final message):
+      },
+      onFailure: (failure) {
         _safeEmit(TeamManagementFailure(
-          message,
+          failure.message,
           teams: state.teams,
         ));
-    }
+      },
+    );
   }
 
   Future<void> updateTeamParticipantPoints({
-  required String competitionId,
-  required String teamId,
-  required String participantId,
-  required int addedPoints,
-}) async {
-  // 1. Optimistically update local teams state
-  final updatedTeams = state.teams.map((team) {
-    if (team.id == teamId) {
-      final updatedMembers = team.members.map((member) {
-        if (member.id == participantId) {
-          return member.copyWith(points: member.points + addedPoints);
-        }
-        return member;
-      }).toList();
+    required String competitionId,
+    required String teamId,
+    required String participantId,
+    required int addedPoints,
+  }) async {
+    // Optimistic UI state update
+    final previousTeams = state.teams;
+    final updatedTeams = previousTeams.map((team) {
+      if (team.id == teamId) {
+        final updatedMembers = team.members.map((member) {
+          if (member.id == participantId) {
+            return member.copyWith(points: member.points + addedPoints);
+          }
+          return member;
+        }).toList();
 
-      final newTotalPoints = updatedMembers.fold<int>(
-        0,
-        (sum, member) => sum + member.points,
-      );
+        final newTotalPoints = updatedMembers.fold<int>(
+          0,
+          (sum, member) => sum + member.points,
+        );
 
-      return team.copyWith(
-        members: updatedMembers,
-        totalPoints: newTotalPoints,
-      );
-    }
-    return team;
-  }).toList();
+        return team.copyWith(
+          members: updatedMembers,
+          totalPoints: newTotalPoints,
+        );
+      }
+      return team;
+    }).toList();
 
-  _safeEmit(TeamActionSuccess(
-    'Participant points updated successfully',
-    teams: updatedTeams,
-  ));
-
-  // 2. Call backend use case
-  final result = await _updateTeamParticipantPointsUseCase(
-    competitionId: competitionId,
-    teamId: teamId,
-    participantId: participantId,
-    addedPoints: addedPoints,
-  );
-
-  if (result is Failure) {
-    // Roll back state or emit failure if request fails
-    _safeEmit(TeamManagementFailure(
-      result.message,
-      teams: state.teams,
+    _safeEmit(TeamActionSuccess(
+      'Participant points updated successfully',
+      teams: updatedTeams,
     ));
-  }
-}
 
-Future<void> removeTeamParticipant({
+    final result = await _updateTeamParticipantPointsUseCase(
+      competitionId: competitionId,
+      teamId: teamId,
+      participantId: participantId,
+      addedPoints: addedPoints,
+    );
+
+    result.when(
+      onSuccess: (_) {
+        // Already optimistically updated, real-time stream will sync eventually
+      },
+      onFailure: (failure) {
+        // Rollback optimistic update on failure
+        _safeEmit(TeamManagementFailure(
+          failure.message,
+          teams: previousTeams,
+        ));
+      },
+    );
+  }
+
+  Future<void> removeTeamParticipant({
     required String competitionId,
     required String teamId,
     required String participantId,
@@ -173,9 +184,8 @@ Future<void> removeTeamParticipant({
       participantId: participantId,
     );
 
-    switch (result) {
-      case Success():
-        // Optimistically remove member from local Cubit state
+    result.when(
+      onSuccess: (_) {
         final updatedTeams = state.teams.map((team) {
           if (team.id == teamId) {
             final updatedMembers = team.members
@@ -199,12 +209,14 @@ Future<void> removeTeamParticipant({
           'Member removed successfully',
           teams: updatedTeams,
         ));
-      case Failure(:final message):
+      },
+      onFailure: (failure) {
         _safeEmit(TeamManagementFailure(
-          message,
+          failure.message,
           teams: state.teams,
         ));
-    }
+      },
+    );
   }
 
   void _safeEmit(TeamManagementState newState) {

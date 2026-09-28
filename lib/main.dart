@@ -1,30 +1,43 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:ptook/features/auth/presintation/views/login_view.dart';
-import 'package:ptook/firebase_options.dart';
-
-// استيراد ملف الـ GetIt
+import 'package:flutter_native_splash/flutter_native_splash.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:ptook/core/di/injection_container.dart' as di;
-
-// استيراد الـ Cubit والـ View
 import 'package:ptook/features/auth/presintation/cubit/auth_cubit.dart';
+import 'package:ptook/features/auth/presintation/views/login_view.dart';
+import 'package:ptook/features/splash/presintation/view/splash_page.dart';
+import 'package:ptook/firebase_options.dart';
 import 'package:ptook/services/deep_link_handler.dart';
 
-// 🔑 مفتاح التحكم المباشر بالتنقل (Navigator Key)
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  
-  // 1️⃣ تهيئة فايربيز أولاً
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
+  WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
+
+  // ⚡ Keep native splash visible until Flutter renders SplashPage
+  FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
+
+  if (Firebase.apps.isEmpty) {
+    try {
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+    } catch (e) {
+      debugPrint("Firebase initialization note: $e");
+    }
+  }
+
+  await MobileAds.instance.initialize();
+
+  MobileAds.instance.updateRequestConfiguration(
+    RequestConfiguration(
+      testDeviceIds: ['EMULATOR'],
+    ),
   );
-  
-  // 2️⃣ استدعاء دالة الـ GetIt لتهيئة وحقن جميع الـ UseCases والـ Cubit تلقائياً
-  await di.initDependencies(); 
-  
+
+  await di.initDependencies();
+
   runApp(const MyApp());
 }
 
@@ -41,7 +54,6 @@ class _MyAppState extends State<MyApp> {
   @override
   void initState() {
     super.initState();
-    // 3️⃣ تهيئة واستدعاء الـ DeepLinkHandler وتمرير الـ navigatorKey له
     _deepLinkHandler = di.sl<DeepLinkHandler>();
     _deepLinkHandler.init(navigatorKey);
   }
@@ -57,11 +69,15 @@ class _MyAppState extends State<MyApp> {
     return BlocProvider(
       create: (context) => di.sl<AuthCubit>(),
       child: MaterialApp(
-        navigatorKey: navigatorKey, // 👈 ربط الـ Key بالتطبيق
+        navigatorKey: navigatorKey,
         title: 'Ptook',
         debugShowCheckedModeBanner: false,
         theme: ThemeData.dark(),
-        home: const LoginView(),
+        // ⚡ Initial entry point is SplashPage
+        home: const SplashPage(),
+        routes: {
+          '/login': (context) => const LoginView(),
+        },
       ),
     );
   }

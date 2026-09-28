@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart'; // ⚡ Import Google Mobile Ads SDK
 import 'package:ptook/core/Theme/app_colors.dart';
 import 'package:ptook/features/shared/domain/entities/competition_entity.dart';
 import 'package:ptook/features/view_competition/presintation/cubits/competition_home_cubit.dart';
@@ -19,12 +20,48 @@ class SavedCompetitionsView extends StatefulWidget {
 }
 
 class _SavedCompetitionsViewState extends State<SavedCompetitionsView> {
+  // ⚡ AdMob Banner Ad State Variables
+  BannerAd? _bannerAd;
+  bool _isBannerAdLoaded = false;
+
+  // 🧪 Official Test Banner Ad Unit ID for Android
+  final String _bannerAdUnitId = 'ca-app-pub-3940256099942544/6300978111';
+
   @override
   void initState() {
     super.initState();
     context.read<CompetitionHomeCubit>().fetchSavedCompetitions(
           userId: widget.userId,
         );
+    _loadBannerAd(); // ⚡ Initialize banner ad
+  }
+
+  // ⚡ Load Banner Ad Method
+  void _loadBannerAd() {
+    _bannerAd = BannerAd(
+      adUnitId: _bannerAdUnitId,
+      request: const AdRequest(),
+      size: AdSize.banner,
+      listener: BannerAdListener(
+        onAdLoaded: (ad) {
+          if (mounted) {
+            setState(() {
+              _isBannerAdLoaded = true;
+            });
+          }
+        },
+        onAdFailedToLoad: (ad, error) {
+          debugPrint('❌ Saved Competitions Banner Ad failed to load: $error');
+          ad.dispose();
+        },
+      ),
+    )..load();
+  }
+
+  @override
+  void dispose() {
+    _bannerAd?.dispose(); // ⚡ Clean up memory when leaving screen
+    super.dispose();
   }
 
   @override
@@ -40,8 +77,8 @@ class _SavedCompetitionsViewState extends State<SavedCompetitionsView> {
               color: Colors.amber, size: 20),
           onPressed: () {
             ScaffoldMessenger.of(context).clearSnackBars();
-             Navigator.pop(context);
-           }
+            Navigator.pop(context);
+          },
         ),
         title: const Text(
           'Saved Competitions',
@@ -122,7 +159,23 @@ class _SavedCompetitionsViewState extends State<SavedCompetitionsView> {
           return _buildEmptyState(context);
         },
       ),
+      // ⚡ Sticky Bottom Banner Ad
+      bottomNavigationBar: _buildBannerAdWidget(),
     );
+  }
+
+  // --- Banner Ad Component ---
+  Widget? _buildBannerAdWidget() {
+    if (_isBannerAdLoaded && _bannerAd != null) {
+      return Container(
+        color: AppColors.background,
+        alignment: Alignment.center,
+        width: _bannerAd!.size.width.toDouble(),
+        height: _bannerAd!.size.height.toDouble(),
+        child: AdWidget(ad: _bannerAd!),
+      );
+    }
+    return null;
   }
 
   Widget _buildEmptyState(BuildContext context) {
@@ -281,7 +334,11 @@ class _SavedCompetitionCardState extends State<_SavedCompetitionCard> {
                 const Spacer(),
                 InkWell(
                   onTap: () {
-                    Navigator.push(context, MaterialPageRoute(builder: (context)=> CompetitionDetailsView(competition: widget.competition)));
+                    Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => CompetitionDetailsView(
+                                competition: widget.competition)));
                   },
                   child: const Text(
                     'View Details',

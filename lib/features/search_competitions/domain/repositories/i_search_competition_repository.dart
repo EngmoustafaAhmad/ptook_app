@@ -1,75 +1,33 @@
 import 'package:ptook/core/utils/result.dart';
+import 'package:ptook/features/search_competitions/domain/entity/competition_page.dart';
 import 'package:ptook/features/shared/domain/entities/competition_entity.dart';
-import 'package:ptook/features/shared/domain/entities/participant_entity.dart';
-import 'package:ptook/features/shared/domain/entities/team_entity.dart';
+
 
 abstract class ISearchCompetitionRepository {
   // ===========================================================================
-  // REAL-TIME FEEDS & SEARCH
+  // DISCOVERY & SEARCH (STREAM MODE VS SEARCH MODE)
   // ===========================================================================
 
-  /// Real-time stream of public competitions
-  Stream<List<CompetitionEntity>> streamAllCompetitions({
+  /// STREAM MODE: Real-time stream of active competitions with cursor-based pagination.
+  ///
+  /// Supports [CompetitionFilter.all], [CompetitionFilter.joined], and [CompetitionFilter.myCreated].
+  /// Requires empty search query.
+  Stream<CompetitionPage<CompetitionEntity>> streamActiveCompetitions({
+    required CompetitionFilter filter,
+    required String currentUserId,
     int limit = 10,
-    String? lastCompetitionId,
+    CompetitionCursor? startAfter,
   });
 
-  /// Real-time stream for searching public competitions
-  Stream<List<CompetitionEntity>> streamSearchCompetitionsUseCase({
+  /// SEARCH MODE: One-shot debounced search query for active competitions with cursor-based pagination.
+  ///
+  /// Supports [CompetitionFilter.all], [CompetitionFilter.joined], and [CompetitionFilter.myCreated].
+  /// Cancels active stream when active.
+  Future<Result<CompetitionPage<CompetitionEntity>>> searchActiveCompetitions({
     required String query,
+    required CompetitionFilter filter,
+    required String currentUserId,
     int limit = 10,
-    String? lastCompetitionId,
+    CompetitionCursor? startAfter,
   });
-
-  /// Real-time stream of competitions joined by current user
-  Stream<List<CompetitionEntity>> streamJoinedCompetitions({
-    String? query,
-    int limit = 10,
-    String? lastCompetitionId,
-  });
-
-  /// Real-time stream of competitions created by current user
-  Stream<List<CompetitionEntity>> streamCreatedCompetitions({
-    String? query,
-    int limit = 10,
-    String? lastCompetitionId,
-  });
-
-  /// Real-time stream of teams in a competition
-  Stream<List<TeamEntity>> streamTeams(String competitionId);
-
-  /// Real-time stream of participants in a competition
-  Stream<List<ParticipantEntity>> streamParticipants(String competitionId);
-
-  // ===========================================================================
-  // PARTICIPANT & TEAM QUERIES
-  // ===========================================================================
-
-  Future<Result<List<ParticipantEntity>>> getParticipants(String competitionId);
-
-  // ===========================================================================
-  // COMPETITION ACTIONS & LOOKUPS
-  // ===========================================================================
-
-  Future<Result<CompetitionEntity>> getCompetitionById(String competitionId);
-
-  Future<Result<CompetitionEntity?>> getCompetitionByCode(String code);
-
-  Future<Result<CompetitionEntity>> getCompetitionDetails(String competitionId);
-
-  Future<Result<void>> joinCompetition({
-    required String competitionId,
-    String? joinCode, 
-    required String userId,
-  });
-
-  Future<Result<void>> leaveCompetition(String competitionId);
-
-  Future<Result<void>> createCompetition(CompetitionEntity competition);
-
-  Future<Result<void>> updateCompetition(CompetitionEntity competition);
-
-  Future<Result<void>> deleteCompetition(String competitionId);
-
-  Future<Result<void>> finishCompetition(String competitionId);
 }

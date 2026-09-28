@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ptook/core/di/injection_container.dart';
@@ -238,40 +239,64 @@ class _TopPerformersCard extends StatelessWidget {
             ),
           ] else ...[
             const SizedBox(height: 12),
-            ListView.separated(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: topThree.length,
-              separatorBuilder: (context, index) => const SizedBox(height: 12),
-              itemBuilder: (context, index) {
-                final participant = topThree[index];
-                return Row(
-                  children: [
-                    _RankBadge(rank: index + 1),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        participant.name,
+              ListView.separated(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: topThree.length,
+                separatorBuilder: (context, index) => const SizedBox(height: 12),
+                itemBuilder: (context, index) {
+                  final participant = topThree[index];
+                  final hasAvatar = participant.avatarUrl != null && participant.avatarUrl!.trim().isNotEmpty;
+                  final fallbackInitial = participant.name.isNotEmpty ? participant.name[0].toUpperCase() : '?';
+
+                  return Row(
+                    children: [
+                      // 1️⃣ Cached Avatar Image with Fallback Initial
+                      CircleAvatar(
+                        radius: 16,
+                        backgroundColor: const Color(0xFF9C27B0).withValues(alpha: 0.15),
+                        backgroundImage: hasAvatar
+                            ? CachedNetworkImageProvider(participant.avatarUrl!)
+                            : null,
+                        child: !hasAvatar
+                            ? Text(
+                                fallbackInitial,
+                                style: const TextStyle(
+                                  color: Color(0xFF9C27B0),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              )
+                            : null,
+                      ),
+                      const SizedBox(width: 12),
+
+                      // 2️⃣ Name
+                      Expanded(
+                        child: Text(
+                          participant.name,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 15,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+
+                      // 3️⃣ Points
+                      Text(
+                        '${participant.points} pts',
                         style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF9C27B0),
+                          fontWeight: FontWeight.bold,
                           fontSize: 15,
                         ),
-                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                    Text(
-                      '${participant.points} pts',
-                      style: const TextStyle(
-                        color: Color(0xFF9C27B0),
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15,
-                      ),
-                    ),
-                  ],
-                );
-              },
-            ),
+                    ],
+                  );
+                },
+              ),
           ],
         ],
       ),

@@ -1,185 +1,75 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:ptook/core/errors/failures.dart';
 import 'package:ptook/core/utils/result.dart';
-import 'package:ptook/features/shared/data/models/competition_model.dart';
+import 'package:ptook/features/search_competitions/data/datasources/i_search_competition_remote_data_source.dart';
+import 'package:ptook/features/search_competitions/domain/entity/competition_page.dart';
+import 'package:ptook/features/search_competitions/domain/repositories/i_search_competition_repository.dart';
 import 'package:ptook/features/shared/domain/entities/competition_entity.dart';
-import 'package:ptook/features/shared/domain/entities/participant_entity.dart';
-import 'package:ptook/features/shared/domain/entities/team_entity.dart';
-import '../../domain/repositories/i_search_competition_repository.dart';
-import '../datasources/i_search_competition_remote_data_source.dart';
 
 class SearchCompetitionRepositoryImpl implements ISearchCompetitionRepository {
   final ISearchCompetitionRemoteDataSource _remoteDataSource;
 
   SearchCompetitionRepositoryImpl(this._remoteDataSource);
 
+  // ===========================================================================
+  // DISCOVERY & SEARCH (STREAM MODE VS SEARCH MODE)
+  // ===========================================================================
+
   @override
-  Stream<List<CompetitionEntity>> streamAllCompetitions({
+  Stream<CompetitionPage<CompetitionEntity>> streamActiveCompetitions({
+    required CompetitionFilter filter,
+    required String currentUserId,
     int limit = 10,
-    String? lastCompetitionId,
+    CompetitionCursor? startAfter,
   }) {
-    return _remoteDataSource.streamAllCompetitions(
-      limit: limit,
-      lastCompetitionId: lastCompetitionId,
-    );
+    final rawCursor = startAfter?.rawCursor as DocumentSnapshot?;
+
+    return _remoteDataSource
+        .streamActiveCompetitions(
+          filter: filter,
+          currentUserId: currentUserId,
+          limit: limit,
+          startAfter: rawCursor,
+        )
+        .map(
+          (page) => CompetitionPage<CompetitionEntity>(
+            items: page.items.map((model) => model.toEntity()).toList(),
+            nextCursor: page.nextCursor,
+            hasMore: page.hasMore,
+          ),
+        );
   }
 
   @override
-  Stream<List<CompetitionEntity>> streamSearchCompetitionsUseCase({
+  Future<Result<CompetitionPage<CompetitionEntity>>> searchActiveCompetitions({
     required String query,
+    required CompetitionFilter filter,
+    required String currentUserId,
     int limit = 10,
-    String? lastCompetitionId,
-  }) {
-    return _remoteDataSource.streamSearchCompetitions(
-      query: query,
-      limit: limit,
-      lastCompetitionId: lastCompetitionId,
-    );
-  }
-
-  @override
-  Stream<List<CompetitionEntity>> streamJoinedCompetitions({
-    String? query,
-    int limit = 10,
-    String? lastCompetitionId,
-  }) {
-    return _remoteDataSource.streamJoinedCompetitions(
-      query: query,
-      limit: limit,
-      lastCompetitionId: lastCompetitionId,
-    );
-  }
-
-  @override
-  Stream<List<CompetitionEntity>> streamCreatedCompetitions({
-    String? query,
-    int limit = 10,
-    String? lastCompetitionId,
-  }) {
-    return _remoteDataSource.streamCreatedCompetitions(
-      query: query,
-      limit: limit,
-      lastCompetitionId: lastCompetitionId,
-    );
-  }
-
-  @override
-  Future<Result<void>> joinCompetition({
-    required String competitionId,
-    required String userId,
-    String? joinCode,
+    CompetitionCursor? startAfter,
   }) async {
     try {
-      await _remoteDataSource.joinCompetition(
-        competitionId: competitionId,
-        userId: userId,
-        joinCode: joinCode,
+      final rawCursor = startAfter?.rawCursor as DocumentSnapshot?;
+
+      final page = await _remoteDataSource.searchActiveCompetitions(
+        query: query,
+        filter: filter,
+        currentUserId: currentUserId,
+        limit: limit,
+        startAfter: rawCursor,
       );
-      return const Success(null);
+
+      final domainPage = CompetitionPage<CompetitionEntity>(
+        items: page.items.map((model) => model.toEntity()).toList(),
+        nextCursor: page.nextCursor,
+        hasMore: page.hasMore,
+      );
+
+      return Success(domainPage);
+    } on FirebaseException catch (e) {
+      return Err(ServerFailure(e.message ?? 'A database error occurred.'));
     } catch (e) {
-      return Failure(e.toString());
+      return Err(ServerFailure(e.toString()));
     }
-  }
-
-  @override
-  Future<Result<void>> leaveCompetition(String competitionId) async {
-    try {
-      await _remoteDataSource.leaveCompetition(competitionId);
-      return const Success(null);
-    } catch (e) {
-      return Failure(e.toString());
-    }
-  }
-
-  @override
-  Future<Result<void>> createCompetition(CompetitionEntity competition) async {
-    try {
-      final model = CompetitionModel.fromEntity(competition);
-      await _remoteDataSource.createCompetition(model);
-      return const Success(null);
-    } catch (e) {
-      return Failure(e.toString());
-    }
-  }
-
-  @override
-  Future<Result<void>> updateCompetition(CompetitionEntity competition) async {
-    try {
-      final model = CompetitionModel.fromEntity(competition);
-      await _remoteDataSource.updateCompetition(model);
-      return const Success(null);
-    } catch (e) {
-      return Failure(e.toString());
-    }
-  }
-
-  @override
-  Future<Result<void>> deleteCompetition(String competitionId) async {
-    try {
-      await _remoteDataSource.deleteCompetition(competitionId);
-      return const Success(null);
-    } catch (e) {
-      return Failure(e.toString());
-    }
-  }
-
-  @override
-  Future<Result<void>> finishCompetition(String competitionId) async {
-    try {
-      await _remoteDataSource.finishCompetition(competitionId);
-      return const Success(null);
-    } catch (e) {
-      return Failure(e.toString());
-    }
-  }
-
-  @override
-  Future<Result<CompetitionEntity?>> getCompetitionByCode(String code) async {
-    try {
-      final model = await _remoteDataSource.getCompetitionByCode(code);
-      return Success(model);
-    } catch (e) {
-      return Failure(e.toString());
-    }
-  }
-
-  @override
-  Future<Result<CompetitionEntity>> getCompetitionById(String competitionId) async {
-    try {
-      final model = await _remoteDataSource.getCompetitionById(competitionId);
-      return Success(model);
-    } catch (e) {
-      return Failure(e.toString());
-    }
-  }
-
-  @override
-  Future<Result<CompetitionEntity>> getCompetitionDetails(String competitionId) async {
-    try {
-      final model = await _remoteDataSource.getCompetitionDetails(competitionId);
-      return Success(model);
-    } catch (e) {
-      return Failure(e.toString());
-    }
-  }
-
-  @override
-  Future<Result<List<ParticipantEntity>>> getParticipants(
-      String competitionId) async {
-    try {
-      final participants =
-          await _remoteDataSource.getParticipants(competitionId);
-      return Success(participants);
-    } catch (e) {
-      return Failure(e.toString());
-    }
-  }
-
-  @override
-  Stream<List<ParticipantEntity>> streamParticipants(String competitionId) {
-    return _remoteDataSource.streamParticipants(competitionId);
-  }
-
-  @override
-  Stream<List<TeamEntity>> streamTeams(String competitionId) {
-    return _remoteDataSource.streamTeams(competitionId);
   }
 }

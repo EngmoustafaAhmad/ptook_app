@@ -1,8 +1,9 @@
+import 'package:ptook/features/Manage%20Competitions/domain/repositories/participant/i_manage_participant_repository.dart';
+
 import '../../../../shared/domain/entities/participant_entity.dart';
-import '../../repositories/i_manage_competition_repository.dart';
 
 class StreamParticipantsManageUseCase {
-  final IManageCompetitionRepository repository;
+  final IManageParticipantRepository repository;
 
   StreamParticipantsManageUseCase(this.repository);
 

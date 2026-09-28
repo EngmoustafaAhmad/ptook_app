@@ -1,6 +1,6 @@
 import 'package:ptook/core/utils/result.dart';
+import 'package:ptook/features/Manage%20Competitions/domain/repositories/competition/i_manage_competition_repository.dart';
 import '../../../../shared/domain/entities/competition_entity.dart';
-import '../../repositories/i_manage_competition_repository.dart';
 
 class UpdateCompetitionUseCase {
   final IManageCompetitionRepository repository;

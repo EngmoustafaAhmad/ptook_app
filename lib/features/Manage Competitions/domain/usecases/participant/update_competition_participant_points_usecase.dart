@@ -1,8 +1,8 @@
 import 'package:ptook/core/utils/result.dart';
-import '../../repositories/i_manage_competition_repository.dart';
+import 'package:ptook/features/Manage%20Competitions/domain/repositories/participant/i_manage_participant_repository.dart';
 
 class UpdateCompetitoinParticipantPointsUseCase {
-  final IManageCompetitionRepository repository;
+  final IManageParticipantRepository repository;
 
   UpdateCompetitoinParticipantPointsUseCase(this.repository);
 
@@ -11,7 +11,7 @@ class UpdateCompetitoinParticipantPointsUseCase {
     required String participantId,
     required int addedPoints,
   }) async {
-    return await repository.updateCompetitoinParticipantPoints(
+    return await repository.updateCompetitionParticipantPoints(
       competitionId: competitionId,
       participantId: participantId,
       addedPoints: addedPoints,

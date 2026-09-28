@@ -1,5 +1,5 @@
+import 'package:ptook/features/view_competition/domain/repositories/competition/i_view_competition_repository.dart';
 import '../../../shared/domain/entities/competition_entity.dart';
-import '../repositories/i_view_competition_repository.dart';
 
 class StreamCompetitionViewUseCase {
   final IViewCompetitionRepository repository;

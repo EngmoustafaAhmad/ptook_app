@@ -1,19 +1,21 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ptook/core/Theme/app_colors.dart';
 import 'package:ptook/core/di/injection_container.dart';
-import 'package:ptook/features/Manage%20Competitions/presentation/cubits/manage_competition/manage_competition_cubit.dart';
-import 'package:ptook/features/Manage%20Competitions/presentation/cubits/manage_competition/manage_competition_state.dart';
 import 'package:ptook/features/shared/domain/entities/competition_entity.dart';
-import 'package:ptook/features/shared/domain/entities/participant_entity.dart';
 import 'package:ptook/features/shared/domain/entities/team_entity.dart';
+import 'package:ptook/features/shared/presintation/widgets/custome_top_teams_widget.dart';
+import 'package:ptook/features/view_competition/presintation/cubits/competition_home_cubit.dart';
+import 'package:ptook/features/view_competition/presintation/cubits/competition_home_state.dart';
 import 'package:ptook/features/view_competition/presintation/cubits/view_participants/view_participants_cubit.dart';
 import 'package:ptook/features/view_competition/presintation/cubits/view_participants/view_participants_state.dart';
 import 'package:ptook/features/view_competition/presintation/cubits/view_teams/view_teams_cubit.dart';
 import 'package:ptook/features/view_competition/presintation/cubits/view_teams/view_teams_state.dart';
+import 'package:ptook/features/view_competition/presintation/pages/view_all_teams_screen.dart';
+import 'package:ptook/features/view_competition/presintation/pages/view_team_members_screen.dart';
 import 'package:ptook/features/view_competition/presintation/widgets/team_expansion_card.dart';
-
-
+import 'package:url_launcher/url_launcher.dart';
 
 class CompetitionTeamHomeView extends StatelessWidget {
   final CompetitionEntity competition;
@@ -27,284 +29,443 @@ class CompetitionTeamHomeView extends StatelessWidget {
     this.currentUserName = 'Current User',
   });
 
-  int? _getCapacityLimit(TeamEntity team) {
-    if (team.maxMembers != null && team.maxMembers! > 0) {
-      return team.maxMembers;
-    }
-    if (competition.maxTeamMembers != null &&
-        competition.maxTeamMembers! > 0) {
-      return competition.maxTeamMembers;
-    }
-    return null;
-  }
-
   @override
   Widget build(BuildContext context) {
+    final now = DateTime.now();
+    final totalDurationDays =
+        competition.endDate.difference(competition.startDate).inDays;
+    final daysRemaining = competition.endDate.difference(now).inDays;
+    final displayDuration = daysRemaining >= 0 ? daysRemaining : 0;
+
+    final daysPassed = now.difference(competition.startDate).inDays;
+    final currentDayNumber = (daysPassed >= 0 ? daysPassed : 0) + 1;
+    final totalDays = totalDurationDays > 0 ? totalDurationDays : 1;
+    final progressRatio = (daysPassed / totalDays).clamp(0.0, 1.0);
+
     return MultiBlocProvider(
       providers: [
         BlocProvider(
-          create: (context) => sl<ManageCompetitionCubit>(),
+          create: (context) => sl<CompetitionHomeCubit>()
+            ..loadCompetitionData(
+              competition: competition,
+              userId: currentUserId,
+            ),
         ),
         BlocProvider(
-          create: (context) => sl<ViewTeamsCubit>()..streamTeams(competition.id),
+          create: (context) =>
+              sl<ViewTeamsCubit>()..streamTeams(competition.id),
         ),
         BlocProvider(
           create: (context) => sl<ViewParticipantsCubit>()
             ..listenToParticipants(competition.id),
         ),
       ],
-      child: BlocConsumer<ManageCompetitionCubit, ManageCompetitionState>(
-        listenWhen: (previous, current) =>
-            current.errorMessage != null || current.successMessage != null,
-        listener: (context, state) {
-          if (state.errorMessage != null && state.errorMessage!.isNotEmpty) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(state.errorMessage!),
-                backgroundColor: AppColors.privateRed,
-                behavior: SnackBarBehavior.floating,
-              ),
-            );
-          } else if (state.successMessage != null &&
-              state.successMessage!.isNotEmpty) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(state.successMessage!),
-                backgroundColor: AppColors.publicGreen,
-                behavior: SnackBarBehavior.floating,
-              ),
-            );
+      child: BlocBuilder<CompetitionHomeCubit, CompetitionHomeState>(
+        builder: (context, homeState) {
+          final isFavorite = homeState is CompetitionHomeLoaded
+              ? homeState.isFavorite
+              : competition.isFavorite;
+
+          // 📊 Calculate actual user points and dynamic rank
+          int userPoints = 0;
+          int userRank = 0;
+
+          if (homeState is CompetitionHomeLoaded &&
+              homeState.participants.isNotEmpty) {
+            final sortedParticipants =
+                List.from(homeState.participants)
+                  ..sort((a, b) => (b.points ?? 0).compareTo(a.points ?? 0));
+
+            final userIndex =
+                sortedParticipants.indexWhere((p) => p.id == currentUserId);
+            if (userIndex != -1) {
+              userPoints = sortedParticipants[userIndex].points ?? 0;
+              userRank = userIndex + 1;
+            }
           }
-        },
-        builder: (context, cubitState) {
-          final isLoading =
-              cubitState.status == ManageCompetitionStatus.loading ||
-                  cubitState.status == ManageCompetitionStatus.actionInProgress;
 
-          final isCompetitionEnded =
-              cubitState.isFinished || competition.isFinished;
+          return BlocConsumer<ViewParticipantsCubit, ViewParticipantsState>(
+            listenWhen: (previous, current) =>
+                current is JoinCompetitionSuccess ||
+                current is LeaveCompetitionSuccess ||
+                current is ViewParticipantsError,
+            listener: _handleParticipantStateListeners,
+            builder: (context, participantsState) {
+              final isActionLoading =
+                  participantsState is ViewParticipantsActionLoading;
 
-          return Scaffold(
-            backgroundColor: AppColors.background,
-            appBar: AppBar(
-              backgroundColor: AppColors.background,
-              elevation: 0,
-              centerTitle: false,
-              title: Text(
-                competition.name,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 20,
+              return Scaffold(
+                backgroundColor: AppColors.background,
+                appBar: _buildAppBar(
+                  context: context,
+                  competition: competition,
+                  isFavorite: isFavorite,
                 ),
-              ),
-              bottom: isLoading
-                  ? const PreferredSize(
-                      preferredSize: Size.fromHeight(2),
-                      child: LinearProgressIndicator(
-                        color: AppColors.primaryPurple,
-                        backgroundColor: Colors.transparent,
-                      ),
-                    )
-                  : null,
-            ),
-            body: BlocBuilder<ViewTeamsCubit, ViewTeamsState>(
-              builder: (context, teamsState) {
-                if (teamsState is ViewTeamsLoading ||
-                    teamsState is ViewTeamsInitial) {
-                  return const Center(
-                    child: CircularProgressIndicator(
+                body: BlocBuilder<ViewTeamsCubit, ViewTeamsState>(
+                  builder: (context, teamsState) {
+                    if (teamsState is ViewTeamsLoading ||
+                        teamsState is ViewTeamsInitial) {
+                      return const Center(
+                        child: CircularProgressIndicator(
+                          color: AppColors.primaryPurple,
+                        ),
+                      );
+                    }
+
+                    if (teamsState is ViewTeamsError) {
+                      return _buildErrorState(teamsState.message);
+                    }
+
+                    final teams = (teamsState is ViewTeamsLoaded)
+                        ? teamsState.teams
+                        : <TeamEntity>[];
+
+                    final sortedTeams = List<TeamEntity>.from(teams)
+                      ..sort((a, b) => b.totalPoints.compareTo(a.totalPoints));
+
+                    final userCurrentTeam =
+                        sortedTeams.cast<TeamEntity?>().firstWhere(
+                              (t) =>
+                                  t?.members.any((m) => m.id == currentUserId) ??
+                                  false,
+                              orElse: () => null,
+                            );
+
+                    final bool isUserInAnyTeam = userCurrentTeam != null;
+                    final bool hasNoTeams = sortedTeams.isEmpty;
+
+                    return RefreshIndicator(
                       color: AppColors.primaryPurple,
-                    ),
-                  );
-                }
-
-                if (teamsState is ViewTeamsError) {
-                  return _buildErrorState(teamsState.message);
-                }
-
-                final teams =
-                    (teamsState is ViewTeamsLoaded) ? teamsState.teams : <TeamEntity>[];
-
-                final sortedTeams = List<TeamEntity>.from(teams)
-                  ..sort((a, b) => b.totalPoints.compareTo(a.totalPoints));
-
-                final topThree = sortedTeams.take(3).toList();
-
-                final userCurrentTeam =
-                    sortedTeams.cast<TeamEntity?>().firstWhere(
-                          (t) =>
-                              t?.members.any((m) => m.id == currentUserId) ??
-                              false,
-                          orElse: () => null,
-                        );
-
-                final bool isUserInAnyTeam = userCurrentTeam != null;
-                final bool hasNoTeams = sortedTeams.isEmpty;
-
-                return SingleChildScrollView(
-                  physics: const BouncingScrollPhysics(),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (isCompetitionEnded && topThree.isNotEmpty) ...[
-                        _buildPodiumContainer(topThree),
-                        const SizedBox(height: 24),
-                      ],
-                      if (hasNoTeams) ...[
-                        _buildEmptyState(),
-                      ] else ...[
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      onRefresh: () async {
+                        context
+                            .read<CompetitionHomeCubit>()
+                            .loadCompetitionData(
+                              competition: competition,
+                              userId: currentUserId,
+                            );
+                        context
+                            .read<ViewTeamsCubit>()
+                            .streamTeams(competition.id);
+                        context
+                            .read<ViewParticipantsCubit>()
+                            .listenToParticipants(competition.id);
+                      },
+                      child: SingleChildScrollView(
+                        physics: const AlwaysScrollableScrollPhysics(
+                          parent: BouncingScrollPhysics(),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              isCompetitionEnded
-                                  ? 'Final Standings'
-                                  : 'Team Leaderboard',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
+                            if (competition.imageUrl != null &&
+                                competition.imageUrl!.trim().isNotEmpty)
+                              CachedNetworkImage(
+                                imageUrl: competition.imageUrl!,
+                                height: 180,
+                                width: double.infinity,
+                                fit: BoxFit.cover,
+                                placeholder: (context, url) => Container(
+                                  height: 180,
+                                  color: AppColors.cardBackground,
+                                  child: const Center(
+                                    child: CircularProgressIndicator(
+                                      color: AppColors.primaryPurple,
+                                    ),
+                                  ),
+                                ),
+                                errorWidget: (context, url, error) =>
+                                    const SizedBox.shrink(),
                               ),
-                            ),
-                            Text(
-                              '${sortedTeams.length} Teams',
-                              style: TextStyle(
-                                color: Colors.white.withOpacity(0.5),
-                                fontSize: 13,
+
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 12,
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // ─── Stat Card: User Dynamic Summary ───
+                                  _UserSummaryCard(
+                                    daysRemaining: displayDuration,
+                                    currentDayNumber: currentDayNumber,
+                                    totalDays: totalDays,
+                                    progressRatio: progressRatio,
+                                    userPoints: userPoints,
+                                    userRank: userRank,
+                                  ),
+                                  const SizedBox(height: 14),
+
+                                  // 🔗 Always-visible external group button
+                                  _ExternalGroupButton(
+                                    linkUrl: competition.linkUrl,
+                                  ),
+                                  const SizedBox(height: 16),
+
+                                  if (!isUserInAnyTeam && !hasNoTeams) ...[
+                                    _UnassignedTeamBanner(),
+                                    const SizedBox(height: 20),
+                                  ],
+
+                                  if (isUserInAnyTeam) ...[
+                                    const Text(
+                                      'Your Team',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 10),
+                                    GestureDetector(
+                                      onTap: () => _navigateToTeamMembers(
+                                        context,
+                                        userCurrentTeam,
+                                      ),
+                                      child: TeamExpansionCard(
+                                        key: ValueKey(
+                                          'user_team_${userCurrentTeam.id}',
+                                        ),
+                                        team: userCurrentTeam,
+                                        rank: sortedTeams.indexOf(userCurrentTeam) +
+                                            1,
+                                        rankBadge: _getRankingBadge(
+                                          sortedTeams.indexOf(userCurrentTeam) + 1,
+                                        ),
+                                        isJoined: true,
+                                        hasJoinedOtherTeam: false,
+                                        currentUserId: currentUserId,
+                                        isCompetitionEnded: competition.isFinished,
+                                        maxMembersLimit:
+                                            _getCapacityLimit(userCurrentTeam),
+                                        isActionPending: isActionLoading,
+                                        onToggleJoin: () => _handleJoinLeave(
+                                          context: context,
+                                          targetTeam: userCurrentTeam,
+                                          isUserInThisTeam: true,
+                                          isUserInAnyTeam: true,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 24),
+                                  ],
+
+                                  if (hasNoTeams)
+                                    _buildEmptyState()
+                                  else ...[
+                                    CustomTopTeamsWidget(
+                                      teams: sortedTeams,
+                                      competition: competition,
+                                      onShowConfirmDialog: ({
+                                        required context,
+                                        required title,
+                                        required content,
+                                        required confirmText,
+                                        required onConfirm,
+                                        confirmColor,
+                                      }) {},
+                                      onViewAllPressed: () {
+                                        final viewTeamsCubit =
+                                            context.read<ViewTeamsCubit>();
+                                        final viewParticipantsCubit = context
+                                            .read<ViewParticipantsCubit>();
+
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (_) => MultiBlocProvider(
+                                              providers: [
+                                                BlocProvider.value(
+                                                  value: viewTeamsCubit,
+                                                ),
+                                                BlocProvider.value(
+                                                  value: viewParticipantsCubit,
+                                                ),
+                                              ],
+                                              child: ViewAllTeamsScreen(
+                                                competition: competition,
+                                                currentUserId: currentUserId,
+                                                onToggleJoin: ({
+                                                  required context,
+                                                  required targetTeam,
+                                                  required isUserInThisTeam,
+                                                  required isUserInAnyTeam,
+                                                }) => _handleJoinLeave(
+                                                  context: context,
+                                                  targetTeam: targetTeam,
+                                                  isUserInThisTeam:
+                                                      isUserInThisTeam,
+                                                  isUserInAnyTeam:
+                                                      isUserInAnyTeam,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ],
+                                  const SizedBox(height: 16),
+                                ],
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 12),
-                        ListView.separated(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          itemCount: sortedTeams.length,
-                          separatorBuilder: (_, _) => const SizedBox(height: 12),
-                          itemBuilder: (context, index) {
-                            final team = sortedTeams[index];
-                            final isUserInThisTeam =
-                                userCurrentTeam?.id == team.id;
-
-                            return TeamExpansionCard(
-                              team: team,
-                              rank: index + 1,
-                              isJoined: isUserInThisTeam,
-                              hasJoinedOtherTeam: isUserInAnyTeam &&
-                                  !isUserInThisTeam,
-                              currentUserId: currentUserId,
-                              isCompetitionEnded: isCompetitionEnded,
-                              maxMembersLimit: _getCapacityLimit(team),
-                              isActionPending: isLoading,
-                              onToggleJoin: () => _handleJoinLeave(
-                                context: context,
-                                targetTeam: team,
-                              ),
-                            );
-                          },
-                        ),
-                      ],
-                      const SizedBox(height: 16),
-                    ],
-                  ),
-                );
-              },
-            ),
-            bottomNavigationBar: isCompetitionEnded
-                ? null
-                : Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: const BoxDecoration(
-                      color: AppColors.cardBackground,
-                      border: Border(
-                        top: BorderSide(color: AppColors.borderOutline),
                       ),
-                    ),
-                    child: SafeArea(
-                      child: SizedBox(
-                        width: double.infinity,
-                        height: 50,
-                        child: TextButton.icon(
-                          style: TextButton.styleFrom(
-                            foregroundColor: AppColors.privateRed,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              side: const BorderSide(
-                                color: AppColors.privateRed,
-                                width: 1.5,
-                              ),
-                            ),
-                            backgroundColor: Colors.transparent,
-                          ),
-                          icon: const Icon(Icons.exit_to_app_rounded, size: 20),
-                          label: const Text(
-                            'Leave Competition',
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 0.3,
-                            ),
-                          ),
-                          onPressed: () => _handleLeaveCompetition(context),
-                        ),
-                      )
-                    ),
-                  ),
+                    );
+                  },
+                ),
+              );
+            },
           );
         },
       ),
     );
   }
 
-  Future<void> _handleLeaveCompetition(BuildContext context) async {
-    final bool? confirm = await _showConfirmationDialog(
-      context,
-      title: 'Leave Competition?',
-      message:
-          'Are you sure you want to leave this competition? You will be removed from your team (if assigned) and lose access to all competition data.',
-      confirmText: 'Leave',
-      confirmColor: AppColors.privateRed,
+  PreferredSizeWidget _buildAppBar({
+    required BuildContext context,
+    required CompetitionEntity competition,
+    required bool isFavorite,
+  }) {
+    return AppBar(
+      backgroundColor: AppColors.background,
+      elevation: 0,
+      title: Text(
+        competition.name,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      actions: [
+        IconButton(
+          icon: Icon(
+            isFavorite ? Icons.bookmark : Icons.bookmark_border,
+            color: isFavorite ? Colors.amber : Colors.white70,
+          ),
+          onPressed: () => context.read<CompetitionHomeCubit>().toggleFavorite(
+                userId: currentUserId,
+                competition: competition,
+              ),
+        ),
+        IconButton(
+          icon: const Icon(Icons.share, color: Colors.white70),
+          onPressed: () => _shareCompetition(context),
+        ),
+        PopupMenuButton<String>(
+          icon: const Icon(Icons.more_vert, color: Colors.white70),
+          color: AppColors.cardBackground,
+          onSelected: (value) {
+            if (value == 'rules') _showRulesDialog(context);
+            if (value == 'report') _showReportDialog(context);
+          },
+          itemBuilder: (ctx) => [
+            const PopupMenuItem(
+              value: 'rules',
+              child: Text(
+                'Rules & Terms',
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
+            const PopupMenuItem(
+              value: 'report',
+              child: Text(
+                'Report',
+                style: TextStyle(color: Colors.redAccent),
+              ),
+            ),
+          ],
+        ),
+      ],
     );
+  }
 
-    if (confirm == true && context.mounted) {
-      final viewParticipantsCubit = context.read<ViewParticipantsCubit>();
-      
-      await viewParticipantsCubit.leaveTeamCompetition(
-        competitionId: competition.id,
-        userId: currentUserId,
-      );
+  void _navigateToTeamMembers(BuildContext context, TeamEntity team) {
+    ViewParticipantsCubit cubitToProvide;
 
-      if (context.mounted) {
-        Navigator.pop(context);
-      }
+    try {
+      cubitToProvide = context.read<ViewParticipantsCubit>();
+    } catch (_) {
+      cubitToProvide = sl<ViewParticipantsCubit>();
+    }
+
+    cubitToProvide.listenToParticipants(competition.id);
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => BlocProvider.value(
+          value: cubitToProvide,
+          child: ViewTeamMembersScreen(
+            team: team,
+            competitionId: competition.id,
+            ownerId: competition.ownerId,
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _shareCompetition(BuildContext context) {
+    _showSnackBar(context, 'Share link copied to clipboard.', Colors.blueAccent);
+  }
+
+  void _showRulesDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.cardBackground,
+        title: const Text('Rules & Terms', style: TextStyle(color: Colors.white)),
+        content: Text(
+          competition.description.isNotEmpty
+              ? competition.description
+              : 'Follow all competition guidelines and respect your teammates.',
+          style: const TextStyle(color: Colors.white70, fontSize: 13),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Close', style: TextStyle(color: AppColors.primaryPurple)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showReportDialog(BuildContext context) {
+    _showSnackBar(context, 'Report submitted for review.', Colors.orangeAccent);
+  }
+
+  void _handleParticipantStateListeners(
+    BuildContext context,
+    ViewParticipantsState state,
+  ) {
+    if (state is ViewParticipantsError) {
+      _showSnackBar(context, state.message, AppColors.privateRed);
+    } else if (state is JoinCompetitionSuccess ||
+        state is LeaveCompetitionSuccess) {
+      final message = state is JoinCompetitionSuccess
+          ? state.message
+          : (state as LeaveCompetitionSuccess).message;
+      _showSnackBar(context, message, AppColors.publicGreen);
+
+      context
+          .read<ViewParticipantsCubit>()
+          .listenToParticipants(competition.id);
     }
   }
 
   Future<void> _handleJoinLeave({
     required BuildContext context,
     required TeamEntity targetTeam,
+    required bool isUserInThisTeam,
+    required bool isUserInAnyTeam,
   }) async {
     final viewParticipantsCubit = context.read<ViewParticipantsCubit>();
 
-    final participantsState = viewParticipantsCubit.state;
-    final List<ParticipantEntity> participants =
-        participantsState is ViewParticipantsLoaded
-            ? participantsState.participants
-            : <ParticipantEntity>[];
-
-    final currentParticipant = participants.cast<ParticipantEntity?>().firstWhere(
-          (p) => p?.userId == currentUserId,
-          orElse: () => null,
-        );
-
-    final String? currentTeamId = currentParticipant?.teamId;
-
-    if (currentTeamId == targetTeam.id) {
+    if (isUserInThisTeam) {
       final bool? confirmLeave = await _showConfirmationDialog(
         context,
         title: 'Leave Team?',
@@ -317,8 +478,18 @@ class CompetitionTeamHomeView extends StatelessWidget {
         viewParticipantsCubit.leaveTeam(
           competitionId: competition.id,
           teamId: targetTeam.id,
+          userId: currentUserId, // ⚡ Added required userId argument
         );
       }
+      return;
+    }
+
+    if (isUserInAnyTeam) {
+      _showSnackBar(
+        context,
+        'You must leave your current team before joining a new one.',
+        Colors.orangeAccent,
+      );
       return;
     }
 
@@ -327,290 +498,76 @@ class CompetitionTeamHomeView extends StatelessWidget {
         capacityLimit != null && targetTeam.members.length >= capacityLimit;
 
     if (isFull) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('This team has reached its maximum member limit.'),
-            backgroundColor: Colors.orangeAccent,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
+      _showSnackBar(
+        context,
+        'This team has reached its maximum member limit.',
+        Colors.orangeAccent,
+      );
       return;
     }
 
-    final bool isSwitching = currentTeamId != null && currentTeamId.isNotEmpty;
-    if (isSwitching) {
-      final bool? confirmSwitch = await _showConfirmationDialog(
-        context,
-        title: 'Switch Team?',
-        message:
-            'You are currently assigned to another team. You can only participate in one team at a time.\n\nDo you want to switch to "${targetTeam.name}"?',
-        confirmText: 'Switch Team',
-        confirmColor: AppColors.primaryPurple,
-      );
-
-      if (confirmSwitch != true) return;
-    }
-
-    final bool isPrivate = targetTeam.isPrivate;
     String? joinCode;
-
-    if (isPrivate) {
+    if (targetTeam.isPrivate) {
       joinCode = await _showJoinCodeDialog(context, targetTeam.name);
       if (joinCode == null || joinCode.trim().isEmpty) return;
-
-      final String expectedCode = targetTeam.joinCode ?? '';
-      if (expectedCode.isNotEmpty && joinCode.trim() != expectedCode.trim()) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Invalid team join code. Access denied.'),
-              backgroundColor: AppColors.privateRed,
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
-        }
-        return;
-      }
     }
 
-    if (isSwitching) {
-      await viewParticipantsCubit.leaveTeam(
-        competitionId: competition.id,
-        teamId: currentTeamId,
-      );
-    }
+    if (!context.mounted) return;
 
-    if (context.mounted) {
-      viewParticipantsCubit.joinTeam(
-        competitionId: competition.id,
-        teamId: targetTeam.id,
-        joinCode: joinCode,
-      );
-    }
+    viewParticipantsCubit.joinTeam(
+      competitionId: competition.id,
+      teamId: targetTeam.id,
+      userId: currentUserId, // ⚡ Added required userId argument
+      joinCode: joinCode?.trim(),
+    );
   }
 
-  Future<bool?> _showConfirmationDialog(
-    BuildContext context, {
-    required String title,
-    required String message,
-    required String confirmText,
-    required Color confirmColor,
-  }) {
-    return showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.cardBackground,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: const BorderSide(color: AppColors.borderOutline),
-        ),
-        title: Text(
-          title,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        content: Text(
-          message,
-          style: const TextStyle(
-            color: Colors.white70,
-            fontSize: 13,
-            height: 1.4,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: confirmColor),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(confirmText, style: const TextStyle(color: Colors.white)),
-          ),
-        ],
+  int? _getCapacityLimit(TeamEntity team) {
+    if (team.maxMembers != null && team.maxMembers! > 0) {
+      return team.maxMembers;
+    }
+    if (competition.maxTeamMembers != null && competition.maxTeamMembers! > 0) {
+      return competition.maxTeamMembers;
+    }
+    return null;
+  }
+
+  void _showSnackBar(BuildContext context, String text, Color backgroundColor) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(text),
+        backgroundColor: backgroundColor,
+        behavior: SnackBarBehavior.floating,
       ),
     );
   }
 
-  Widget _buildPodiumContainer(List<TeamEntity> topThree) {
-    final first = topThree.isNotEmpty ? topThree[0] : null;
-    final second = topThree.length > 1 ? topThree[1] : null;
-    final third = topThree.length > 2 ? topThree[2] : null;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 12),
-      decoration: BoxDecoration(
-        color: AppColors.cardBackground,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.borderOutline),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.4),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
+  Widget _getRankingBadge(int rank) {
+    switch (rank) {
+      case 1:
+        return const Text('🥇', style: TextStyle(fontSize: 18));
+      case 2:
+        return const Text('🥈', style: TextStyle(fontSize: 18));
+      case 3:
+        return const Text('🥉', style: TextStyle(fontSize: 18));
+      default:
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+          decoration: BoxDecoration(
+            color: Colors.white10,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.white24),
           ),
-        ],
-      ),
-      child: Column(
-        children: [
-          const Padding(
-            padding: EdgeInsets.only(bottom: 16),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                '🏆 Final Podium Winners',
-                style: TextStyle(
-                  color: AppColors.goldAccent,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+          child: Text(
+            '#$rank',
+            style: const TextStyle(
+              color: Colors.white70,
+              fontWeight: FontWeight.bold,
+              fontSize: 12,
             ),
           ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Expanded(
-                child: second != null
-                    ? _buildPodiumAvatar(
-                        team: second,
-                        rank: 2,
-                        accentColor: AppColors.silverAccent,
-                        avatarSize: 60,
-                        isCenter: false,
-                      )
-                    : const SizedBox.shrink(),
-              ),
-              Expanded(
-                child: first != null
-                    ? _buildPodiumAvatar(
-                        team: first,
-                        rank: 1,
-                        accentColor: AppColors.goldAccent,
-                        avatarSize: 80,
-                        isCenter: true,
-                      )
-                    : const SizedBox.shrink(),
-              ),
-              Expanded(
-                child: third != null
-                    ? _buildPodiumAvatar(
-                        team: third,
-                        rank: 3,
-                        accentColor: AppColors.bronzeAccent,
-                        avatarSize: 55,
-                        isCenter: false,
-                      )
-                    : const SizedBox.shrink(),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPodiumAvatar({
-    required TeamEntity team,
-    required int rank,
-    required Color accentColor,
-    required double avatarSize,
-    required bool isCenter,
-  }) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Stack(
-          alignment: Alignment.topCenter,
-          clipBehavior: Clip.none,
-          children: [
-            Container(
-              margin: const EdgeInsets.only(top: 14),
-              padding: const EdgeInsets.all(4),
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: accentColor,
-                  width: isCenter ? 3 : 2,
-                ),
-                boxShadow: isCenter
-                    ? [
-                        BoxShadow(
-                          color: accentColor.withOpacity(0.3),
-                          blurRadius: 16,
-                          spreadRadius: 2,
-                        )
-                      ]
-                    : [],
-              ),
-              child: CircleAvatar(
-                radius: avatarSize / 2,
-                backgroundColor: AppColors.borderOutline,
-                child: Text(
-                  team.name.isNotEmpty ? team.name[0].toUpperCase() : 'T',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: isCenter ? 24 : 18,
-                  ),
-                ),
-              ),
-            ),
-            Positioned(
-              top: isCenter ? -4 : 4,
-              child: isCenter
-                  ? const Icon(
-                      Icons.workspace_premium,
-                      color: AppColors.goldAccent,
-                      size: 28,
-                    )
-                  : Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: AppColors.cardBackground,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: accentColor, width: 1.5),
-                      ),
-                      child: Text(
-                        '$rank',
-                        style: TextStyle(
-                          color: accentColor,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 11,
-                        ),
-                      ),
-                    ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 10),
-        Text(
-          team.name,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: isCenter ? FontWeight.bold : FontWeight.w600,
-            fontSize: isCenter ? 15 : 13,
-          ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          '${team.totalPoints} pts',
-          style: TextStyle(
-            color: accentColor,
-            fontWeight: FontWeight.bold,
-            fontSize: isCenter ? 14 : 12,
-          ),
-        ),
-      ],
-    );
+        );
+    }
   }
 
   Widget _buildEmptyState() {
@@ -642,6 +599,287 @@ class CompetitionTeamHomeView extends StatelessWidget {
       ),
     );
   }
+}
+
+// --- Component: External Link Button ---
+
+class _ExternalGroupButton extends StatelessWidget {
+  final String? linkUrl;
+
+  const _ExternalGroupButton({this.linkUrl});
+
+  void _handleClick(BuildContext context) async {
+    if (linkUrl == null || linkUrl!.trim().isEmpty) {
+      _showNoLinkDialog(context);
+      return;
+    }
+
+    final Uri uri = Uri.parse(linkUrl!.trim());
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not open the link.'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    }
+  }
+
+  void _showNoLinkDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.cardBackground,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: AppColors.borderOutline),
+        ),
+        title: const Text(
+          'No Link Available',
+          style: TextStyle(color: Colors.white, fontSize: 18),
+        ),
+        content: const Text(
+          'There is no external group or video link provided for this competition.',
+          style: TextStyle(color: Colors.white70, fontSize: 13),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text(
+              'OK',
+              style: TextStyle(color: AppColors.primaryPurple),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: AppColors.primaryPurple.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.primaryPurple.withValues(alpha: 0.4)),
+      ),
+      child: InkWell(
+        onTap: () => _handleClick(context),
+        borderRadius: BorderRadius.circular(12),
+        child: const Padding(
+          padding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.open_in_new, color: Color(0xFFFFC107), size: 20),
+              SizedBox(width: 10),
+              Text(
+                'Join Group / View Media Link',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// --- Component: Dynamic User Summary Card ---
+
+class _UserSummaryCard extends StatelessWidget {
+  final int daysRemaining;
+  final int currentDayNumber;
+  final int totalDays;
+  final double progressRatio;
+  final int userPoints;
+  final int userRank;
+
+  const _UserSummaryCard({
+    required this.daysRemaining,
+    required this.currentDayNumber,
+    required this.totalDays,
+    required this.progressRatio,
+    required this.userPoints,
+    required this.userRank,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF161925),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white12),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.access_time, color: Color(0xFFFFC107), size: 24),
+              const SizedBox(width: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '$daysRemaining Days Left',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Text(
+                    'Day $currentDayNumber of $totalDays',
+                    style: const TextStyle(color: Colors.white54, fontSize: 12),
+                  ),
+                ],
+              ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryPurple.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppColors.primaryPurple),
+                ),
+                child: Column(
+                  children: [
+                    Text(
+                      '$userPoints pts',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
+                    ),
+                    Text(
+                      userRank > 0 ? 'Rank #$userRank' : 'Unranked',
+                      style: const TextStyle(
+                        color: Color(0xFFFFC107),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: LinearProgressIndicator(
+              value: progressRatio,
+              minHeight: 6,
+              backgroundColor: Colors.white10,
+              color: const Color(0xFFFFC107),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// --- Component: Unassigned Team Banner ---
+
+class _UnassignedTeamBanner extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.orangeAccent.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.orangeAccent.withValues(alpha: 0.4)),
+      ),
+      child: const Row(
+        children: [
+          Icon(Icons.info_outline, color: Colors.orangeAccent, size: 20),
+          SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'You are not in a team yet. Select a team below to participate!',
+              style: TextStyle(
+                color: Colors.orangeAccent,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// --- Dialog Helpers ---
+
+Future<bool?> _showConfirmationDialog(
+  BuildContext context, {
+  required String title,
+  required String message,
+  required String confirmText,
+  required Color confirmColor,
+}) {
+  return showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      backgroundColor: AppColors.cardBackground,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: const BorderSide(color: AppColors.borderOutline),
+      ),
+      title: Text(
+        title,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      content: Text(
+        message,
+        style: const TextStyle(
+          color: Colors.white70,
+          fontSize: 13,
+          height: 1.4,
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(ctx, false),
+          child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
+        ),
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(backgroundColor: confirmColor),
+          onPressed: () => Navigator.pop(ctx, true),
+          child: Text(confirmText, style: const TextStyle(color: Colors.white)),
+        ),
+      ],
+    ),
+  );
+}
+
+Future<String?> _showJoinCodeDialog(BuildContext context, String teamName) {
+  return showDialog<String>(
+    context: context,
+    builder: (ctx) => _JoinCodeDialog(teamName: teamName),
+  );
 }
 
 class _JoinCodeDialog extends StatefulWidget {
@@ -725,11 +963,4 @@ class _JoinCodeDialogState extends State<_JoinCodeDialog> {
       ],
     );
   }
-}
-
-Future<String?> _showJoinCodeDialog(BuildContext context, String teamName) {
-  return showDialog<String>(
-    context: context,
-    builder: (ctx) => _JoinCodeDialog(teamName: teamName),
-  );
 }

@@ -1,11 +1,15 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ptook/core/Theme/app_colors.dart';
 import 'package:ptook/core/di/injection_container.dart';
+import 'package:ptook/features/activity/presintation/cubit/activity_cubit.dart';
+import 'package:ptook/features/activity/presintation/views/activity_view.dart';
 import 'package:ptook/features/create_competition/presintation/cubits/create_competition_cubit.dart';
 import 'package:ptook/features/create_competition/presintation/pages/create_competition_view.dart';
 import 'package:ptook/features/home/presintation/views/home_view.dart';
+import 'package:ptook/features/profile/presintation/cubit/profile/profile_cubit.dart';
+import 'package:ptook/features/profile/presintation/cubit/profile/profile_state.dart';
+import 'package:ptook/features/profile/presintation/views/profile_view.dart';
 import 'package:ptook/features/search_competitions/presentation/cubits/search_competition_cubit.dart';
 import 'package:ptook/features/search_competitions/presentation/pages/search_competition_page.dart';
 import 'package:ptook/features/shared/presintation/widgets/app_drawer.dart';
@@ -15,14 +19,10 @@ import 'package:ptook/features/view_competition/presintation/pages/saved_competi
 
 class AppScaffold extends StatefulWidget {
   final String userId;
-  final String userName;
-  final String userEmail;
 
   const AppScaffold({
     super.key,
-    required this.userId , // Replace with dynamic authenticated user ID
-    this.userName = 'Moustafa',
-    this.userEmail = 'moustafa@gmail.com',
+    required this.userId,
   });
 
   @override
@@ -31,31 +31,7 @@ class AppScaffold extends StatefulWidget {
 
 class _AppScaffoldState extends State<AppScaffold> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
-
   int _selectedIndex = 0;
-  late final List<Widget> _pages;
-
-  @override
-  void initState() {
-    super.initState();
-    _pages = [
-      const HomeView(),
-
-      BlocProvider<SearchCompetitionCubit>(
-        create: (context) => sl<SearchCompetitionCubit>(),
-        child: const CompetitionSearchView(),
-      ),
-
-      BlocProvider<CreateCompetitionCubit>(
-        create: (context) => sl<CreateCompetitionCubit>(),
-        child: CreateCompetitionView(
-          onSuccess: () => _onItemTapped(0),
-        ),
-      ),
-      const _PlaceholderScreen(title: 'Activity View'),
-      const _PlaceholderScreen(title: 'Profile View'),
-    ];
-  }
 
   void _onItemTapped(int index) {
     if (_selectedIndex == index) return;
@@ -78,37 +54,84 @@ class _AppScaffoldState extends State<AppScaffold> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      key: _scaffoldKey,
-      backgroundColor: AppColors.background,
-      drawer: AppDrawer(
-        userId: widget.userId,
-        userName: widget.userName,
-        userEmail: widget.userEmail,
-      ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: AppTopBar(
-                onMenuPressed: () => _scaffoldKey.currentState?.openDrawer(),
-                onBookmarkPressed: _navigateToSavedCompetitions,
-              ),
-            ),
-            Expanded(
-              child: IndexedStack(
-                index: _selectedIndex,
-                children: _pages,
-              ),
-            ),
-          ],
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider<ProfileCubit>(
+          create: (_) => sl<ProfileCubit>()..streamUserProfile(widget.userId),
         ),
+        BlocProvider<SearchCompetitionCubit>(
+          create: (_) => sl<SearchCompetitionCubit>(),
+        ),
+        BlocProvider<CreateCompetitionCubit>(
+          create: (_) => sl<CreateCompetitionCubit>(),
+        ),
+        BlocProvider<ActivityCubit>(
+          create: (_) => sl<ActivityCubit>()..fetchUserActivities(widget.userId),
+        ),
+        BlocProvider<CompetitionHomeCubit>(
+          create: (_) => sl<CompetitionHomeCubit>()
+            ..fetchSavedCompetitions(userId: widget.userId),
+        ),
+      ],
+      child: Builder(
+        builder: (context) {
+          final pages = [
+            const HomeView(),
+            const CompetitionSearchView(showBackButton: false),
+            CreateCompetitionView(
+              onSuccess: () => _onItemTapped(0),
+            ),
+            ActivityView(userId: widget.userId),
+            ProfileView(userId: widget.userId),
+          ];
+
+          return BlocBuilder<ProfileCubit, ProfileState>(
+            builder: (context, state) {
+              final user = (state is ProfileLoaded) ? state.user : null;
+              final dynamicName = user?.name ?? 'User';
+              final dynamicEmail = user?.email ?? '';
+
+              return Scaffold(
+                key: _scaffoldKey,
+                backgroundColor: AppColors.background,
+                drawer: AppDrawer(
+                  userId: widget.userId,
+                  userName: dynamicName,
+                  userEmail: dynamicEmail,
+                ),
+                body: SafeArea(
+                  child: Column(
+                    children: [
+                      if (_selectedIndex == 0)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 8),
+                          child: AppTopBar(
+                            user: user,
+                            onMenuPressed: () =>
+                                _scaffoldKey.currentState?.openDrawer(),
+                            onBookmarkPressed: _navigateToSavedCompetitions,
+                          ),
+                        ),
+                      Expanded(
+                        child: IndexedStack(
+                          index: _selectedIndex,
+                          children: pages,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                extendBody: true,
+                floatingActionButtonLocation:
+                    FloatingActionButtonLocation.centerDocked,
+                floatingActionButton: _buildCenterFloatingActionButton(),
+                bottomNavigationBar: _buildBottomNavigationBar(),
+              );
+            },
+          );
+        },
       ),
-      extendBody: true,
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      floatingActionButton: _buildCenterFloatingActionButton(),
-      bottomNavigationBar: _buildBottomNavigationBar(),
     );
   }
 
@@ -146,12 +169,12 @@ class _AppScaffoldState extends State<AppScaffold> {
         color: const Color(0xFF14161D),
         borderRadius: BorderRadius.circular(24),
         border: Border.all(
-          color: Colors.white.withOpacity(0.08),
+          color: Colors.white.withValues(alpha: 0.08),
           width: 1,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.5),
+            color: Colors.black.withValues(alpha: 0.5),
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),
@@ -166,6 +189,7 @@ class _AppScaffoldState extends State<AppScaffold> {
           padding: EdgeInsets.zero,
           child: SafeArea(
             top: false,
+            bottom: false,
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
@@ -232,71 +256,34 @@ class _BottomNavItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Color activeColor = AppColors.primary;
-    final Color inactiveColor = const Color(0xFF8A8F9E);
+    const Color activeColor = AppColors.primary;
+    const Color inactiveColor = Color(0xFF8A8F9E);
 
     return InkWell(
       onTap: onTap,
       splashColor: Colors.transparent,
       highlightColor: Colors.transparent,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Spacer(),
-          Icon(
-            isSelected ? activeIcon : icon,
-            color: isSelected ? activeColor : inactiveColor,
-            size: 22,
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: TextStyle(
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              isSelected ? activeIcon : icon,
               color: isSelected ? activeColor : inactiveColor,
-              fontSize: 10,
-              letterSpacing: 0.8,
-              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+              size: 22,
             ),
-          ),
-          const Spacer(),
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            height: 3,
-            width: isSelected ? 18 : 0,
-            decoration: BoxDecoration(
-              color: activeColor,
-              borderRadius: BorderRadius.circular(2),
-              boxShadow: isSelected
-                  ? [
-                      BoxShadow(
-                        color: activeColor.withOpacity(0.8),
-                        blurRadius: 6,
-                        spreadRadius: 1,
-                      )
-                    ]
-                  : [],
+            const SizedBox(height: 3),
+            Text(
+              label,
+              style: TextStyle(
+                color: isSelected ? activeColor : inactiveColor,
+                fontSize: 10,
+                letterSpacing: 0.8,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+              ),
             ),
-          ),
-          const SizedBox(height: 2),
-        ],
-      ),
-    );
-  }
-}
-
-class _PlaceholderScreen extends StatelessWidget {
-  final String title;
-  const _PlaceholderScreen({required this.title});
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Text(
-        title,
-        style: const TextStyle(
-          fontSize: 22,
-          color: Colors.white,
-          fontWeight: FontWeight.bold,
+          ],
         ),
       ),
     );

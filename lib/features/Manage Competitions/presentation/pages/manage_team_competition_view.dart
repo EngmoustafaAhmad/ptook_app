@@ -12,6 +12,7 @@ import 'package:ptook/features/Manage%20Competitions/presentation/widgets/manage
 import 'package:ptook/features/Manage%20Competitions/presentation/widgets/team_manage_tab_view.dart';
 import 'package:ptook/features/Manage%20Competitions/presentation/widgets/team_overview_tab_view.dart';
 import 'package:ptook/features/shared/domain/entities/competition_entity.dart';
+import 'package:ptook/features/shared/presintation/widgets/banner_ad_widget.dart';
 
 abstract class AppColors {
   static const background = Color(0xFF0D0F17);
@@ -324,6 +325,7 @@ class _ManageTeamCompetitionContentState extends State<_ManageTeamCompetitionCon
               ),
             ],
           ),
+          bottomNavigationBar: const BannerAdWidget(),
         ),
       ),
     );

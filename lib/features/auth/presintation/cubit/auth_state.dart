@@ -1,5 +1,5 @@
 import 'package:equatable/equatable.dart';
-import 'package:ptook/features/auth/domain/entities/user_entity.dart';
+import 'package:ptook/features/shared/domain/entities/user_entity.dart';
 
 sealed class AuthState extends Equatable {
   const AuthState();
@@ -21,6 +21,15 @@ class AuthSuccess extends AuthState {
 
   @override
   List<Object?> get props => [user];
+}
+
+// حالة نجاح إعادة تعيين كلمة المرور
+class AuthPasswordResetSuccess extends AuthState {
+  final String message;
+  const AuthPasswordResetSuccess(this.message);
+
+  @override
+  List<Object?> get props => [message];
 }
 
 // حالة الخطأ

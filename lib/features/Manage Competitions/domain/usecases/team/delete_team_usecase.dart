@@ -1,8 +1,8 @@
 import 'package:ptook/core/utils/result.dart';
-import '../../repositories/i_manage_competition_repository.dart';
+import 'package:ptook/features/Manage%20Competitions/domain/repositories/team/i_manage_team_repository.dart';
 
 class DeleteTeamUseCase {
-  final IManageCompetitionRepository repository;
+  final IManageTeamRepository repository;
 
   DeleteTeamUseCase(this.repository);
 

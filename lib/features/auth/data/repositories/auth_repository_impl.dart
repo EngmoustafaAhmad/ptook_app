@@ -1,9 +1,9 @@
 import 'package:dartz/dartz.dart';
-import 'package:firebase_auth/firebase_auth.dart'; // 💡 استيراد مهم لاصطياد استثناءات Firebase
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:ptook/features/auth/data/datasources/auth_remote_data_source.dart';
-import 'package:ptook/features/auth/domain/entities/user_entity.dart';
 import 'package:ptook/features/auth/domain/repositories/i_auth_repository.dart';
+import 'package:ptook/features/shared/domain/entities/user_entity.dart';
 
 class AuthRepositoryImpl implements IAuthRepository {
   final IAuthRemoteDataSource remoteDataSource;
@@ -22,12 +22,11 @@ class AuthRepositoryImpl implements IAuthRepository {
         password: password,
         name: name,
       );
+      // UserModel extends UserEntity, so it implicitly satisfies Right(UserEntity)
       return Right(userModel);
     } on FirebaseAuthException catch (e) {
-      // 💡 تصفية أخطاء إنشاء الحساب لرفع جودة الـ UX
       return Left(_getCleanAuthErrorMessage(e.code));
     } catch (e, stackTrace) {
-      // 🛠️ تم إصلاح التداخل هنا؛ هذا البلوك سيقبض على أي كراش صامت في الموديل أو الداتابيز ويطبعه فوراً
       if (kDebugMode) {
         print("🚨 REPOSITORY REGISTER CRASH: $e");
         print("📋 STACKTRACE: $stackTrace");
@@ -42,17 +41,14 @@ class AuthRepositoryImpl implements IAuthRepository {
     required String password,
   }) async {
     try {
-      // 💡 استدعاء دالة الـ login المحدثة من الـ RemoteDataSource
       final userModel = await remoteDataSource.login(
         email: email,
         password: password,
       );
-      return Right(userModel); // يعيد الـ UserModel محمل بالبيانات والـ points بنجاح
+      return Right(userModel);
     } on FirebaseAuthException catch (e) {
-      // 💡 تصفية أخطاء تسجيل الدخول لرفع جودة الـ UX
       return Left(_getCleanAuthErrorMessage(e.code));
     } catch (e, stackTrace) {
-      // 🛠️ إضافة الطباعة هنا أيضاً لأنها المكان الذي يعلق فيه التطبيق عند الدخول ببيانات صحيحة!
       if (kDebugMode) {
         print("🚨 REPOSITORY LOGIN CRASH: $e");
         print("📋 STACKTRACE: $stackTrace");
@@ -61,29 +57,46 @@ class AuthRepositoryImpl implements IAuthRepository {
     }
   }
 
-  // 🛠️ دالة مركزية موحدة لتحويل الـ Firebase Codes إلى رسائل بشرية مفهومة وأنيقة
+  @override
+  Future<Either<String, void>> sendPasswordResetEmail({
+    required String email,
+  }) async {
+    try {
+      await remoteDataSource.sendPasswordResetEmail(email: email);
+      return const Right(null);
+    } on FirebaseAuthException catch (e) {
+      return Left(_getCleanAuthErrorMessage(e.code));
+    } catch (e, stackTrace) {
+      if (kDebugMode) {
+        print("🚨 REPOSITORY PASSWORD RESET CRASH: $e");
+        print("📋 STACKTRACE: $stackTrace");
+      }
+      return Left(e.toString());
+    }
+  }
+
   String _getCleanAuthErrorMessage(String code) {
     switch (code) {
-      // أخطاء الـ Register
+      // Register Errors
       case 'email-already-in-use':
         return 'This email address is already registered. Try logging in.';
       case 'weak-password':
         return 'The password is too weak. Please choose a stronger one.';
-        
-      // أخطاء الـ Login
+
+      // Login / Auth Errors
       case 'user-not-found':
       case 'wrong-password':
-      case 'invalid-credential': // فيربيز تجمع أخطاء تسجيل الدخول هنا أحياناً لأسباب أمنية
+      case 'invalid-credential':
         return 'Invalid email or password. Please check your credentials.';
       case 'user-disabled':
         return 'This user account has been disabled or suspended.';
-        
-      // أخطاء عامة ومشتركة
+
+      // Shared Network / Input Errors
       case 'invalid-email':
         return 'The email address is badly formatted.';
       case 'network-request-failed':
         return 'Network error. Please check your internet connection.';
-        
+
       default:
         return 'An unexpected authentication error occurred. Please try again.';
     }

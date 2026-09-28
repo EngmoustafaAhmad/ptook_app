@@ -6,6 +6,17 @@
         android:label="ptook"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
+
+        <!-- ⚡ Disable Impeller to prevent OpenGL rendering freezes on x86 emulators -->
+        <meta-data
+            android:name="io.flutter.embedding.android.EnableImpeller"
+            android:value="false" />
+
+        <!-- 🧪 TEST ENVIRONMENT: Google Sample AdMob App ID -->
+        <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="ca-app-pub-3940256099942544~3347511713"/>
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -24,7 +35,7 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
 
-            <!-- 1. رابط مخصص Custom Scheme (مثال: ptook://competition/123) -->
+            <!-- 1. Custom Scheme (ptook://competition/123) -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -34,7 +45,7 @@
                     android:host="competition" />
             </intent-filter>
 
-            <!-- 2. رابط ويب عادي App Links (مثال: https://ptook.com/competition/123) -->
+            <!-- 2. App Links (https://ptook.com/competition/123) -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />

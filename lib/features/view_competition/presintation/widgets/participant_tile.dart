@@ -1,7 +1,7 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:ptook/core/Theme/app_colors.dart';
 import 'package:ptook/features/shared/domain/entities/participant_entity.dart';
-
 
 class ParticipantTile extends StatelessWidget {
   final ParticipantEntity participant;
@@ -17,7 +17,9 @@ class ParticipantTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isCurrentUser = currentUserId != null && participant.id == currentUserId;
+    // 💡 Checks both participant.userId and participant.id for bulletproof identity matching
+    final isCurrentUser = currentUserId != null &&
+        (participant.userId == currentUserId || participant.id == currentUserId);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -37,7 +39,10 @@ class ParticipantTile extends StatelessWidget {
         children: [
           _RankBadge(rank: rank),
           const SizedBox(width: 12),
-          _ParticipantAvatar(imageUrl: participant.avatarUrl, name: participant.name),
+          _ParticipantAvatar(
+            imageUrl: participant.avatarUrl,
+            name: participant.name,
+          ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -53,14 +58,16 @@ class ParticipantTile extends StatelessWidget {
                         style: TextStyle(
                           color: AppColors.textPrimary,
                           fontSize: 15,
-                          fontWeight: isCurrentUser ? FontWeight.w800 : FontWeight.w600,
+                          fontWeight:
+                              isCurrentUser ? FontWeight.w800 : FontWeight.w600,
                         ),
                       ),
                     ),
                     if (isCurrentUser) ...[
                       const SizedBox(width: 6),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
                           color: AppColors.primaryGold,
                           borderRadius: BorderRadius.circular(6),
@@ -92,28 +99,26 @@ class ParticipantTile extends StatelessWidget {
               ],
             ),
           ),
-          if (participant.points != null) ...[
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  '${participant.points}',
-                  style: const TextStyle(
-                    color: AppColors.primaryGold,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 16,
-                  ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                '${participant.points}',
+                style: const TextStyle(
+                  color: AppColors.primaryGold,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 16,
                 ),
-                const Text(
-                  'pts',
-                  style: TextStyle(
-                    color: AppColors.textMuted,
-                    fontSize: 11,
-                  ),
+              ),
+              const Text(
+                'pts',
+                style: TextStyle(
+                  color: AppColors.textMuted,
+                  fontSize: 11,
                 ),
-              ],
-            ),
-          ],
+              ),
+            ],
+          ),
         ],
       ),
     );
@@ -164,7 +169,9 @@ class _ParticipantAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fallbackInitial = name.isNotEmpty ? name.substring(0, 1).toUpperCase() : '?';
+    final hasImage = imageUrl != null && imageUrl!.trim().isNotEmpty;
+    final fallbackInitial =
+        name.isNotEmpty ? name.substring(0, 1).toUpperCase() : '?';
 
     return Container(
       width: 40,
@@ -172,14 +179,21 @@ class _ParticipantAvatar extends StatelessWidget {
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         color: AppColors.primaryGold.withValues(alpha: 0.15),
-        border: Border.all(color: AppColors.primaryGold.withValues(alpha: 0.3), width: 1),
+        border: Border.all(
+          color: const Color.fromRGBO(255, 199, 44, 1).withValues(alpha: 0.3),
+          width: 1,
+        ),
       ),
       child: ClipOval(
-        child: imageUrl != null && imageUrl!.isNotEmpty
-            ? Image.network(
-                imageUrl!,
+        child: hasImage
+            ? CachedNetworkImage(
+                imageUrl: imageUrl!,
                 fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => _FallbackText(fallbackInitial),
+                filterQuality: FilterQuality.high,
+                fadeInDuration: const Duration(milliseconds: 150),
+                placeholder: (context, url) => _FallbackText(fallbackInitial),
+                errorWidget: (context, url, error) =>
+                    _FallbackText(fallbackInitial),
               )
             : _FallbackText(fallbackInitial),
       ),

@@ -1,7 +1,10 @@
 part of 'search_competition_cubit.dart';
 
-abstract class SearchCompetitionState {
+abstract class SearchCompetitionState extends Equatable {
   const SearchCompetitionState();
+
+  @override
+  List<Object?> get props => [];
 }
 
 /// Initial state when the cubit is first instantiated
@@ -15,6 +18,9 @@ class SearchCompetitionError extends SearchCompetitionState {
   final String message;
 
   const SearchCompetitionError(this.message);
+
+  @override
+  List<Object?> get props => [message];
 }
 
 /// State emitted when data is successfully loaded or updated via real-time streams
@@ -41,4 +47,7 @@ class SearchCompetitionSuccess extends SearchCompetitionState {
       isLoadingMore: isLoadingMore ?? this.isLoadingMore,
     );
   }
+
+  @override
+  List<Object?> get props => [competitions, hasReachedMax, isLoadingMore];
 }

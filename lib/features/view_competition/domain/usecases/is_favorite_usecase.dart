@@ -1,5 +1,5 @@
 import 'package:ptook/core/utils/result.dart';
-import 'package:ptook/features/view_competition/domain/repositories/i_view_competition_repository.dart';
+import 'package:ptook/features/view_competition/domain/repositories/competition/i_view_competition_repository.dart';
 
 class IsFavoriteUseCase {
   final IViewCompetitionRepository repository;

@@ -1,10 +1,18 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:get_it/get_it.dart';
-import 'package:ptook/features/Manage%20Competitions/data/datasources/i_manage_competition_remote_data_source.dart';
-import 'package:ptook/features/Manage%20Competitions/data/datasources/manage_competition_remote_data_source_impl.dart';
-import 'package:ptook/features/Manage%20Competitions/data/repositories/manage_competition_repository_impl.dart';
-import 'package:ptook/features/Manage%20Competitions/domain/repositories/i_manage_competition_repository.dart';
+import 'package:ptook/features/Manage%20Competitions/data/datasources/competitions/i_manage_competition_remote_data_source.dart';
+import 'package:ptook/features/Manage%20Competitions/data/datasources/competitions/manage_competition_remote_data_source_impl.dart';
+import 'package:ptook/features/Manage%20Competitions/data/datasources/participants/i_manage_participant_remote_data_source.dart';
+import 'package:ptook/features/Manage%20Competitions/data/datasources/participants/manage_participant_remote_data_source_impl.dart';
+import 'package:ptook/features/Manage%20Competitions/data/datasources/teams/i_manage_team_remote_data_source.dart';
+import 'package:ptook/features/Manage%20Competitions/data/datasources/teams/manage_team_remote_data_source_impl.dart';
+import 'package:ptook/features/Manage%20Competitions/data/repositories/competition/manage_competition_repository_impl.dart';
+import 'package:ptook/features/Manage%20Competitions/data/repositories/participant/manage_participant_repository_impl.dart';
+import 'package:ptook/features/Manage%20Competitions/data/repositories/team/manage_team_repository_impl.dart';
+import 'package:ptook/features/Manage%20Competitions/domain/repositories/competition/i_manage_competition_repository.dart';
+import 'package:ptook/features/Manage%20Competitions/domain/repositories/participant/i_manage_participant_repository.dart';
+import 'package:ptook/features/Manage%20Competitions/domain/repositories/team/i_manage_team_repository.dart';
 import 'package:ptook/features/Manage%20Competitions/domain/usecases/competition/delete_competition_usecase.dart';
 import 'package:ptook/features/Manage%20Competitions/domain/usecases/competition/finish_competition_usecase.dart';
 import 'package:ptook/features/Manage%20Competitions/domain/usecases/competition/stream_competition_manage_usecase.dart';
@@ -20,47 +28,72 @@ import 'package:ptook/features/Manage%20Competitions/domain/usecases/team/update
 import 'package:ptook/features/Manage%20Competitions/presentation/cubits/manage_competition/manage_competition_cubit.dart';
 import 'package:ptook/features/Manage%20Competitions/presentation/cubits/participant_management/participant_management_cubit.dart';
 import 'package:ptook/features/Manage%20Competitions/presentation/cubits/team_management/team_management_cubit.dart';
+import 'package:ptook/features/activity/data/datasources/activity_remote_data_source_impl.dart';
+import 'package:ptook/features/activity/data/datasources/i_activity_remote_data_source.dart';
+import 'package:ptook/features/activity/data/repositories/activity_repository_impl.dart';
+import 'package:ptook/features/activity/domain/repositories/i_activity_repository.dart';
+import 'package:ptook/features/activity/domain/usecases/stream_user_activities_usecase.dart';
+import 'package:ptook/features/activity/presintation/cubit/activity_cubit.dart';
 import 'package:ptook/features/auth/data/datasources/auth_remote_data_source.dart';
 import 'package:ptook/features/auth/data/repositories/auth_repository_impl.dart';
 import 'package:ptook/features/auth/domain/repositories/i_auth_repository.dart';
 import 'package:ptook/features/auth/domain/usecases/login_usecase.dart';
 import 'package:ptook/features/auth/domain/usecases/register_usecase.dart';
+import 'package:ptook/features/auth/domain/usecases/send_password_reset_usecase.dart';
 import 'package:ptook/features/auth/presintation/cubit/auth_cubit.dart';
 import 'package:ptook/features/create_competition/data/datasources/create_competition_remote_datasource_impl.dart';
 import 'package:ptook/features/create_competition/data/datasources/i_create_competition_remote_datasource.dart';
 import 'package:ptook/features/create_competition/data/repositories/create_competition_repository_impl.dart';
 import 'package:ptook/features/create_competition/domain/repositories/i_create_competition_repository.dart';
 import 'package:ptook/features/create_competition/domain/usecases/create_competition_usecase.dart';
+import 'package:ptook/features/create_competition/domain/usecases/upload_competition_image_usecase.dart';
 import 'package:ptook/features/create_competition/presintation/cubits/create_competition_cubit.dart';
+import 'package:ptook/features/profile/data/datasources/i_profile_remote_data_source.dart';
+import 'package:ptook/features/profile/data/datasources/profile_remote_data_source_impl.dart';
+import 'package:ptook/features/profile/data/repositories/profile_repository_impl.dart';
+import 'package:ptook/features/profile/domain/repositories/i_profile_repository.dart';
+import 'package:ptook/features/profile/domain/usecases/stream_user_profile_usecase.dart';
+import 'package:ptook/features/profile/domain/usecases/update_user_profile_usecase.dart';
+import 'package:ptook/features/profile/domain/usecases/upload_profile_avatar_usecase.dart';
+import 'package:ptook/features/profile/presintation/cubit/profile/profile_cubit.dart';
+import 'package:ptook/features/profile/presintation/cubit/update_profile/update_profile_cubit.dart';
 import 'package:ptook/features/search_competitions/data/datasources/i_search_competition_remote_data_source.dart';
 import 'package:ptook/features/search_competitions/data/datasources/search_competition_remote_data_source_impl.dart';
 import 'package:ptook/features/search_competitions/data/repositories/search_competition_repository_impl.dart';
 import 'package:ptook/features/search_competitions/domain/repositories/i_search_competition_repository.dart';
-import 'package:ptook/features/search_competitions/domain/usecases/get_created_competitions_usecase.dart';
-import 'package:ptook/features/search_competitions/domain/usecases/get_joined_competitions_usecase.dart';
-import 'package:ptook/features/search_competitions/domain/usecases/get_all_competitions_usecase.dart';
-import 'package:ptook/features/search_competitions/domain/usecases/join_competition_search_usecase.dart';
-import 'package:ptook/features/search_competitions/domain/usecases/stream_search_competitions_usecase.dart';
+import 'package:ptook/features/search_competitions/domain/usecases/search_active_competitions_usecase.dart';
+import 'package:ptook/features/search_competitions/domain/usecases/stream_active_competitions_usecase.dart';
+import 'package:ptook/features/search_competitions/domain/usecases/sync_owner_competition_usecase.dart';
 import 'package:ptook/features/search_competitions/presentation/cubits/search_competition_cubit.dart';
 import 'package:ptook/features/shared/domain/usecase/get_competition_details_usecase.dart';
-import 'package:ptook/features/view_competition/data/datasources/i_view_competition_remote_data_source.dart';
-import 'package:ptook/features/view_competition/data/datasources/view_competition_remote_data_source_impl.dart';
-import 'package:ptook/features/view_competition/data/repositories/view_competition_repository_impl.dart';
-import 'package:ptook/features/view_competition/domain/repositories/i_view_competition_repository.dart';
+import 'package:ptook/features/view_competition/data/datasources/competition/i_view_competition_remote_data_source.dart';
+import 'package:ptook/features/view_competition/data/datasources/competition/view_competition_remote_data_source_impl.dart';
+import 'package:ptook/features/view_competition/data/repositories/team/view_team_repository_impl.dart';
+import 'package:ptook/features/view_competition/presintation/cubits/competition_home_cubit.dart';
+import 'package:ptook/features/view_competition/data/datasources/participant/i_view_participant_remote_data_source.dart';
+import 'package:ptook/features/view_competition/data/datasources/participant/view_participant_remote_data_source_impl.dart';
+import 'package:ptook/features/view_competition/data/datasources/team/i_view_team_reamote_data_source.dart';
+import 'package:ptook/features/view_competition/data/datasources/team/view_team_remote_data_source_impl.dart';
+import 'package:ptook/features/view_competition/data/repositories/competition/view_competition_repository_impl.dart';
+import 'package:ptook/features/view_competition/data/repositories/participant/view_participant_repository_impl.dart';
+import 'package:ptook/features/view_competition/domain/repositories/competition/i_view_competition_repository.dart';
+import 'package:ptook/features/view_competition/domain/repositories/participant/i_view_participant_repository.dart';
+import 'package:ptook/features/view_competition/domain/repositories/team/i_view_team_repository.dart';
 import 'package:ptook/features/view_competition/domain/usecases/get_favorite_competitions_usecase.dart';
 import 'package:ptook/features/view_competition/domain/usecases/is_favorite_usecase.dart';
+import 'package:ptook/features/view_competition/domain/usecases/leave_team_competition_usecase.dart';
+import 'package:ptook/features/view_competition/presintation/cubits/view_teams/view_teams_cubit.dart';
 import 'package:ptook/features/view_competition/domain/usecases/join_individual_competition_usecase.dart';
 import 'package:ptook/features/view_competition/domain/usecases/join_team_competition_usecase.dart';
 import 'package:ptook/features/view_competition/domain/usecases/leave_individual_competition_usecase.dart';
-import 'package:ptook/features/view_competition/domain/usecases/leave_team_competition_usecase.dart';
 import 'package:ptook/features/view_competition/domain/usecases/stream_participants_view_usecase.dart';
 import 'package:ptook/features/view_competition/domain/usecases/stream_teams_view_usecase.dart';
 import 'package:ptook/features/view_competition/domain/usecases/team_actions_usecase.dart';
 import 'package:ptook/features/view_competition/domain/usecases/toggle_favorite_usecase.dart';
-import 'package:ptook/features/view_competition/presintation/cubits/competition_home_cubit.dart';
 import 'package:ptook/features/view_competition/presintation/cubits/view_participants/view_participants_cubit.dart';
-import 'package:ptook/features/view_competition/presintation/cubits/view_teams/view_teams_cubit.dart';
 import 'package:ptook/services/deep_link_handler.dart';
+import 'package:ptook/services/github_storage_service.dart';
+import 'package:ptook/services/reward_ad_service.dart'; // ⚡ Rewarded Ad Service import
 
 final sl = GetIt.instance;
 
@@ -78,14 +111,12 @@ Future<void> initDependencies() async {
 // HELPER METHODS
 // =============================================================================
 
-/// Safe registration helper for Lazy Singletons to prevent duplicate errors.
 void _registerLazySingleton<T extends Object>(T Function() factoryFunc) {
   if (!sl.isRegistered<T>()) {
     sl.registerLazySingleton<T>(factoryFunc);
   }
 }
 
-/// Safe registration helper for Factories to prevent duplicate errors.
 void _registerFactory<T extends Object>(T Function() factoryFunc) {
   if (!sl.isRegistered<T>()) {
     sl.registerFactory<T>(factoryFunc);
@@ -99,29 +130,27 @@ void _initCoreServices() {
   _registerLazySingleton<DeepLinkHandler>(() => DeepLinkHandler());
   _registerLazySingleton<FirebaseFirestore>(() => FirebaseFirestore.instance);
   _registerLazySingleton<FirebaseAuth>(() => FirebaseAuth.instance);
+  _registerLazySingleton<RewardAdService>(() => RewardAdService()); // ⚡ Registered inside GetIt
+  _registerLazySingleton<GithubStorageService>(() => GithubStorageService(token: ''));
 }
 
 // =============================================================================
 // AUTH FEATURE
 // =============================================================================
 void _initAuthFeature() {
-  // Data Source
   _registerLazySingleton<IAuthRemoteDataSource>(
     () => AuthRemoteDataSourceImpl(
       firestore: sl<FirebaseFirestore>(),
       auth: sl<FirebaseAuth>(),
-      firebaseAuth: sl<FirebaseAuth>(),
     ),
   );
 
-  // Repository
   _registerLazySingleton<IAuthRepository>(
     () => AuthRepositoryImpl(
       remoteDataSource: sl<IAuthRemoteDataSource>(),
     ),
   );
 
-  // Use Cases
   _registerLazySingleton<LoginUseCase>(
     () => LoginUseCase(sl<IAuthRepository>()),
   );
@@ -129,11 +158,15 @@ void _initAuthFeature() {
     () => RegisterUseCase(sl<IAuthRepository>()),
   );
 
-  // Cubits
-  _registerFactory<AuthCubit>(
+  sl.registerLazySingleton<SendPasswordResetUseCase>(
+    () => SendPasswordResetUseCase(sl()),
+  );
+
+  sl.registerFactory<AuthCubit>(
     () => AuthCubit(
-      loginUseCase: sl<LoginUseCase>(),
       registerUseCase: sl<RegisterUseCase>(),
+      loginUseCase: sl<LoginUseCase>(),
+      sendPasswordResetUseCase: sl<SendPasswordResetUseCase>(),
     ),
   );
 }
@@ -142,55 +175,34 @@ void _initAuthFeature() {
 // SEARCH COMPETITIONS FEATURE
 // =============================================================================
 void _initSearchCompetitionFeature() {
-  // Data Source
   _registerLazySingleton<ISearchCompetitionRemoteDataSource>(
     () => SearchCompetitionRemoteDataSourceImpl(
       firestore: sl<FirebaseFirestore>(),
     ),
   );
 
-  // Repository
   _registerLazySingleton<ISearchCompetitionRepository>(
     () => SearchCompetitionRepositoryImpl(
       sl<ISearchCompetitionRemoteDataSource>(),
     ),
   );
 
-  // Use Cases
-  _registerLazySingleton<StreamPublicCompetitionsUseCase>(
-    () => StreamPublicCompetitionsUseCase(
+  _registerLazySingleton<SearchActiveCompetitionsUseCase>(
+    () => SearchActiveCompetitionsUseCase(
       sl<ISearchCompetitionRepository>(),
     ),
   );
-  _registerLazySingleton<StreamSearchCompetitionsUseCase>(
-    () => StreamSearchCompetitionsUseCase(
-      sl<ISearchCompetitionRepository>(),
-    ),
-  );
-  _registerLazySingleton<StreamJoinedCompetitionsUseCase>(
-    () => StreamJoinedCompetitionsUseCase(
-      sl<ISearchCompetitionRepository>(),
-    ),
-  );
-  _registerLazySingleton<StreamCreatedCompetitionsUseCase>(
-    () => StreamCreatedCompetitionsUseCase(
-      sl<ISearchCompetitionRepository>(),
-    ),
-  );
-  _registerLazySingleton<JoinCompetitionSearchUseCase>(
-    () => JoinCompetitionSearchUseCase(
+  _registerLazySingleton<StreamActiveCompetitionsUseCase>(
+    () => StreamActiveCompetitionsUseCase(
       sl<ISearchCompetitionRepository>(),
     ),
   );
 
-  // Cubit
   _registerFactory<SearchCompetitionCubit>(
     () => SearchCompetitionCubit(
-      streamPublicCompetitionsUseCase: sl<StreamPublicCompetitionsUseCase>(),
-      streamSearchCompetitionsUseCase:sl<StreamSearchCompetitionsUseCase>(),
-      streamJoinedCompetitionsUseCase: sl<StreamJoinedCompetitionsUseCase>(),
-      streamCreatedCompetitionsUseCase: sl<StreamCreatedCompetitionsUseCase>(),
-      joinCompetitionSearchUseCase: sl<JoinCompetitionSearchUseCase>(),
+      streamActiveCompetitionsUseCase: sl<StreamActiveCompetitionsUseCase>(), 
+      searchActiveCompetitionsUseCase: sl<SearchActiveCompetitionsUseCase>(), 
+      currentUserId: sl<FirebaseAuth>().currentUser?.uid ?? '',
     ),
   );
 }
@@ -199,21 +211,42 @@ void _initSearchCompetitionFeature() {
 // MANAGE COMPETITIONS FEATURE
 // =============================================================================
 void _initManageCompetitionFeature() {
-  // Data Source
   _registerLazySingleton<IManageCompetitionRemoteDataSource>(
     () => ManageCompetitionRemoteDataSourceImpl(
       firestore: sl<FirebaseFirestore>(),
     ),
   );
 
-  // Repository
+  _registerLazySingleton<IManageParticipantRemoteDataSource>(
+    () => ManageParticipantRemoteDataSourceImpl(
+      firestore: sl<FirebaseFirestore>(),
+    ),
+  );
+
+  _registerLazySingleton<IManageTeamRemoteDataSource>(
+    () => ManageTeamRemoteDataSourceImpl(
+      firestore: sl<FirebaseFirestore>(),
+    ),
+  );
+
   _registerLazySingleton<IManageCompetitionRepository>(
     () => ManageCompetitionRepositoryImpl(
       sl<IManageCompetitionRemoteDataSource>(),
     ),
   );
 
-  // Use Cases - Competition
+  _registerLazySingleton<IManageParticipantRepository>(
+    () => ManageParticipantRepositoryImpl(
+      sl<IManageParticipantRemoteDataSource>(),
+    ),
+  );
+
+  _registerLazySingleton<IManageTeamRepository>(
+    () => ManageTeamRepositoryImpl(
+      sl<IManageTeamRemoteDataSource>(),
+    ),
+  );
+
   _registerLazySingleton<StreamCompetitionManageUseCase>(
     () => StreamCompetitionManageUseCase(sl<IManageCompetitionRepository>()),
   );
@@ -227,36 +260,33 @@ void _initManageCompetitionFeature() {
     () => DeleteCompetitionUseCase(sl<IManageCompetitionRepository>()),
   );
 
-  // Use Cases - Participant
   _registerLazySingleton<StreamParticipantsManageUseCase>(
-    () => StreamParticipantsManageUseCase(sl<IManageCompetitionRepository>()),
+    () => StreamParticipantsManageUseCase(sl<IManageParticipantRepository>()),
   );
 
   _registerLazySingleton<RemoveParticipantUseCase>(
-    () => RemoveParticipantUseCase(sl<IManageCompetitionRepository>()),
+    () => RemoveParticipantUseCase(sl<IManageParticipantRepository>()),
   );
 
-  // Use Cases - Team
   _registerLazySingleton<StreamTeamsManageUseCase>(
-    () => StreamTeamsManageUseCase(sl<IManageCompetitionRepository>()),
+    () => StreamTeamsManageUseCase(sl<IManageTeamRepository>()),
   );
   _registerLazySingleton<CreateTeamUseCase>(
-    () => CreateTeamUseCase(sl<IManageCompetitionRepository>()),
+    () => CreateTeamUseCase(sl<IManageTeamRepository>()),
   );
   _registerLazySingleton<DeleteTeamUseCase>(
-    () => DeleteTeamUseCase(sl<IManageCompetitionRepository>()),
+    () => DeleteTeamUseCase(sl<IManageTeamRepository>()),
   );
   _registerLazySingleton<UpdateCompetitoinParticipantPointsUseCase>(
-    () => UpdateCompetitoinParticipantPointsUseCase(sl<IManageCompetitionRepository>()),
+    () => UpdateCompetitoinParticipantPointsUseCase(sl<IManageParticipantRepository>()),
   );
   _registerLazySingleton<UpdateTeamParticipantPointsUseCase>(
-    () => UpdateTeamParticipantPointsUseCase(sl<IManageCompetitionRepository>()),
+    () => UpdateTeamParticipantPointsUseCase(sl<IManageTeamRepository>()),
   );
   _registerLazySingleton<RemoveTeamParticipantUseCase>(
-    () => RemoveTeamParticipantUseCase(sl<IManageCompetitionRepository>()),
+    () => RemoveTeamParticipantUseCase(sl<IManageTeamRepository>()),
   );
 
-  // Cubits
   _registerFactory<ManageCompetitionCubit>(
     () => ManageCompetitionCubit(
       streamCompetitionManageUseCase: sl<StreamCompetitionManageUseCase>(),
@@ -289,49 +319,65 @@ void _initManageCompetitionFeature() {
 // VIEW COMPETITION FEATURE
 // =============================================================================
 void _initViewCompetitionFeature() {
-  // Data Source
   _registerLazySingleton<IViewCompetitionRemoteDataSource>(
     () => ViewCompetitionRemoteDataSourceImpl(
       firestore: sl<FirebaseFirestore>(),
     ),
   );
 
-  _registerLazySingleton<ToggleFavoriteUsecase>(
-    () => ToggleFavoriteUsecase(sl<IViewCompetitionRepository>()),
+  _registerLazySingleton<IViewTeamReamoteDataSource>(
+    () => ViewTeamRemoteDataSourceImpl(
+      firestore: sl<FirebaseFirestore>(),
+    ),
   );
 
-  // Repository
+  _registerLazySingleton<IViewParticipantRemoteDataSource>(
+    () => ViewParticipantRemoteDataSourceImpl(
+      firestore: sl<FirebaseFirestore>(),
+    ),
+  );
+
   _registerLazySingleton<IViewCompetitionRepository>(
     () => ViewCompetitionRepositoryImpl(
       sl<IViewCompetitionRemoteDataSource>(),
     ),
   );
 
-  // Use Cases - Competition & Spectating
+  _registerLazySingleton<IViewTeamRepository>(
+    () => ViewTeamRepositoryImpl(
+      sl<IViewTeamReamoteDataSource>(), 
+    ),
+  );
+
+  _registerLazySingleton<IViewParticipantRepository>(
+    () => ViewParticipantRepositoryImpl(
+      sl<IViewParticipantRemoteDataSource>(),
+    ),
+  );
+
+  _registerLazySingleton<ToggleFavoriteUsecase>(
+    () => ToggleFavoriteUsecase(sl<IViewCompetitionRepository>()),
+  );
   _registerLazySingleton<StreamParticipantsViewUseCase>(
-    () => StreamParticipantsViewUseCase(sl<IViewCompetitionRepository>()),
+    () => StreamParticipantsViewUseCase(sl<IViewParticipantRepository>()),
   );
   _registerLazySingleton<StreamTeamsViewUseCase>(
-    () => StreamTeamsViewUseCase(sl<IViewCompetitionRepository>()),
+    () => StreamTeamsViewUseCase(sl<IViewTeamRepository>()),
   );
   _registerLazySingleton<GetCompetitionDetailsUseCase>(
     () => GetCompetitionDetailsUseCase(sl<IViewCompetitionRepository>()),
   );
   _registerLazySingleton<JoinIndividualCompetitionUseCase>(
-    () => JoinIndividualCompetitionUseCase(sl<IViewCompetitionRepository>()),
+    () => JoinIndividualCompetitionUseCase(sl<IViewParticipantRepository>()),
   );
   _registerLazySingleton<JoinTeamCompetitionUseCase>(
-    () => JoinTeamCompetitionUseCase(sl<IViewCompetitionRepository>()),
+    () => JoinTeamCompetitionUseCase(sl<IViewTeamRepository>()),
   );
-  // Use Cases - Team Actions
   _registerLazySingleton<JoinTeamUseCase>(
-    () => JoinTeamUseCase(sl<IViewCompetitionRepository>()),
+    () => JoinTeamUseCase(sl<IViewTeamRepository>()),
   );
   _registerLazySingleton<LeaveTeamUseCase>(
-    () => LeaveTeamUseCase(sl<IViewCompetitionRepository>()),
-  );
-  _registerLazySingleton<SwitchTeamUseCase>(
-    () => SwitchTeamUseCase(sl<IViewCompetitionRepository>()),
+    () => LeaveTeamUseCase(sl<IViewTeamRepository>()),
   );
   _registerLazySingleton<IsFavoriteUseCase>(
     () => IsFavoriteUseCase(sl<IViewCompetitionRepository>()),
@@ -340,23 +386,22 @@ void _initViewCompetitionFeature() {
     () => GetFavoriteCompetitionsUsecase(sl<IViewCompetitionRepository>()),
   );
   _registerLazySingleton<LeaveIndividualCompetitionUseCase>(
-    () => LeaveIndividualCompetitionUseCase(sl<IViewCompetitionRepository>()),
+    () => LeaveIndividualCompetitionUseCase(sl<IViewParticipantRepository>()),
   );
   _registerLazySingleton<LeaveTeamCompetitionUseCase>(
-    () => LeaveTeamCompetitionUseCase(sl<IViewCompetitionRepository>()),
+    () => LeaveTeamCompetitionUseCase(sl<IViewTeamRepository>()),
   );
 
-  // Cubits
   _registerFactory<ViewParticipantsCubit>(
     () => ViewParticipantsCubit(
       streamParticipantsViewUseCase: sl<StreamParticipantsViewUseCase>(),
       joinIndividualCompetitionUseCase: sl<JoinIndividualCompetitionUseCase>(),
       joinTeamUseCase: sl<JoinTeamUseCase>(),
       leaveTeamUseCase: sl<LeaveTeamUseCase>(), 
-      switchTeamUseCase: sl<SwitchTeamUseCase>(), 
       joinTeamCompetitionUseCase: sl<JoinTeamCompetitionUseCase>(), 
       leaveIndividualCompetitionUseCase: sl<LeaveIndividualCompetitionUseCase>(), 
       leaveTeamCompetitionUseCase: sl<LeaveTeamCompetitionUseCase>(),
+      activityRepository: sl<IActivityRepository>(), // ⚡ Inject Activity Repository
     ),
   );
 
@@ -370,7 +415,6 @@ void _initViewCompetitionFeature() {
     () => CompetitionHomeCubit(
       streamParticipantsViewUseCase: sl<StreamParticipantsViewUseCase>(),
       getCompetitionDetailsUseCase: sl<GetCompetitionDetailsUseCase>(),
-      joinIndividualCompetitionUseCase: sl<JoinIndividualCompetitionUseCase>(), 
       toggleFavoriteUseCase: sl<ToggleFavoriteUsecase>(), 
       isFavoriteUseCase: sl<IsFavoriteUseCase>(), 
       getFavoriteCompetitionsUseCase: sl<GetFavoriteCompetitionsUsecase>(),
@@ -382,33 +426,109 @@ void _initViewCompetitionFeature() {
 // CREATE COMPETITION FEATURE
 // =============================================================================
 void _initCreateCompetitionFeature() {
-  // Data Source
   _registerLazySingleton<ICreateCompetitionRemoteDataSource>(
     () => CreateCompetitionRemoteDataSourceImpl(
       firestore: sl<FirebaseFirestore>(),
     ),
   );
 
-  // Repository
   _registerLazySingleton<ICreateCompetitionRepository>(
     () => CreateCompetitionRepositoryImpl(
       remoteDataSource: sl<ICreateCompetitionRemoteDataSource>(),
     ),
   );
 
-  // Use Cases
   _registerLazySingleton<CreateCompetitionUseCase>(
     () => CreateCompetitionUseCase(
       sl<ICreateCompetitionRepository>(),
     ),
   );
 
-  // Cubit
-  _registerFactory<CreateCompetitionCubit>(
-    () => CreateCompetitionCubit(
-      createCompetitionUseCase: sl<CreateCompetitionUseCase>(),
-      auth: sl<FirebaseAuth>(),
+  _registerLazySingleton<UploadCompetitionImageUseCase>(
+    () => UploadCompetitionImageUseCase(
+      sl<GithubStorageService>(),
     ),
   );
 
+  sl.registerFactory<CreateCompetitionCubit>(
+    () => CreateCompetitionCubit(
+      createCompetitionUseCase: sl(),
+      uploadCompetitionImageUseCase: sl(),
+      auth: sl(),
+    ),
+  );
+
+  //==============================================
+  // Activity FEATURE
+  //==============================================
+
+
+  // Data Sources
+sl.registerLazySingleton<IActivityRemoteDataSource>(
+  () => ActivityRemoteDataSourceImpl(firestore: sl<FirebaseFirestore>()),
+);
+
+// Repositories
+sl.registerLazySingleton<IActivityRepository>(
+  () => ActivityRepositoryImpl(remoteDataSource: sl<IActivityRemoteDataSource>()),
+);
+
+// Use Cases
+sl.registerLazySingleton<StreamUserActivitiesUseCase>(
+  () => StreamUserActivitiesUseCase(sl<IActivityRepository>()),
+);
+
+// Cubits
+sl.registerFactory<ActivityCubit>(
+  () => ActivityCubit(
+    streamUserActivitiesUseCase: sl<StreamUserActivitiesUseCase>(),
+  ),
+);
+
+  //==============================================
+  // PROFILE FEATURE
+  //==============================================
+
+  // Data Sources
+  sl.registerLazySingleton<IProfileRemoteDataSource>(
+    () => ProfileRemoteDataSourceImpl(firestore: sl()),
+  );
+
+  // Repositories
+  sl.registerLazySingleton<IProfileRepository>(
+    () => ProfileRepositoryImpl(
+      remoteDataSource: sl(),
+      storageService: sl(),
+    ),
+  );
+
+  // Use Cases
+  sl.registerLazySingleton<StreamUserProfileUseCase>(
+    () => StreamUserProfileUseCase(sl()),
+  );
+  sl.registerLazySingleton<UpdateUserProfileUseCase>(
+    () => UpdateUserProfileUseCase(sl()),
+  );
+  sl.registerLazySingleton<UploadProfileAvatarUseCase>(
+    () => UploadProfileAvatarUseCase(sl()),
+  );
+  sl.registerLazySingleton<SyncOwnerCompetitionsUseCase>(
+    () => SyncOwnerCompetitionsUseCase(),
+  );
+
+  // Cubits
+  sl.registerFactory<ProfileCubit>(
+    () => ProfileCubit(
+      streamUserProfileUseCase: sl<StreamUserProfileUseCase>(),
+    ),
+  );
+  sl.registerFactory<UpdateProfileCubit>(
+    () => UpdateProfileCubit(
+      updateUserProfileUseCase: sl<UpdateUserProfileUseCase>(),
+      uploadProfileAvatarUseCase: sl<UploadProfileAvatarUseCase>(),
+      syncOwnerCompetitionsUseCase: sl<SyncOwnerCompetitionsUseCase>(),
+    ),
+  );
+
+  
 }

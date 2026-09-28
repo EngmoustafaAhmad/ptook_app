@@ -1,5 +1,5 @@
 import 'package:ptook/core/utils/result.dart';
-import 'package:ptook/features/Manage%20Competitions/domain/repositories/i_manage_competition_repository.dart';
+import 'package:ptook/features/Manage%20Competitions/domain/repositories/competition/i_manage_competition_repository.dart';
 
 class FinishCompetitionUseCase {
   final IManageCompetitionRepository repository;

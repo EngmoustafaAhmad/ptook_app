@@ -1,24 +1,61 @@
+import 'dart:typed_data';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:ptook/core/utils/result.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:ptook/features/shared/domain/entities/competition_entity.dart';
 import 'package:uuid/uuid.dart';
 import '../../domain/usecases/create_competition_usecase.dart';
+import '../../domain/usecases/upload_competition_image_usecase.dart';
 import 'create_competition_state.dart';
 
 class CreateCompetitionCubit extends Cubit<CreateCompetitionState> {
   final CreateCompetitionUseCase _createCompetitionUseCase;
+  final UploadCompetitionImageUseCase? _uploadCompetitionImageUseCase;
   final FirebaseAuth _auth;
+  final ImagePicker _picker;
+
+  XFile? _selectedImageFile;
+  XFile? get selectedImageFile => _selectedImageFile;
 
   CreateCompetitionCubit({
     required CreateCompetitionUseCase createCompetitionUseCase,
+    UploadCompetitionImageUseCase? uploadCompetitionImageUseCase,
     required FirebaseAuth auth,
+    ImagePicker? picker,
   })  : _createCompetitionUseCase = createCompetitionUseCase,
+        _uploadCompetitionImageUseCase = uploadCompetitionImageUseCase,
         _auth = auth,
+        _picker = picker ?? ImagePicker(),
         super(const CreateCompetitionInitial());
 
-  /// Submits the newly created competition after validating user session and input params.
+  /// Handles picking an image from the gallery (Cross-Platform)
+  Future<void> pickImage() async {
+    try {
+      final XFile? pickedFile = await _picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 85,
+      );
+
+      if (pickedFile != null) {
+        _selectedImageFile = pickedFile;
+        _safeEmit(state);
+      }
+    } catch (e) {
+      _safeEmit(CreateCompetitionError("Failed to pick image: $e"));
+    }
+  }
+
+  /// Clears the picked image file
+  void clearImage() {
+    _selectedImageFile = null;
+    _safeEmit(state);
+  }
+
+  /// Submits the newly created competition
   Future<void> submitCompetition({
+    required String status,
     required String name,
     required String description,
     required String type,
@@ -29,12 +66,12 @@ class CreateCompetitionCubit extends Cubit<CreateCompetitionState> {
     required bool isPublic,
     required String category,
     String? joinCode,
+    String? linkUrl,
 
     // Team settings
     int? maxTeams,
     int? membersPerTeam,
   }) async {
-    // 🛑 Prevent double submission if already loading
     if (state is CreateCompetitionLoading) return;
 
     _safeEmit(const CreateCompetitionLoading());
@@ -45,7 +82,6 @@ class CreateCompetitionCubit extends Cubit<CreateCompetitionState> {
       return;
     }
 
-    // Input Validation
     final validationError = _validateInput(
       name: name,
       type: type,
@@ -63,9 +99,49 @@ class CreateCompetitionCubit extends Cubit<CreateCompetitionState> {
       return;
     }
 
-    // Generate Private competition invite code
     final inviteCode = isPublic ? null : const Uuid().v4().substring(0, 8);
     final competitionId = const Uuid().v4();
+
+    String? imageUrl;
+
+    // Handle Cross-Platform Image Upload
+    if (_selectedImageFile != null && _uploadCompetitionImageUseCase != null) {
+      try {
+        final Uint8List imageBytes = await _selectedImageFile!.readAsBytes();
+        final String fileExtension = _selectedImageFile!.name.contains('.')
+            ? _selectedImageFile!.name.split('.').last
+            : 'jpg';
+
+        final uploadResult = await _uploadCompetitionImageUseCase!(
+          imageBytes: imageBytes,
+          fileExtension: fileExtension,
+          competitionId: competitionId,
+        );
+
+        uploadResult.when(
+          onSuccess: (url) {
+            imageUrl = url;
+          },
+          onFailure: (failure) {
+            _safeEmit(
+              CreateCompetitionError(
+                "Image upload failed: ${failure.message}",
+              ),
+            );
+          },
+        );
+      } catch (e) {
+        _safeEmit(CreateCompetitionError("Failed to process image file: $e"));
+      }
+
+      if (state is CreateCompetitionError) return;
+    }
+
+    // 👤 Extract current user's profile metadata
+    final String ownerName = user.displayName?.trim().isNotEmpty == true
+        ? user.displayName!
+        : 'Organizer';
+    final String? ownerAvatarUrl = user.photoURL;
 
     final competition = CompetitionEntity(
       id: competitionId,
@@ -80,6 +156,8 @@ class CreateCompetitionCubit extends Cubit<CreateCompetitionState> {
           : (maxTeams! * membersPerTeam!),
       isPublic: isPublic,
       ownerId: user.uid,
+      ownerName: ownerName,             // 👈 Passes creator's display name
+      ownerAvatarUrl: ownerAvatarUrl,   // 👈 Passes creator's avatar URL
       inviteCode: inviteCode,
       joinCode: joinCode?.trim(),
       category: category,
@@ -89,23 +167,29 @@ class CreateCompetitionCubit extends Cubit<CreateCompetitionState> {
       maxTeams: type == "team" ? maxTeams : null,
       maxTeamMembers: type == "team" ? membersPerTeam : null,
       createdAt: DateTime.now(),
-      status: "upcoming",
-      imageUrl: null,
+      status: status,
+      imageUrl: imageUrl,
+      linkUrl: linkUrl?.trim(),
       winnerId: null,
     );
 
     final result = await _createCompetitionUseCase(competition);
 
-    switch (result) {
-      case Success():
+    result.when(
+      onSuccess: (_) {
+        _selectedImageFile = null; // Clean up image reference on success
         _safeEmit(const CreateCompetitionSuccess());
-      case Failure(:final message):
-        _safeEmit(CreateCompetitionError(message));
-    }
+      },
+      onFailure: (failure) {
+        _safeEmit(CreateCompetitionError(failure.message));
+      },
+    );
   }
 
-  /// Resets the cubit state back to initial.
-  void resetState() => _safeEmit(const CreateCompetitionInitial());
+  void resetState() {
+    _selectedImageFile = null;
+    _safeEmit(const CreateCompetitionInitial());
+  }
 
   String? _validateInput({
     required String name,
@@ -131,7 +215,10 @@ class CreateCompetitionCubit extends Cubit<CreateCompetitionState> {
     }
 
     if (type == "team") {
-      if (maxTeams == null || maxTeams <= 0 || membersPerTeam == null || membersPerTeam <= 0) {
+      if (maxTeams == null ||
+          maxTeams <= 0 ||
+          membersPerTeam == null ||
+          membersPerTeam <= 0) {
         return "Valid team settings are required for team competitions";
       }
     } else {
